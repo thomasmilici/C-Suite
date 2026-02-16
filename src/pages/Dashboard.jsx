@@ -1,36 +1,12 @@
 import React from 'react';
-import { BentoGrid, BentoGridItem } from '../components/ui/BentoGrid';
-import { FocusLock } from '../components/modules/Pulse/FocusLock';
-import { RadarGraph } from '../components/modules/Radar/RadarGraph';
-import { TeamRanking } from '../components/modules/Team/TeamRanking';
-import { Compass } from '../components/modules/Compass/Compass';
-import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
-import { AccessQR } from '../components/modules/Team/AccessQR';
-import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterface';
-import { LogOut } from 'lucide-react';
-import { AuthService } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
-
-// Mock data for Radar
-const radarData = {
-    nodes: [
-        { id: 'CEO', group: 1, color: '#FFFFFF' },
-        { id: 'CTO', group: 1, color: '#E0E0E0' },
-        { id: 'CFO', group: 1, color: '#E0E0E0' },
-        { id: 'CMO', group: 1, color: '#E0E0E0' },
-        { id: 'Board', group: 2, color: '#FF0000' },
-        { id: 'Investors', group: 2, color: '#FF0000' },
-        { id: 'Key Client A', group: 3, color: '#00FF00' },
-    ],
-    links: [
-        { source: 'CEO', target: 'CTO' },
-        { source: 'CEO', target: 'CFO' },
-        { source: 'CEO', target: 'CMO' },
-        { source: 'CEO', target: 'Board' },
-        { source: 'CFO', target: 'Investors' },
-        { source: 'CMO', target: 'Key Client A' },
-    ]
-};
+import { AuthService } from '../services/authService';
+import { LogOut } from 'lucide-react';
+import { TileCompass } from '../components/tiles/TileCompass';
+import { TilePulse } from '../components/tiles/TilePulse';
+import { TileTeam } from '../components/tiles/TileTeam';
+import { TileRadar } from '../components/tiles/TileRadar';
+import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterface';
 
 export const Dashboard = ({ user }) => {
     const navigate = useNavigate();
@@ -41,79 +17,63 @@ export const Dashboard = ({ user }) => {
     };
 
     return (
-        <div className="min-h-screen bg-black p-4 md:p-8 font-sans selection:bg-zinc-800 relative">
-            <header className="max-w-7xl mx-auto mb-8 flex justify-between items-center border-b border-zinc-900 pb-4">
+        <div className="min-h-screen bg-black p-4 md:p-8 font-sans selection:bg-zinc-800 relative text-gray-200">
+            {/* Header */}
+            <header className="max-w-7xl mx-auto mb-6 flex justify-between items-center border-b border-zinc-900 pb-4">
                 <div>
                     <h1 className="text-xl font-mono font-bold tracking-tighter text-white">
-                        QUINTA <span className="text-gray-600">OS</span>
+                        QUINTA <span className="text-zinc-600">OS</span>
                     </h1>
-                    <p className="text-xs text-gray-500 font-mono mt-1 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        SYSTEM ONLINE • v.3.0.0
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                        <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
+                            System Online • v4.0.0
+                        </p>
+                    </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs font-mono">
-                    <div className="text-gray-600">Operator: <span className="text-white uppercase">{user?.displayName || 'Unknown'}</span></div>
-                    <button onClick={handleLogout} className="text-red-500 hover:text-red-400 transition-colors flex items-center gap-1">
-                        <LogOut className="w-3 h-3" /> Logout
+                <div className="flex items-center gap-6 text-xs font-mono">
+                    <div className="text-zinc-500">
+                        OPERATOR: <span className="text-white uppercase border-b border-zinc-800 pb-0.5">{user?.displayName || 'Unknown'}</span>
+                    </div>
+                    <button onClick={handleLogout} className="text-red-900 hover:text-red-500 transition-colors flex items-center gap-2 group">
+                        <span className="hidden md:inline group-hover:underline">TERMINATE SESSION</span>
+                        <LogOut className="w-3 h-3" />
                     </button>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto pb-12">
-                <BentoGrid className="md:auto-rows-[22rem]">
-                    {/* The Compass - Strategy */}
-                    <BentoGridItem
-                        title="The Compass"
-                        description="Strategic Alignment & OKR Tracking"
-                        header={<Compass />}
-                        className="md:col-span-1"
-                    />
+            {/* Main Bento Grid */}
+            <main className="max-w-7xl mx-auto pb-20">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[250px]">
 
-                    {/* The Pulse - Daily Ops */}
-                    <BentoGridItem
-                        title="The Pulse"
-                        description="Daily Focus & Priority Lock"
-                        header={<FocusLock />}
-                        className="md:col-span-1"
-                    />
+                    {/* Tile 1: Compass (Top-Left, Wide) -> Span 2 */}
+                    <div className="md:col-span-2 md:row-span-1 bg-zinc-950/30 backdrop-blur-md border border-zinc-800/60 rounded-xl overflow-hidden hover:border-zinc-700 transition-colors">
+                        <TileCompass />
+                    </div>
 
-                    {/* The Radar - Stakeholders */}
-                    <BentoGridItem
-                        title="The Radar"
-                        description="Stakeholder Intelligence Network"
-                        header={<RadarGraph data={radarData} />}
-                        className="md:col-span-1"
-                    />
+                    {/* Tile 3: Team (Right, Tall) -> Span 1, Row 2 */}
+                    <div className="md:col-span-1 md:row-span-2 bg-zinc-950/30 backdrop-blur-md border border-zinc-800/60 rounded-xl overflow-hidden hover:border-zinc-700 transition-colors">
+                        <TileTeam />
+                    </div>
 
-                    {/* The Briefing Room - Outcomes */}
-                    <BentoGridItem
-                        title="Briefing Room"
-                        description="Decision Logs & Outcomes"
-                        header={<BriefingRoom />}
-                        className="md:col-span-1"
-                    />
+                    {/* Tile 2: Pulse (Middle, Square-ish) -> Span 2 */}
+                    <div className="md:col-span-2 md:row-span-1 bg-zinc-950/30 backdrop-blur-md border border-zinc-800/60 rounded-xl overflow-hidden hover:border-zinc-700 transition-colors">
+                        <TilePulse />
+                    </div>
 
-                    {/* Team Ranking - Gamified Leadership */}
-                    <BentoGridItem
-                        title="Tactical Team"
-                        description="Live Agent Performance Ranking"
-                        header={<TeamRanking />}
-                        className="md:col-span-1"
-                    />
+                    {/* Tile 4: Radar (Bottom, Wide) -> Span 3 */}
+                    <div className="md:col-span-3 md:row-span-1 bg-zinc-950/30 backdrop-blur-md border border-zinc-800/60 rounded-xl overflow-hidden hover:border-zinc-700 transition-colors">
+                        <TileRadar />
+                    </div>
 
-                    {/* Access QR - Onboarding */}
-                    <BentoGridItem
-                        title="Access Protocol"
-                        description="Secure Onboarding & Auth Token"
-                        header={<AccessQR />}
-                        className="md:col-span-1"
-                    />
-                </BentoGrid>
+                </div>
             </main>
 
-            {/* Shadow CoS AI */}
+            {/* Shadow CoS AI Overlay */}
             <NeuralInterface />
+
+            {/* Background Decor */}
+            <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 bg-[radial-gradient(circle_at_50%_50%,rgba(20,20,20,1)_0%,rgba(0,0,0,1)_100%)]" />
         </div>
     );
 };

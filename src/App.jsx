@@ -20,7 +20,7 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-green-500 font-mono animate-pulse">
+        <div className="text-green-500 font-mono animate-pulse tracking-widest text-xs">
           INITIALIZING QUINTA PROTOCOL...
         </div>
       </div>
@@ -30,8 +30,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-        <Route path="/" element={user ? <Dashboard user={user} /> : <Navigate to="/login" />} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+        <Route path="/dashboard" element={user ? <Dashboard user={user} /> : <Navigate to="/login" />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         {/* <Route path="/join/:token" element={<Join />} /> */}
       </Routes>
     </BrowserRouter>
