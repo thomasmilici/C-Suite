@@ -1,11 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { BrainCircuit, X, Send, Bot } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Send, Bot, Sparkles, BrainCircuit } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../../firebase';
+import ReactMarkdown from 'react-markdown';
 
-export const NeuralInterface = () => {
-    const [isOpen, setIsOpen] = useState(false);
+export const NeuralInterface = ({ onClose }) => {
     const [messages, setMessages] = useState([
-        { id: 1, type: 'ai', text: 'Shadow CoS Online. Strategic alignment at 78%. Awaiting query.' }
+        { id: 1, type: 'ai', text: '**Shadow CoS Online.**  \nSystem operational. Awaiting strategic query.' }
     ]);
     const [input, setInput] = useState("");
     const [isThinking, setIsThinking] = useState(false);
@@ -25,99 +27,115 @@ export const NeuralInterface = () => {
         setInput("");
         setIsThinking(true);
 
-        // Simulation of Cloud Function call
-        // const response = await httpsCallable(functions, 'askShadowCoS')({ query: input });
+        try {
+            // Real Cloud Function Call
+            const askShadow = httpsCallable(functions, 'askShadowCoS');
+            const result = await askShadow({ query: input });
+            const aiResponse = result.data.data; // adjust based on function return structure
 
-        setTimeout(() => {
-            setIsThinking(false);
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
                 type: 'ai',
-                text: "Evaluating strategic impact... [Simulated Response: This action aligns with OKR #2 but carries risk in resource allocation.]"
+                text: aiResponse || "Analysis incomplete. Try clarifying intent."
             }]);
-        }, 1500);
+        } catch (error) {
+            console.error("AI Error:", error);
+            // Simulated Fallback for demo/dev
+            setTimeout(() => {
+                setMessages(prev => [...prev, {
+                    id: Date.now() + 1,
+                    type: 'ai',
+                    text: "Connection to Neural Core unstable (Simulated).  \n*Recommendation*: Review OKR alignment regarding recent market shifts."
+                }]);
+            }, 1500);
+        } finally {
+            setIsThinking(false);
+        }
     };
 
     return (
-        <>
-            {/* FAB */}
-            <button
-                onClick={() => setIsOpen(true)}
-                className={cn(
-                    "fixed bottom-8 right-8 w-12 h-12 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center text-white shadow-2xl hover:scale-110 transition-transform z-50 group",
-                    isOpen && "hidden"
-                )}
-            >
-                <div className="absolute inset-0 bg-purple-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
-                <BrainCircuit className="w-6 h-6 z-10" />
-            </button>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:justify-end sm:p-8 pointer-events-none">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto" onClick={onClose} />
 
-            {/* Interface Modal */}
-            {isOpen && (
-                <div className="fixed bottom-8 right-8 w-80 md:w-96 h-[500px] bg-black border border-zinc-800 rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
-                    {/* Header */}
-                    <div className="p-4 bg-zinc-950 border-b border-zinc-800 flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded bg-zinc-900 flex items-center justify-center border border-zinc-800">
-                                <Bot className="w-5 h-5 text-purple-400" />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-gray-200 font-mono">SHADOW CoS</h3>
-                                <p className="text-[10px] text-green-500 flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                                    NEURAL LINK ACTIVE
-                                </p>
+            <motion.div
+                initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 50, scale: 0.95 }}
+                className="w-full sm:w-[500px] h-[80vh] sm:h-[600px] bg-zinc-950 border border-zinc-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto relative"
+            >
+                {/* Header */}
+                <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                            <BrainCircuit className="w-5 h-5 text-indigo-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-white font-mono tracking-wide">SHADOW CoS</h3>
+                            <div className="flex items-center gap-1.5">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                                </span>
+                                <span className="text-[10px] text-zinc-400 font-mono">NEURAL UPLINK ACTIVE</span>
                             </div>
                         </div>
-                        <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-white transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
                     </div>
+                    <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-500 hover:text-white">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
 
-                    {/* Chat Area */}
-                    <div className="flex-grow bg-black p-4 overflow-y-auto space-y-4 font-mono text-sm" ref={scrollRef}>
-                        {messages.map((msg) => (
-                            <div key={msg.id} className={cn("flex", msg.type === 'user' ? "justify-end" : "justify-start")}>
-                                <div className={cn(
-                                    "max-w-[85%] p-3 rounded-lg border",
-                                    msg.type === 'user'
-                                        ? "bg-zinc-900 border-zinc-800 text-gray-200 rounded-tr-none"
-                                        : "bg-purple-900/10 border-purple-500/20 text-purple-200 rounded-tl-none"
-                                )}>
-                                    {msg.text}
-                                </div>
+                {/* Chat Area */}
+                <div className="flex-grow bg-black/50 p-6 overflow-y-auto space-y-6 scrollbar-thin scrollbar-thumb-zinc-800" ref={scrollRef}>
+                    {messages.map((msg) => (
+                        <div key={msg.id} className={`flex ${msg.type === 'user' ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[85%] p-4 rounded-xl text-sm leading-relaxed ${msg.type === 'user'
+                                    ? "bg-zinc-800/80 text-white rounded-tr-sm"
+                                    : "bg-indigo-900/10 border border-indigo-500/10 text-zinc-300 rounded-tl-sm"
+                                }`}>
+                                {msg.type === 'ai' ? (
+                                    <ReactMarkdown className="prose prose-invert prose-sm">
+                                        {msg.text}
+                                    </ReactMarkdown>
+                                ) : (
+                                    msg.text
+                                )}
                             </div>
-                        ))}
-                        {isThinking && (
-                            <div className="flex justify-start">
-                                <div className="bg-purple-900/10 border border-purple-500/20 text-purple-200 p-3 rounded-lg rounded-tl-none flex items-center gap-1">
-                                    <span className="w-1 h-1 bg-purple-400 rounded-full animate-bounce"></span>
-                                    <span className="w-1 h-1 bg-purple-400 rounded-full animate-bounce delay-100"></span>
-                                    <span className="w-1 h-1 bg-purple-400 rounded-full animate-bounce delay-200"></span>
-                                </div>
+                        </div>
+                    ))}
+                    {isThinking && (
+                        <div className="flex justify-start">
+                            <div className="bg-indigo-900/10 border border-indigo-500/10 p-4 rounded-xl rounded-tl-sm flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-indigo-400 animate-spin" />
+                                <span className="text-xs text-indigo-300 font-mono animate-pulse">Computing Strategy...</span>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
+                </div>
 
-                    {/* Input Area */}
-                    <div className="p-4 bg-zinc-950 border-t border-zinc-800 relative">
+                {/* Input Area */}
+                <div className="p-4 bg-zinc-900/50 border-t border-zinc-800">
+                    <div className="relative flex items-center">
                         <input
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                            placeholder="Interrogate System..."
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 pr-10 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono"
+                            placeholder="Ask for strategic analysis..."
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-4 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono placeholder:text-zinc-600"
+                            autoFocus
                         />
                         <button
                             onClick={handleSend}
-                            className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-500 hover:text-purple-400 transition-colors"
+                            disabled={!input.trim() || isThinking}
+                            className="absolute right-2 p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Send className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
-            )}
-        </>
+            </motion.div>
+        </div>
     );
 };
