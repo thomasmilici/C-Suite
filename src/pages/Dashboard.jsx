@@ -7,6 +7,8 @@ import { TilePulse } from '../components/tiles/TilePulse';
 import { TileTeam } from '../components/tiles/TileTeam';
 import { TileRadar } from '../components/tiles/TileRadar';
 import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterface';
+import { OKRManager } from '../components/modals/OKRManager';
+import { SignalInput } from '../components/modals/SignalInput';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -14,6 +16,9 @@ export const Dashboard = ({ user }) => {
     const navigate = useNavigate();
     const [isAdmin, setIsAdmin] = useState(false);
     const [showNeural, setShowNeural] = useState(false);
+    const [showSignalModal, setShowSignalModal] = useState(false);
+    const [showOKRModal, setShowOKRModal] = useState(false);
+    const [selectedOKR, setSelectedOKR] = useState(null);
 
     useEffect(() => {
         const checkRole = async () => {
@@ -74,18 +79,18 @@ export const Dashboard = ({ user }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[minmax(320px,auto)]">
 
                     {/* Tile 1: Compass */}
-                    <div className="md:col-span-2 md:row-span-1 rounded-2xl overflow-hidden
-                        bg-white/[0.03] backdrop-blur-2xl
+                    <div className="md:col-span-2 md:row-span-1 rounded-2xl
+                        bg-white/[0.03]
                         border border-white/[0.07]
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
                         transition-all duration-300">
-                        <TileCompass isAdmin={isAdmin} />
+                        <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} />
                     </div>
 
                     {/* Tile 3: Team (Right, Tall) */}
-                    <div className="md:col-span-1 md:row-span-2 rounded-2xl overflow-hidden flex flex-col
-                        bg-white/[0.03] backdrop-blur-2xl
+                    <div className="md:col-span-1 md:row-span-2 rounded-2xl flex flex-col
+                        bg-white/[0.03]
                         border border-white/[0.07]
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
@@ -94,8 +99,8 @@ export const Dashboard = ({ user }) => {
                     </div>
 
                     {/* Tile 2: Pulse */}
-                    <div className="md:col-span-2 md:row-span-1 rounded-2xl overflow-hidden
-                        bg-white/[0.03] backdrop-blur-2xl
+                    <div className="md:col-span-2 md:row-span-1 rounded-2xl
+                        bg-white/[0.03]
                         border border-white/[0.07]
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
@@ -104,13 +109,13 @@ export const Dashboard = ({ user }) => {
                     </div>
 
                     {/* Tile 4: Radar (Full Width) */}
-                    <div className="md:col-span-3 rounded-2xl overflow-hidden min-h-[300px]
-                        bg-white/[0.03] backdrop-blur-2xl
+                    <div className="md:col-span-3 rounded-2xl min-h-[300px]
+                        bg-white/[0.03]
                         border border-white/[0.07]
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
                         transition-all duration-300">
-                        <TileRadar isAdmin={isAdmin} />
+                        <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
                     </div>
 
                 </div>
@@ -132,6 +137,8 @@ export const Dashboard = ({ user }) => {
             </button>
 
             {showNeural && <NeuralInterface onClose={() => setShowNeural(false)} />}
+            {showSignalModal && <SignalInput onClose={() => setShowSignalModal(false)} />}
+            {showOKRModal && <OKRManager onClose={() => setShowOKRModal(false)} existingOKR={selectedOKR} />}
 
         </div>
     );

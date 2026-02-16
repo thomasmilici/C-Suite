@@ -3,12 +3,9 @@ import { Compass, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { OKRManager } from '../modals/OKRManager';
 
-export const TileCompass = ({ isAdmin }) => {
+export const TileCompass = ({ isAdmin, onOpenModal }) => {
     const [okrs, setOkrs] = useState([]);
-    const [showModal, setShowModal] = useState(false);
-    const [selectedOKR, setSelectedOKR] = useState(null);
 
     useEffect(() => {
         const q = query(collection(db, "okrs"), orderBy("createdAt", "desc"));
@@ -20,14 +17,12 @@ export const TileCompass = ({ isAdmin }) => {
 
     const handleEdit = (okr) => {
         if (!isAdmin) return;
-        setSelectedOKR(okr);
-        setShowModal(true);
+        onOpenModal(okr);
     };
 
     const handleAdd = (e) => {
         e.stopPropagation();
-        setSelectedOKR(null);
-        setShowModal(true);
+        onOpenModal(null);
     }
 
     return (
@@ -86,7 +81,6 @@ export const TileCompass = ({ isAdmin }) => {
                 )}
             </div>
 
-            {showModal && <OKRManager onClose={() => setShowModal(false)} existingOKR={selectedOKR} />}
         </div>
     );
 };

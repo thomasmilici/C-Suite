@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Radar, Radio, Plus } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { SignalInput } from '../modals/SignalInput';
 
-export const TileRadar = ({ isAdmin }) => {
+export const TileRadar = ({ isAdmin, onOpenModal }) => {
     const [signals, setSignals] = useState([]);
-    const [showModal, setShowModal] = useState(false);
 
     useEffect(() => {
         const q = query(collection(db, "signals"), orderBy("createdAt", "desc"), limit(6));
@@ -29,7 +27,7 @@ export const TileRadar = ({ isAdmin }) => {
                 </h3>
                 {isAdmin && (
                     <button
-                        onClick={() => setShowModal(true)}
+                        onClick={onOpenModal}
                         className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/10 hover:border-white/20 z-20 relative"
                     >
                         <Plus className="w-3 h-3" />
@@ -66,7 +64,6 @@ export const TileRadar = ({ isAdmin }) => {
                 <div className="w-[200%] h-[200%] absolute -top-1/2 -left-1/2 bg-[conic-gradient(from_0deg,transparent_0deg,transparent_300deg,#22c55e_360deg)] animate-spin-slow rounded-full opacity-[0.03]" />
             </div>
 
-            {showModal && <SignalInput onClose={() => setShowModal(false)} />}
         </div>
     );
 };
