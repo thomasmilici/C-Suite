@@ -6,6 +6,7 @@ import { auth, db } from './firebase';
 import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
 import { Admin } from './pages/Admin';
+import { Join } from './pages/Join';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const [user, setUser] = useState(auth.currentUser);
@@ -32,7 +33,6 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
   if (requiredRole && role !== requiredRole) {
-    // unauthorized
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -52,13 +52,15 @@ function App() {
   }, []);
 
   if (loading) {
-    return <div className="min-h-screen bg-black" />; // Initial flicker prevention
+    return <div className="min-h-screen bg-black" />;
   }
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+
+        <Route path="/join/:token" element={<Join />} />
 
         <Route
           path="/dashboard"
