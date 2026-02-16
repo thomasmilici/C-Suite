@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, QrCode, Clipboard } from 'lucide-react';
+import { Shield, Users, QrCode, Clipboard, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { InviteService } from '../services/inviteService';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export const Admin = () => {
@@ -12,18 +12,19 @@ export const Admin = () => {
     const [roster, setRoster] = useState([]);
     const [loadingRoster, setLoadingRoster] = useState(true);
 
+    const fetchRoster = async () => {
+        try {
+            const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
+            const snapshot = await getDocs(q);
+            setRoster(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } catch (error) {
+            console.error("Error fetching roster:", error);
+        } finally {
+            setLoadingRoster(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchRoster = async () => {
-            try {
-                const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
-                const snapshot = await getDocs(q);
-                setRoster(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            } catch (error) {
-                console.error("Error fetching roster:", error);
-            } finally {
-                setLoadingRoster(false);
-            }
-        };
         fetchRoster();
     }, []);
 
@@ -44,6 +45,20 @@ export const Admin = () => {
             const url = `${window.location.origin}/join/${activeToken}`;
             navigator.clipboard.writeText(url);
             alert("Invite URL copied to clipboard!");
+        }
+    };
+
+    const toggleRole = async (userId, currentRole) => {
+        if (!window.confirm(`Change role for this user? Current: ${currentRole || 'MEMBER'}`)) return;
+
+        const newRole = currentRole === 'ADMIN' ? 'member' : 'ADMIN';
+        try {
+            await updateDoc(doc(db, "users", userId), { role: newRole });
+            // Optimistic update or refetch
+            setRoster(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+        } catch (e) {
+            console.error("Error changing role:", e);
+            alert("Failed to update role");
         }
     };
 
@@ -121,12 +136,18 @@ export const Admin = () => {
                                             <p className="text-[10px] text-zinc-500">{user.email}</p>
                                         </div>
                                     </div>
-                                    <span className={`text-[10px] px-2 py-0.5 rounded border ${user.role === 'ADMIN'
-                                            ? 'border-red-900/50 bg-red-900/10 text-red-500'
-                                            : 'border-blue-900/50 bg-blue-900/10 text-blue-500'
-                                        }`}>
+
+                                    <button
+                                        onClick={() => toggleRole(user.id, user.role)}
+                                        className={`text-[10px] px-2 py-0.5 rounded border flex items-center gap-1 transition-colors ${user.role === 'ADMIN'
+                                                ? 'border-red-900/50 bg-red-900/10 text-red-500 hover:bg-red-900/20'
+                                                : 'border-blue-900/50 bg-blue-900/10 text-blue-500 hover:bg-blue-900/20'
+                                            }`}
+                                        title="Click to toggle Role"
+                                    >
                                         {user.role || 'MEMBER'}
-                                    </span>
+                                        {user.role === 'ADMIN' ? <ArrowDownCircle className="w-3 h-3" /> : <ArrowUpCircle className="w-3 h-3" />}
+                                    </button>
                                 </div>
                             ))}
                         </div>

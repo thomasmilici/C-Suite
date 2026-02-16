@@ -71,7 +71,7 @@ export const Dashboard = ({ user }) => {
 
                     {/* Tile 1: Compass (Top-Left, Wide) -> Strategy & OKRs */}
                     <div className="md:col-span-2 md:row-span-1 bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors shadow-lg">
-                        <TileCompass />
+                        <TileCompass isAdmin={isAdmin} />
                     </div>
 
                     {/* Tile 3: Team (Right, Tall) -> Leaderboard */}
@@ -86,7 +86,7 @@ export const Dashboard = ({ user }) => {
 
                     {/* Tile 4: Radar (Bottom, Wide) -> Signals */}
                     <div className="md:col-span-3 md:row-span-1 bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors shadow-lg min-h-[220px]">
-                        <TileRadar />
+                        <TileRadar isAdmin={isAdmin} />
                     </div>
 
                 </div>
