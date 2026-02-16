@@ -20,15 +20,18 @@ export const TileTeam = () => {
     }, []);
 
     return (
-        <div className="h-full flex flex-col p-6 relative">
+        <div className="h-full flex flex-col p-7 relative">
+            {/* Subtle top highlight line */}
+            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-yellow-500" /> Active Agents
+                    <Trophy className="w-3.5 h-3.5 text-yellow-400" /> Active Agents
                 </h3>
-                <Activity className="w-4 h-4 text-green-500 animate-pulse" />
+                <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
             </div>
 
-            <div className="flex-grow space-y-3 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-800">
+            <div className="flex-grow space-y-2.5 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/5">
                 <AnimatePresence>
                     {team.map((member) => (
                         <motion.div
@@ -37,10 +40,10 @@ export const TileTeam = () => {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0 }}
-                            className="flex items-center justify-between p-3 bg-zinc-900/40 border border-zinc-800 rounded hover:border-zinc-600 transition-colors group"
+                            className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.12] transition-all group"
                         >
                             <div className="flex items-center gap-3">
-                                <span className={`text-xs font-mono w-4 ${member.rank === 1 ? 'text-yellow-400' : 'text-zinc-600'}`}>
+                                <span className={`text-xs font-mono w-5 text-center ${member.rank === 1 ? 'text-yellow-400' : 'text-zinc-600'}`}>
                                     {member.rank < 10 ? `0${member.rank}` : member.rank}
                                 </span>
                                 <div className="flex flex-col">
@@ -57,7 +60,7 @@ export const TileTeam = () => {
                                 <span className="text-sm font-mono font-bold text-white">
                                     {member.rank_score}
                                 </span>
-                                <div className="flex items-center text-[10px] text-green-500">
+                                <div className="flex items-center text-[10px] text-emerald-500">
                                     <ChevronUp className="w-3 h-3" />
                                     <span>2.4%</span>
                                 </div>
@@ -67,8 +70,7 @@ export const TileTeam = () => {
                 </AnimatePresence>
             </div>
 
-            {/* Decorative Background Element */}
-            <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-zinc-800/10 to-transparent rounded-tl-full pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-gradient-to-tl from-yellow-500/[0.03] to-transparent rounded-tl-full pointer-events-none" />
         </div>
     );
 };

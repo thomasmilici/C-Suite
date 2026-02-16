@@ -33,12 +33,16 @@ export const Dashboard = ({ user }) => {
     };
 
     return (
-        <div className="min-h-screen bg-black p-4 md:p-8 font-sans selection:bg-zinc-800 relative text-gray-200 overflow-x-hidden">
+        <div className="min-h-screen bg-[#050508] p-4 md:p-6 font-sans selection:bg-zinc-800 relative text-gray-200 overflow-x-hidden">
             {/* Background Decor */}
-            <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 bg-[radial-gradient(circle_at_50%_50%,rgba(20,20,20,1)_0%,rgba(0,0,0,1)_100%)]" />
+            <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(99,102,241,0.07)_0%,transparent_60%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_80%,rgba(20,184,166,0.05)_0%,transparent_60%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.02)_0%,transparent_50%)]" />
+            </div>
 
             {/* Header */}
-            <header className="max-w-7xl mx-auto mb-6 flex justify-between items-center border-b border-zinc-900 pb-4 backdrop-blur-sm sticky top-0 z-20 bg-black/50">
+            <header className="max-w-screen-2xl mx-auto mb-6 flex justify-between items-center border-b border-white/5 pb-4 sticky top-0 z-20 bg-[#050508]/70 backdrop-blur-xl">
                 <div>
                     <h1 className="text-xl font-mono font-bold tracking-tighter text-white">
                         QUINTA <span className="text-zinc-600">OS</span>
@@ -52,55 +56,81 @@ export const Dashboard = ({ user }) => {
                 </div>
                 <div className="flex items-center gap-6 text-xs font-mono">
                     {isAdmin && (
-                        <button onClick={() => navigate('/admin')} className="text-red-500 hover:text-red-400 flex items-center gap-1 border border-red-900/50 bg-red-900/10 px-2 py-1 rounded transition-colors">
+                        <button onClick={() => navigate('/admin')} className="text-red-400 hover:text-red-300 flex items-center gap-1.5 border border-red-900/50 bg-red-900/10 px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
                             <Shield className="w-3 h-3" /> ADMIN
                         </button>
                     )}
                     <div className="text-zinc-500 hidden sm:block">
-                        OP: <span className="text-white uppercase border-b border-zinc-800 pb-0.5">{user?.displayName || 'Unknown'}</span>
+                        OP: <span className="text-white uppercase">{user?.displayName || 'Unknown'}</span>
                     </div>
-                    <button onClick={handleLogout} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 group">
+                    <button onClick={handleLogout} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2">
                         <LogOut className="w-4 h-4" />
                     </button>
                 </div>
             </header>
 
             {/* Main Bento Grid */}
-            <main className="max-w-7xl mx-auto pb-24 relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[minmax(200px,auto)]">
+            <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[minmax(320px,auto)]">
 
-                    {/* Tile 1: Compass (Top-Left, Wide) -> Strategy & OKRs */}
-                    <div className="md:col-span-2 md:row-span-1 bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors shadow-lg">
+                    {/* Tile 1: Compass */}
+                    <div className="md:col-span-2 md:row-span-1 rounded-2xl overflow-hidden
+                        bg-white/[0.03] backdrop-blur-2xl
+                        border border-white/[0.07]
+                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
+                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
+                        transition-all duration-300">
                         <TileCompass isAdmin={isAdmin} />
                     </div>
 
-                    {/* Tile 3: Team (Right, Tall) -> Leaderboard */}
-                    <div className="md:col-span-1 md:row-span-2 bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors shadow-lg flex flex-col">
+                    {/* Tile 3: Team (Right, Tall) */}
+                    <div className="md:col-span-1 md:row-span-2 rounded-2xl overflow-hidden flex flex-col
+                        bg-white/[0.03] backdrop-blur-2xl
+                        border border-white/[0.07]
+                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
+                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
+                        transition-all duration-300">
                         <TileTeam />
                     </div>
 
-                    {/* Tile 2: Pulse (Middle, Square-ish) -> Focus */}
-                    <div className="md:col-span-2 md:row-span-1 bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors shadow-lg">
+                    {/* Tile 2: Pulse */}
+                    <div className="md:col-span-2 md:row-span-1 rounded-2xl overflow-hidden
+                        bg-white/[0.03] backdrop-blur-2xl
+                        border border-white/[0.07]
+                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
+                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
+                        transition-all duration-300">
                         <TilePulse />
                     </div>
 
-                    {/* Tile 4: Radar (Bottom, Wide) -> Signals */}
-                    <div className="md:col-span-3 md:row-span-1 bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors shadow-lg min-h-[220px]">
+                    {/* Tile 4: Radar (Full Width) */}
+                    <div className="md:col-span-3 rounded-2xl overflow-hidden min-h-[300px]
+                        bg-white/[0.03] backdrop-blur-2xl
+                        border border-white/[0.07]
+                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
+                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
+                        transition-all duration-300">
                         <TileRadar isAdmin={isAdmin} />
                     </div>
 
                 </div>
             </main>
 
-            {/* Shadow CoS AI Overlay Toggle (FAB) */}
+            {/* Shadow CoS AI FAB */}
             <button
                 onClick={() => setShowNeural(true)}
-                className="fixed bottom-8 right-8 w-14 h-14 bg-zinc-100 hover:bg-white text-black rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] flex items-center justify-center z-50 transition-transform hover:scale-110 active:scale-95"
+                className="fixed bottom-8 right-8 w-14 h-14
+                    bg-white/10 hover:bg-white/20 backdrop-blur-xl
+                    border border-white/20 hover:border-white/40
+                    text-white rounded-full
+                    shadow-[0_0_30px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.5)]
+                    hover:shadow-[0_0_40px_rgba(255,255,255,0.18)]
+                    flex items-center justify-center z-50
+                    transition-all duration-300 hover:scale-110 active:scale-95"
             >
                 <Sparkles className="w-6 h-6" />
             </button>
 
-            {/* Neural Interface Overlay */}
             {showNeural && <NeuralInterface onClose={() => setShowNeural(false)} />}
 
         </div>
