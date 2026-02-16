@@ -57,8 +57,7 @@ exports.askShadowCoS = onCall({
         const { okrs, signals, pulse } = await fetchContext();
         logger.info(`Context: ${okrs.length} OKRs, ${signals.length} Signals, ${pulse.length} Pulse items`);
 
-        const systemPrompt = `
-Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS — un assistente strategico intelligente, diretto e umano.
+        const systemInstruction = `Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS — un assistente strategico intelligente, diretto e umano.
 
 REGOLE DI COMPORTAMENTO:
 - Rispondi SEMPRE nella stessa lingua dell'utente (italiano se scrive in italiano, inglese se scrive in inglese).
@@ -66,19 +65,29 @@ REGOLE DI COMPORTAMENTO:
 - Se il messaggio è un saluto o conversazionale (es. "ciao", "come stai"), rispondi in modo naturale e breve, poi offri il tuo aiuto strategico.
 - Quando hai dati di contesto rilevanti, usali per dare insight proattivi.
 - Il tuo stile è da CoS di alto livello: assertivo, preciso, orientato all'azione.
+- Ricorda il contesto della conversazione precedente e costruisci su di esso.
 
 CONTESTO OPERATIVO CORRENTE:
 - OKR Strategici: ${okrs.length > 0 ? JSON.stringify(okrs) : 'Nessun OKR attivo'}
 - Segnali di Rischio: ${signals.length > 0 ? JSON.stringify(signals) : 'Nessun segnale rilevato'}
-- Focus del Giorno: ${pulse.length > 0 ? JSON.stringify(pulse) : 'Nessun focus impostato oggi'}
+- Focus del Giorno: ${pulse.length > 0 ? JSON.stringify(pulse) : 'Nessun focus impostato oggi'}`;
 
-MESSAGGIO UTENTE: "${query}"
-`;
-
-        logger.info("Calling Gemini API...");
+        logger.info("Calling Gemini API (multi-turn)...");
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-        const result = await model.generateContent(systemPrompt);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash",
+            systemInstruction,
+        });
+
+        // Build chat history from previous turns
+        const { history = [] } = request.data;
+        const chatHistory = history.map(h => ({
+            role: h.role, // 'user' or 'model'
+            parts: [{ text: h.text }],
+        }));
+
+        const chat = model.startChat({ history: chatHistory });
+        const result = await chat.sendMessage(query);
         const text = result.response.text();
 
         logger.info("Gemini Success. Length:", text.length);

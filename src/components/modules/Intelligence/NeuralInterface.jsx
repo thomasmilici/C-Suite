@@ -23,15 +23,20 @@ export const NeuralInterface = ({ onClose }) => {
         if (!input.trim()) return;
 
         const userMsg = { id: Date.now(), type: 'user', text: input };
-        setMessages(prev => [...prev, userMsg]);
+        const currentMessages = [...messages, userMsg];
+        setMessages(currentMessages);
         setInput("");
         setIsThinking(true);
 
+        // Build history: all messages except the initial AI greeting and the current user msg
+        const history = currentMessages
+            .slice(1, -1) // skip initial greeting and current user msg
+            .map(m => ({ role: m.type === 'user' ? 'user' : 'model', text: m.text }));
+
         try {
-            // Real Cloud Function Call
             const askShadow = httpsCallable(functions, 'askShadowCoS');
-            const result = await askShadow({ query: input });
-            const aiResponse = result.data.data; // adjust based on function return structure
+            const result = await askShadow({ query: input, history });
+            const aiResponse = result.data.data;
 
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
@@ -40,14 +45,11 @@ export const NeuralInterface = ({ onClose }) => {
             }]);
         } catch (error) {
             console.error("AI Error:", error);
-            // Simulated Fallback for demo/dev
-            setTimeout(() => {
-                setMessages(prev => [...prev, {
-                    id: Date.now() + 1,
-                    type: 'ai',
-                    text: "Connection to Neural Core unstable (Simulated).  \n*Recommendation*: Review OKR alignment regarding recent market shifts."
-                }]);
-            }, 1500);
+            setMessages(prev => [...prev, {
+                id: Date.now() + 1,
+                type: 'ai',
+                text: "Neural link unstable. Retry or check connection."
+            }]);
         } finally {
             setIsThinking(false);
         }

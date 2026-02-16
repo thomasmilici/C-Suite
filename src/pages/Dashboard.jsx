@@ -133,7 +133,7 @@ export const Dashboard = ({ user }) => {
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
                         transition-all duration-300">
-                        <BriefingRoom />
+                        <BriefingRoom isAdmin={isAdmin} />
                     </div>
 
                 </div>
