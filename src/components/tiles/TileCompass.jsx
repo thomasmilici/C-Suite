@@ -12,7 +12,7 @@ export const TileCompass = ({ isAdmin, onOpenModal }) => {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             setOkrs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
-        return () => unsubscrbe();
+        return () => unsubscribe();
     }, []);
 
     const handleEdit = (okr) => {
@@ -61,9 +61,16 @@ export const TileCompass = ({ isAdmin, onOpenModal }) => {
                     >
                         <div className="flex justify-between items-end mb-2">
                             <span className="text-sm text-zinc-200 font-mono truncate w-3/4 group-hover:text-white transition-colors">{okr.title}</span>
-                            <span className={`text-xs font-bold font-mono ${okr.status === 'risk' ? 'text-red-400' : 'text-emerald-400'}`}>
-                                {okr.progress}%
-                            </span>
+                            <div className="flex items-center gap-2">
+                                {okr.keyResults?.length > 0 && (
+                                    <span className="text-[10px] font-mono text-zinc-600">
+                                        {okr.keyResults.filter(kr => kr.completed).length}/{okr.keyResults.length} KR
+                                    </span>
+                                )}
+                                <span className={`text-xs font-bold font-mono ${okr.status === 'risk' ? 'text-red-400' : 'text-emerald-400'}`}>
+                                    {okr.progress}%
+                                </span>
+                            </div>
                         </div>
                         <div className="h-1.5 w-full bg-white/5 overflow-hidden rounded-full">
                             <motion.div

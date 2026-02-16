@@ -8,6 +8,8 @@ import { TilePulse } from '../components/tiles/TilePulse';
 import { TileTeam } from '../components/tiles/TileTeam';
 import { TileRadar } from '../components/tiles/TileRadar';
 import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterface';
+import { ProactiveAlerts } from '../components/modules/Intelligence/ProactiveAlerts';
+import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
 import { OKRManager } from '../components/modals/OKRManager';
 import { SignalInput } from '../components/modals/SignalInput';
 import { doc, getDoc } from 'firebase/firestore';
@@ -75,8 +77,13 @@ export const Dashboard = ({ user }) => {
                 </div>
             </header>
 
-            {/* Main Bento Grid */}
+            {/* Main Content */}
             <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
+
+                {/* Proactive Alerts */}
+                <ProactiveAlerts />
+
+                {/* Bento Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[minmax(320px,auto)]">
 
                     {/* Tile 1: Compass */}
@@ -117,6 +124,16 @@ export const Dashboard = ({ user }) => {
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
                         transition-all duration-300">
                         <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
+                    </div>
+
+                    {/* Tile 5: Briefing Room (Full Width) */}
+                    <div className="md:col-span-3 rounded-2xl min-h-[340px]
+                        bg-white/[0.03]
+                        border border-white/[0.07]
+                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
+                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
+                        transition-all duration-300">
+                        <BriefingRoom />
                     </div>
 
                 </div>
