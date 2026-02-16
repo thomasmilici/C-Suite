@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/authService';
 import { LogOut, Shield, Sparkles } from 'lucide-react';
@@ -38,7 +39,7 @@ export const Dashboard = ({ user }) => {
     };
 
     return (
-        <div className="min-h-screen bg-[#050508] p-4 md:p-6 font-sans selection:bg-zinc-800 relative text-gray-200 overflow-x-hidden">
+        <div className="min-h-screen bg-[#050508] p-4 md:p-6 font-sans selection:bg-zinc-800 relative text-gray-200">
             {/* Background Decor */}
             <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(99,102,241,0.07)_0%,transparent_60%)]" />
@@ -137,8 +138,8 @@ export const Dashboard = ({ user }) => {
             </button>
 
             {showNeural && <NeuralInterface onClose={() => setShowNeural(false)} />}
-            {showSignalModal && <SignalInput onClose={() => setShowSignalModal(false)} />}
-            {showOKRModal && <OKRManager onClose={() => setShowOKRModal(false)} existingOKR={selectedOKR} />}
+            {showSignalModal && createPortal(<SignalInput onClose={() => setShowSignalModal(false)} />, document.body)}
+            {showOKRModal && createPortal(<OKRManager onClose={() => setShowOKRModal(false)} existingOKR={selectedOKR} />, document.body)}
 
         </div>
     );
