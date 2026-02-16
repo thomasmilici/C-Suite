@@ -1,0 +1,101 @@
+{
+    "collections": {
+        "okrs": {
+            "docId": "auto-id",
+            "fields": {
+                "title": "string",
+                "description": "string",
+                "status": "string (active, completed, archived)",
+                "progress": "number (0-100)",
+                "ownerId": "string (reference to users)",
+                "strategicAlignment": "string (high, medium, low)",
+                "createdAt": "timestamp",
+                "updatedAt": "timestamp"
+            }
+        },
+        "stakeholders": {
+            "docId": "auto-id",
+            "fields": {
+                "name": "string",
+                "role": "string",
+                "influence": "number (1-10)",
+                "interest": "number (1-10)",
+                "relationships": [
+                    {
+                        "targetId": "string (reference to stakeholders)",
+                        "type": "string (support, conflict, neutral)",
+                        "strength": "number (1-10)"
+                    }
+                ],
+                "tags": [
+                    "string"
+                ],
+                "createdAt": "timestamp"
+            }
+        },
+        "signals": {
+            "docId": "auto-id",
+            "fields": {
+                "content": "string",
+                "source": "string",
+                "type": "string (rumor, tension, opportunity)",
+                "sentiment": "string (positive, negative, neutral)",
+                "relatedRisks": [
+                    "string"
+                ],
+                "detectedBy": "string (reference to users)",
+                "createdAt": "timestamp"
+            }
+        },
+        "tasks": {
+            "docId": "auto-id",
+            "fields": {
+                "title": "string",
+                "description": "string",
+                "status": "string (todo, in-progress, done, validated)",
+                "priority": "string (high, medium, low)",
+                "relatedOkrId": "string (reference to okrs)",
+                "assignedTo": "string (reference to users)",
+                "dueDate": "timestamp",
+                "validationStatus": "string (pending, approved, rejected)",
+                "qualityScore": {
+                    "output": "number (1-5)",
+                    "speed": "number (1-5)",
+                    "accuracy": "number (1-5)"
+                },
+                "createdAt": "timestamp"
+            }
+        },
+        "users": {
+            "docId": "uid",
+            "fields": {
+                "displayName": "string",
+                "email": "string",
+                "role": "string (admin, team-member)",
+                "accessLevel": "string",
+                "gamification": {
+                    "points": "number",
+                    "rank": "string",
+                    "badges": [
+                        "string"
+                    ]
+                },
+                "createdAt": "timestamp"
+            }
+        },
+        "decision_log": {
+            "docId": "auto-id",
+            "fields": {
+                "decision": "string",
+                "context": "string",
+                "rationale": "string",
+                "stakeholdersInvolved": [
+                    "string (reference to stakeholders)"
+                ],
+                "outcome": "string",
+                "recordedBy": "string (reference to users)",
+                "timestamp": "timestamp"
+            }
+        }
+    }
+}

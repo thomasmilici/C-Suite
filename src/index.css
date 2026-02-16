@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --color-black: #000000;
+  --color-technical: #E0E0E0;
+    
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  /* Custom animations */
+  @keyframes shimmer {
+    from { background-position: 0 0; }
+    to { background-position: -200% 0; }
+  }
+  --animate-shimmer: shimmer 2s linear infinite;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-black);
+    color: var(--color-technical);
+    font-family: var(--font-sans);
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-mono);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
