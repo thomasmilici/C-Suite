@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Lock, Check } from 'lucide-react';
+import { Target, Lock, Check, X } from 'lucide-react';
 import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { format } from 'date-fns';
@@ -29,7 +29,12 @@ export const TilePulse = () => {
 
     const toggleItem = async (item) => {
         const updated = items.map(i => i.id === item.id ? { ...i, completed: !i.completed } : i);
-        // Optimistic update handled by snapshot, but local state can be jittery, so we trust snapshot mostly.
+        await updateDoc(pulseRef, { focus_items: updated });
+    };
+
+    const deleteItem = async (e, item) => {
+        e.stopPropagation();
+        const updated = items.filter(i => i.id !== item.id);
         await updateDoc(pulseRef, { focus_items: updated });
     };
 
@@ -59,9 +64,15 @@ export const TilePulse = () => {
                         <div className={`w-5 h-5 border rounded-md flex items-center justify-center transition-all flex-shrink-0 ${item.completed ? 'bg-emerald-500/80 border-emerald-500 shadow-[0_0_10px_rgba(52,211,153,0.3)]' : 'border-white/20 group-hover:border-white/40'}`}>
                             {item.completed && <Check className="w-3 h-3 text-white" />}
                         </div>
-                        <span className={`text-sm font-mono truncate transition-colors ${item.completed ? 'text-zinc-600 line-through' : 'text-zinc-200 group-hover:text-white'}`}>
+                        <span className={`flex-grow text-sm font-mono truncate transition-colors ${item.completed ? 'text-zinc-600 line-through' : 'text-zinc-200 group-hover:text-white'}`}>
                             {item.text}
                         </span>
+                        <button
+                            onClick={(e) => deleteItem(e, item)}
+                            className="opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-400 transition-all flex-shrink-0"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
                     </div>
                 ))}
 

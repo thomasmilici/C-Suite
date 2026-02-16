@@ -5,9 +5,16 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../../firebase';
 import ReactMarkdown from 'react-markdown';
 
+const getInitialMessage = () => {
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Buongiorno' : hour < 18 ? 'Buon pomeriggio' : 'Buonasera';
+    const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+    return `**${greeting}. Shadow CoS online.**  \n${today} — sistema operativo. Come posso supportarti?`;
+};
+
 export const NeuralInterface = ({ onClose }) => {
     const [messages, setMessages] = useState([
-        { id: 1, type: 'ai', text: '**Shadow CoS Online.**  \nSystem operational. Awaiting strategic query.' }
+        { id: 1, type: 'ai', text: getInitialMessage() }
     ]);
     const [input, setInput] = useState("");
     const [isThinking, setIsThinking] = useState(false);
