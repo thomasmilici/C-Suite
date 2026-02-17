@@ -338,53 +338,58 @@ const DecisionModal = ({ entry, onClose, adminName, isAdmin }) => {
                 onClick={e => e.stopPropagation()}
             >
                 {/* Modal header */}
-                <div className="p-5 border-b border-white/[0.06] flex items-start justify-between gap-3">
+                <div className="p-4 sm:p-5 border-b border-white/[0.06] flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">Decision Analysis</span>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest hidden sm:inline">Decision Analysis</span>
                             <VerdictBadge analysis={entry.analysis} overrideVerdict={editing ? editVerdict : entry.verdict} />
                         </div>
-                        <h3 className="text-sm font-mono font-bold text-white leading-snug truncate">{entry.decision}</h3>
-                        {entry.rationale && (
-                            <p className="text-[10px] text-zinc-500 mt-1 italic">"{entry.rationale}"</p>
-                        )}
-                        <p className="text-[9px] text-zinc-700 mt-1">
-                            {entry.decisionMaker} · {entry.analyzedAt ? new Date(entry.analyzedAt).toLocaleDateString('it-IT') : '—'} · {entry.docNumber}
+                        <h3 className="text-xs sm:text-sm font-mono font-bold text-white leading-snug line-clamp-2">{entry.decision}</h3>
+                        <p className="text-[9px] text-zinc-700 mt-1 truncate">
+                            {entry.decisionMaker} · {entry.analyzedAt ? new Date(entry.analyzedAt).toLocaleDateString('it-IT') : '—'}
+                            {entry.docNumber && <span className="hidden sm:inline"> · {entry.docNumber}</span>}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                         {isAdmin && !editing && (
                             <button
                                 onClick={() => { setEditText(entry.analysis || ''); setEditVerdict(entry.verdict || null); setEditing(true); }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-zinc-400 border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.06] rounded-lg transition-all"
+                                className="p-1.5 sm:flex sm:items-center sm:gap-1.5 sm:px-3 sm:py-1.5 text-[10px] font-mono text-zinc-400 border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.06] rounded-lg transition-all"
+                                title="Modifica"
                             >
-                                <Pencil className="w-3 h-3" /> Modifica
+                                <Pencil className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline ml-1">Modifica</span>
                             </button>
                         )}
                         {isAdmin && editing && (
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={saving}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-emerald-300 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/15 rounded-lg transition-all disabled:opacity-50"
+                                className="p-1.5 sm:flex sm:items-center sm:gap-1.5 sm:px-3 sm:py-1.5 text-[10px] font-mono text-emerald-300 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/15 rounded-lg transition-all disabled:opacity-50"
+                                title="Salva"
                             >
-                                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                {saving ? 'Salvo...' : 'Salva'}
+                                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                <span className="hidden sm:inline ml-1">{saving ? 'Salvo...' : 'Salva'}</span>
                             </button>
                         )}
                         {isAdmin && editing && (
                             <button
                                 onClick={() => setEditing(false)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-zinc-500 border border-white/[0.06] rounded-lg hover:bg-white/[0.03] transition-all"
+                                className="p-1.5 sm:flex sm:items-center sm:px-3 sm:py-1.5 text-[10px] font-mono text-zinc-500 border border-white/[0.06] rounded-lg hover:bg-white/[0.03] transition-all"
+                                title="Annulla"
                             >
-                                Annulla
+                                <X className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline ml-1">Annulla</span>
                             </button>
                         )}
                         {!editing && (
                             <button
                                 onClick={() => exportDecisionToPDF(entryForPDF, adminName)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/15 rounded-lg transition-all"
+                                className="p-1.5 sm:flex sm:items-center sm:gap-1.5 sm:px-3 sm:py-1.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/15 rounded-lg transition-all"
+                                title="Esporta PDF"
                             >
-                                <Download className="w-3 h-3" /> Esporta PDF
+                                <Download className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline ml-1">PDF</span>
                             </button>
                         )}
                         <button onClick={onClose} className="p-1.5 hover:bg-white/[0.05] rounded-lg transition-colors text-zinc-500 hover:text-white">
@@ -684,7 +689,7 @@ export const TileDecisionLog = ({ isAdmin, adminName }) => {
 
     return (
         <>
-            <div className="h-full flex flex-col p-7 relative">
+            <div className="h-full flex flex-col p-4 sm:p-7 relative">
                 <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
                 <div className="flex items-center justify-between mb-5">
@@ -715,20 +720,20 @@ export const TileDecisionLog = ({ isAdmin, adminName }) => {
                                     className="w-full flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.1] transition-all group text-left"
                                 >
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
+                                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                                             <VerdictBadge analysis={d.analysis} overrideVerdict={d.verdict} />
                                             <span className="text-[9px] font-mono text-zinc-700">
                                                 {d.analyzedAt ? new Date(d.analyzedAt).toLocaleDateString('it-IT') : '—'}
                                             </span>
                                         </div>
-                                        <p className="text-xs font-mono text-zinc-300 group-hover:text-white transition-colors truncate leading-snug">
+                                        <p className="text-xs font-mono text-zinc-300 group-hover:text-white transition-colors leading-snug line-clamp-2">
                                             {d.decision}
                                         </p>
                                         {d.decisionMaker && (
-                                            <p className="text-[9px] text-zinc-700 mt-0.5">{d.decisionMaker}</p>
+                                            <p className="text-[9px] text-zinc-700 mt-0.5 truncate">{d.decisionMaker}</p>
                                         )}
                                     </div>
-                                    <ChevronRight className="w-3.5 h-3.5 text-zinc-700 group-hover:text-indigo-400 flex-shrink-0 ml-3 transition-colors" />
+                                    <ChevronRight className="w-3.5 h-3.5 text-zinc-700 group-hover:text-indigo-400 flex-shrink-0 ml-2 transition-colors" />
                                 </motion.button>
                             ))}
                         </AnimatePresence>
