@@ -1,11 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Activity } from 'lucide-react';
+import { Trophy, Activity, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
-export const TileTeam = () => {
+export const TileTeam = ({ isAdmin = false }) => {
     const [team, setTeam] = useState([]);
+    const [recalcLoading, setRecalcLoading] = useState(false);
+    const [recalcMsg, setRecalcMsg] = useState(null);
+
+    const handleRecalcScores = async () => {
+        setRecalcLoading(true);
+        setRecalcMsg(null);
+        try {
+            const functions = getFunctions();
+            const trigger = httpsCallable(functions, 'triggerRankScores');
+            await trigger();
+            setRecalcMsg({ type: 'ok', text: 'Score aggiornati!' });
+        } catch (err) {
+            console.error('triggerRankScores error:', err);
+            setRecalcMsg({ type: 'err', text: 'Errore nel ricalcolo.' });
+        } finally {
+            setRecalcLoading(false);
+            setTimeout(() => setRecalcMsg(null), 3000);
+        }
+    };
 
     useEffect(() => {
         const q = query(collection(db, "users"), orderBy("rank_score", "desc"), limit(5));
@@ -28,7 +48,25 @@ export const TileTeam = () => {
                 <h3 className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
                     <Trophy className="w-3.5 h-3.5 text-yellow-400" /> Active Agents
                 </h3>
-                <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                <div className="flex items-center gap-2">
+                    {isAdmin && (
+                        <button
+                            onClick={handleRecalcScores}
+                            disabled={recalcLoading}
+                            title="Ricalcola Score"
+                            className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400 hover:text-indigo-300 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                            <RefreshCw className={`w-3 h-3 ${recalcLoading ? 'animate-spin' : ''}`} />
+                            {recalcLoading ? 'Calcolo…' : 'Ricalcola'}
+                        </button>
+                    )}
+                    {recalcMsg && (
+                        <span className={`text-[10px] font-mono ${recalcMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {recalcMsg.text}
+                        </span>
+                    )}
+                    <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                </div>
             </div>
 
             <div className="flex-grow space-y-2.5 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/5">

@@ -1,4 +1,5 @@
 const { onCall } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
@@ -382,5 +383,85 @@ TONO: assertivo, diretto, da Chief of Staff. Nessun giudizio morale, solo analis
             data: null,
             debug: error.message
         };
+    }
+});
+
+// ── COMPUTE RANK SCORES (scheduled daily at 22:00 UTC = 23:00 CET) ────────────
+// Score formula: +20 per completed KR, +15 per decision logged, +10 per signal reported, +5 per pulse item completed (last 7 days)
+const computeScoresLogic = async () => {
+    const db = admin.firestore();
+    const [usersSnap, decisionsSnap, signalsSnap, okrsSnap, pulseSnap] = await Promise.all([
+        db.collection('users').get(),
+        db.collection('decisions').get(),
+        db.collection('signals').get(),
+        db.collection('okrs').get(),
+        db.collection('daily_pulse').get(),
+    ]);
+    if (usersSnap.empty) return 0;
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const recentPulseDocs = pulseSnap.docs.filter(d => new Date(d.id) >= sevenDaysAgo);
+
+    const krByUser = {}, decByUser = {}, sigByUser = {}, pulseByUser = {};
+
+    okrsSnap.docs.forEach(d => {
+        const uid = d.data().createdBy;
+        if (!uid) return;
+        const done = (d.data().keyResults || []).filter(kr => kr.completed).length;
+        krByUser[uid] = (krByUser[uid] || 0) + done;
+    });
+    decisionsSnap.docs.forEach(d => {
+        const uid = d.data().uid || d.data().createdBy;
+        if (!uid) return;
+        decByUser[uid] = (decByUser[uid] || 0) + 1;
+    });
+    signalsSnap.docs.forEach(d => {
+        const uid = d.data().uid || d.data().createdBy;
+        if (!uid) return;
+        sigByUser[uid] = (sigByUser[uid] || 0) + 1;
+    });
+    recentPulseDocs.forEach(doc => {
+        const uid = doc.data().uid || doc.data().createdBy;
+        if (!uid) return;
+        const done = (doc.data().focus_items || []).filter(i => i.completed).length;
+        pulseByUser[uid] = (pulseByUser[uid] || 0) + done;
+    });
+
+    const batch = db.batch();
+    usersSnap.docs.forEach(userDoc => {
+        const uid = userDoc.id;
+        const score =
+            (krByUser[uid] || 0) * 20 +
+            (decByUser[uid] || 0) * 15 +
+            (sigByUser[uid] || 0) * 10 +
+            (pulseByUser[uid] || 0) * 5;
+        logger.info('RankScore uid=' + uid + ' score=' + score);
+        batch.update(userDoc.ref, { rank_score: score });
+    });
+    await batch.commit();
+    return usersSnap.size;
+};
+
+exports.computeRankScores = onSchedule({
+    schedule: '0 22 * * *',
+    timeZone: 'Europe/Rome',
+}, async () => {
+    logger.info('--- COMPUTE RANK SCORES (scheduled) ---');
+    try {
+        const n = await computeScoresLogic();
+        logger.info('RANK SCORES updated for ' + n + ' users');
+    } catch (e) {
+        logger.error('RANK SCORE SCHEDULED FAILURE:', { message: e.message });
+    }
+});
+
+exports.triggerRankScores = onCall({ cors: true, invoker: 'public' }, async () => {
+    logger.info('--- TRIGGER RANK SCORES (manual) ---');
+    try {
+        const n = await computeScoresLogic();
+        return { data: { updated: n } };
+    } catch (e) {
+        logger.error('TRIGGER RANK FAILURE:', { message: e.message });
+        return { data: null, debug: e.message };
     }
 });

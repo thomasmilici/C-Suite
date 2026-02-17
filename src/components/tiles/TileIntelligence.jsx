@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Search, FileSearch, ChevronRight, Loader2, X, ExternalLink, Download, BookOpen, Clock, AlertTriangle } from 'lucide-react';
+import { Zap, Search, FileSearch, ChevronRight, Loader2, X, ExternalLink, Download, BookOpen, Clock, AlertTriangle, BarChart2, Swords, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
@@ -9,9 +9,9 @@ import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
 
 const REPORT_PRESETS = [
-    { label: 'Analisi Strategica', type: 'strategic', icon: '📊', description: 'Executive summary, trend, implicazioni e raccomandazioni' },
-    { label: 'Report Competitivo', type: 'competitive', icon: '⚔️', description: 'Player, mosse competitor, opportunità e minacce' },
-    { label: 'Market Intelligence', type: 'market', icon: '🌐', description: 'Dimensioni mercato, driver, barriere e posizionamento' },
+    { label: 'Analisi Strategica', type: 'strategic', Icon: BarChart2, description: 'Executive summary, trend, implicazioni e raccomandazioni' },
+    { label: 'Report Competitivo', type: 'competitive', Icon: Swords, description: 'Player, mosse competitor, opportunità e minacce' },
+    { label: 'Market Intelligence', type: 'market', Icon: Globe, description: 'Dimensioni mercato, driver, barriere e posizionamento' },
 ];
 
 const TYPE_LABELS = {
@@ -316,11 +316,11 @@ const ReportModal = ({ report, onClose, adminName }) => {
                 <div className="flex-grow overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-white/5">
                     <div className="prose prose-invert prose-sm max-w-none font-mono
                         prose-headings:text-zinc-200 prose-headings:font-bold prose-headings:tracking-tight
-                        prose-h1:text-xs prose-h1:uppercase prose-h1:tracking-widest prose-h1:text-indigo-300 prose-h1:mb-4
-                        prose-h2:text-xs prose-h2:uppercase prose-h2:tracking-widest prose-h2:text-zinc-400 prose-h2:mt-6 prose-h2:mb-2
-                        prose-p:text-zinc-400 prose-p:text-xs prose-p:leading-relaxed
-                        prose-li:text-zinc-400 prose-li:text-xs prose-li:leading-relaxed
-                        prose-strong:text-zinc-200
+                        prose-h1:hidden
+                        prose-h2:text-[11px] prose-h2:uppercase prose-h2:tracking-widest prose-h2:text-indigo-300 prose-h2:mt-6 prose-h2:mb-2 prose-h2:border-b prose-h2:border-white/[0.06] prose-h2:pb-1
+                        prose-p:text-zinc-300 prose-p:text-xs prose-p:leading-relaxed
+                        prose-li:text-zinc-300 prose-li:text-xs prose-li:leading-relaxed
+                        prose-strong:text-zinc-100
                         prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline">
                         <ReactMarkdown>{report.content}</ReactMarkdown>
                     </div>
@@ -441,7 +441,7 @@ export const TileIntelligence = ({ adminName }) => {
                                     <p className="text-[10px] text-zinc-500">{topicDialog.description}</p>
                                 </div>
                             </div>
-                            <p className="text-[11px] text-zinc-400 font-mono mb-2">Su quale topic devo fare la ricerca?</p>
+                            <p className="text-[11px] text-zinc-300 font-mono mb-2">Su quale topic devo fare la ricerca?</p>
                             <input
                                 autoFocus
                                 type="text"
@@ -449,7 +449,7 @@ export const TileIntelligence = ({ adminName }) => {
                                 onChange={(e) => setTopicInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleDialogConfirm()}
                                 placeholder="es. mercato SaaS italiano 2026..."
-                                className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/50 transition-all mb-3"
+                                className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500/50 transition-all mb-3"
                             />
                             <div className="flex gap-2">
                                 <button
@@ -505,16 +505,17 @@ export const TileIntelligence = ({ adminName }) => {
                             key={preset.type}
                             onClick={() => handlePreset(preset)}
                             disabled={isGenerating}
-                            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-indigo-500/[0.07] hover:border-indigo-500/20 transition-all group disabled:opacity-40 disabled:cursor-not-allowed"
+                            title={preset.description}
+                            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-indigo-500/[0.07] hover:border-indigo-500/20 transition-all group disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                             <div className="flex items-center gap-2.5">
-                                <span className="text-base">{preset.icon}</span>
+                                <preset.Icon className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                                 <div className="text-left">
-                                    <p className="text-xs font-mono text-zinc-300 group-hover:text-white transition-colors">{preset.label}</p>
-                                    <p className="text-[10px] text-zinc-600">{preset.description}</p>
+                                    <p className="text-xs font-mono text-zinc-200 group-hover:text-white transition-colors">{preset.label}</p>
+                                    <p className="text-[10px] text-zinc-500">{preset.description}</p>
                                 </div>
                             </div>
-                            <ChevronRight className="w-3.5 h-3.5 text-zinc-700 group-hover:text-indigo-400 transition-colors" />
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-indigo-400 transition-colors" />
                         </button>
                     ))}
                 </div>
@@ -528,7 +529,7 @@ export const TileIntelligence = ({ adminName }) => {
                         onKeyDown={(e) => e.key === 'Enter' && handleCustomGenerate()}
                         placeholder="Topic personalizzato..."
                         disabled={isGenerating}
-                        className="flex-grow bg-white/[0.03] border border-white/[0.07] rounded-xl px-3 py-2 text-xs font-mono text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/30 transition-all disabled:opacity-40"
+                        className="flex-grow bg-white/[0.03] border border-white/[0.07] rounded-xl px-3 py-2 text-xs font-mono text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500/40 transition-all disabled:opacity-40"
                     />
                     <button
                         onClick={handleCustomGenerate}
@@ -550,17 +551,18 @@ export const TileIntelligence = ({ adminName }) => {
                                 <button
                                     key={r.id}
                                     onClick={() => setActiveReport(r)}
-                                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-white/[0.04] bg-white/[0.01] hover:bg-white/[0.04] hover:border-white/[0.08] transition-all group text-left"
+                                    title={`${TYPE_LABELS[r.reportType] || 'Report'} · ${r.docNumber || ''}`}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all group text-left cursor-pointer"
                                 >
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-mono text-zinc-400 group-hover:text-zinc-200 transition-colors truncate">
+                                        <p className="text-[11px] font-mono text-zinc-300 group-hover:text-white transition-colors truncate">
                                             {r.topic}
                                         </p>
-                                        <p className="text-[9px] text-zinc-700">
+                                        <p className="text-[9px] text-zinc-500">
                                             {TYPE_LABELS[r.reportType] || 'Report'} · {r.docNumber || '—'}
                                         </p>
                                     </div>
-                                    <BookOpen className="w-3 h-3 text-zinc-700 group-hover:text-indigo-400 flex-shrink-0 ml-2 transition-colors" />
+                                    <BookOpen className="w-3 h-3 text-zinc-500 group-hover:text-indigo-400 flex-shrink-0 ml-2 transition-colors" />
                                 </button>
                             ))}
                         </div>

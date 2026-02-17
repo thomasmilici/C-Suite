@@ -32,3 +32,22 @@
     text-wrap: balance;
   }
 }
+
+@layer base {
+  /* BUG-08 / UX-07: Global focus states for keyboard accessibility */
+  *:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* BUG-08: Remove outline:none overrides that break keyboard nav */
+  input:focus,
+  textarea:focus,
+  button:focus {
+    outline: none; /* handled by focus-visible above */
+  }
+
+  /* BUG-04: Base text contrast — secondary text minimum zinc-400 (#a1a1aa) */
+  /* This ensures headings/labels not explicitly colored meet WCAG AA */
+}

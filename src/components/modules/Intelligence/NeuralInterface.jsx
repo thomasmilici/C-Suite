@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Sparkles, BrainCircuit, Zap } from 'lucide-react';
+import { X, Send, Sparkles, BrainCircuit, Zap, BookOpen, BarChart2, Radio, FileText, Users, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../../firebase';
@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown';
 
 const MASTER_PROMPTS = [
     {
-        label: 'Guida App', icon: '📖',
+        label: 'Guida App', Icon: BookOpen,
         prompt: `Sei la guida interattiva di Quinta OS. Spiegami come funziona l'app in modo chiaro e semplice, come se fossi un novellino. Descrivimi tutte le sezioni principali e cosa posso fare con ciascuna. Usa un tono amichevole e pratico, con esempi concreti.
 
 Struttura la risposta così:
@@ -23,11 +23,11 @@ Per ogni sezione (Strategic Themes, Daily Pulse, Risk Radar, Intelligence Report
 ## Consigli pratici
 [2-3 suggerimenti per usare l'app al meglio]`
     },
-    { label: 'Analisi OKR', icon: '📊', prompt: 'Analizza lo stato attuale degli OKR strategici. Identifica quelli a rischio e dimmi cosa fare concretamente.' },
-    { label: 'Radar Rischi', icon: '⚡', prompt: 'Analizza i segnali di rischio registrati e dimmi quali sono le minacce più critiche da gestire oggi.' },
-    { label: 'Briefing', icon: '📋', prompt: 'Dammi un briefing rapido sulla situazione operativa attuale: OKR, rischi e focus del giorno.' },
-    { label: 'Allineamento Team', icon: '🎯', prompt: 'Come è allineato il team rispetto agli obiettivi strategici? Cosa dovrei comunicare o correggere?' },
-    { label: 'Decisione Rapida', icon: '🔍', prompt: 'Ho bisogno di prendere una decisione strategica. Analizza il contesto attuale e guidami.' },
+    { label: 'Analisi OKR', Icon: BarChart2, prompt: 'Analizza lo stato attuale degli OKR strategici. Identifica quelli a rischio e dimmi cosa fare concretamente.' },
+    { label: 'Radar Rischi', Icon: Radio, prompt: 'Analizza i segnali di rischio registrati e dimmi quali sono le minacce più critiche da gestire oggi.' },
+    { label: 'Briefing', Icon: FileText, prompt: 'Dammi un briefing rapido sulla situazione operativa attuale: OKR, rischi e focus del giorno.' },
+    { label: 'Allineamento Team', Icon: Users, prompt: 'Come è allineato il team rispetto agli obiettivi strategici? Cosa dovrei comunicare o correggere?' },
+    { label: 'Decisione Rapida', Icon: Lightbulb, prompt: 'Ho bisogno di prendere una decisione strategica. Analizza il contesto attuale e guidami.' },
 ];
 
 const getInitialMessage = () => {
@@ -155,9 +155,10 @@ export const NeuralInterface = ({ onClose }) => {
                             key={mp.label}
                             onClick={() => setInput(mp.prompt)}
                             disabled={isThinking}
-                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono text-zinc-400 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            title={mp.label}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono text-zinc-300 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
-                            <span>{mp.icon}</span>
+                            <mp.Icon className="w-3 h-3 flex-shrink-0" />
                             <span>{mp.label}</span>
                         </button>
                     ))}

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nDesign: glassmorphism UI — schede più grandi, effetto glass, gradient background\n\n- Dashboard: sfondo con radial gradients, grid auto-rows 320px, backdrop-blur-2xl su tutti i tile\n- Tutti i tile: padding aumentato a p-7, border white/7, shadow potenziata, highlight line in cima\n- TileCompass: progress bar animata con gradient, hover glass\n- TilePulse: checkbox con glow, input glass con rounded-xl\n- TileTeam: card glass con hover, decorative gradient corner\n- TileRadar: badge livelli con bordo colorato, sweep effect ridotto\n- Modali OKRManager e SignalInput: glass dark con inset highlight\n- BriefingRoom: card decision log con border-l colorata su glass\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(firebase functions:secrets:access:*)",
+      "Bash(firebase functions:log:*)",
+      "Bash(gcloud secrets versions add:*)",
+      "Bash(firebase functions:secrets:set:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(printf:*)",
+      "Bash(node -e \"require\\(''fs''\\).writeFileSync\\(''C:/tmp_key.txt'', ''REMOVED_KEY''\\)\")",
+      "Bash(node -e \"require\\(''fs''\\).writeFileSync\\(''C:/Users/thoma/tmp_key.txt'', ''REMOVED_KEY''\\)\")",
+      "Bash(node:*)",
+      "Bash(del \"C:\\\\Users\\\\thoma\\\\tmp_key.txt\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix: Gemini API key — Secret Manager configurato correttamente \\(v7 pulita\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npm run build:*)",
+      "Bash(git commit:*)",
+      "Bash(dir:*)",
+      "Bash(npm install:*)",
+      "Bash(powershell:*)",
+      "Bash(echo:*)",
+      "Bash(python3 -c \"\nimport os\n\nps1_path = r''C:\\\\Users\\\\thoma\\\\Documents\\\\COS App\\\\append_ranks.ps1''\n\nscript = r\"\"\"\"\"\"\n$content = @''\n\n// -- COMPUTE RANK SCORES \\(scheduled daily at 22:00 UTC = 23:00 CET\\) --\n// Score formula: +20 per completed KR, +15 per decision logged, +10 per signal reported, +5 per pulse item completed \\(last 7 days\\)\nconst computeScoresLogic = async \\(\\) => {\n    const db = admin.firestore\\(\\);\n    const [usersSnap, decisionsSnap, signalsSnap, okrsSnap, pulseSnap] = await Promise.all\\([\n        db.collection\\(''users''\\).get\\(\\),\n        db.collection\\(''decisions''\\).get\\(\\),\n        db.collection\\(''signals''\\).get\\(\\),\n        db.collection\\(''okrs''\\).get\\(\\),\n        db.collection\\(''daily_pulse''\\).get\\(\\),\n    ]\\);\n    if \\(usersSnap.empty\\) return 0;\n\n    const sevenDaysAgo = new Date\\(Date.now\\(\\) - 7 * 24 * 60 * 60 * 1000\\);\n    const recentPulseDocs = pulseSnap.docs.filter\\(d => new Date\\(d.id\\) >= sevenDaysAgo\\);\n\n    const krByUser = {}, decByUser = {}, sigByUser = {}, pulseByUser = {};\n\n    okrsSnap.docs.forEach\\(d => {\n        const uid = d.data\\(\\).createdBy;\n        if \\(!uid\\) return;\n        const done = \\(d.data\\(\\).keyResults || []\\).filter\\(kr => kr.completed\\).length;\n        krByUser[uid] = \\(krByUser[uid] || 0\\) + done;\n    }\\);\n    decisionsSnap.docs.forEach\\(d => {\n        const uid = d.data\\(\\).uid || d.data\\(\\).createdBy;\n        if \\(!uid\\) return;\n        decByUser[uid] = \\(decByUser[uid] || 0\\) + 1;\n    }\\);\n    signalsSnap.docs.forEach\\(d => {\n        const uid = d.data\\(\\).uid || d.data\\(\\).createdBy;\n        if \\(!uid\\) return;\n        sigByUser[uid] = \\(sigByUser[uid] || 0\\) + 1;\n    }\\);\n    recentPulseDocs.forEach\\(doc => {\n        const uid = doc.data\\(\\).uid || doc.data\\(\\).createdBy;\n        if \\(!uid\\) return;\n        const done = \\(doc.data\\(\\).focus_items || []\\).filter\\(i => i.completed\\).length;\n        pulseByUser[uid] = \\(pulseByUser[uid] || 0\\) + done;\n    }\\);\n\n    const batch = db.batch\\(\\);\n    usersSnap.docs.forEach\\(userDoc => {\n        const uid = userDoc.id;\n        const score =\n            \\(krByUser[uid] || 0\\) * 20 +\n            \\(decByUser[uid] || 0\\) * 15 +\n            \\(sigByUser[uid] || 0\\) * 10 +\n            \\(pulseByUser[uid] || 0\\) * 5;\n        logger.info\\(''RankScore uid='' + uid + '' score='' + score\\);\n        batch.update\\(userDoc.ref, { rank_score: score }\\);\n    }\\);\n    await batch.commit\\(\\);\n    return usersSnap.size;\n};\n\nexports.computeRankScores = onSchedule\\({\n    schedule: ''0 22 * * *'',\n    timeZone: ''Europe/Rome'',\n}, async \\(\\) => {\n    logger.info\\(''--- COMPUTE RANK SCORES \\(scheduled\\) ---''\\);\n    try {\n        const n = await computeScoresLogic\\(\\);\n        logger.info\\(''RANK SCORES updated for '' + n + '' users''\\);\n    } catch \\(e\\) {\n        logger.error\\(''RANK SCORE SCHEDULED FAILURE:'', { message: e.message }\\);\n    }\n}\\);\n\nexports.triggerRankScores = onCall\\({ cors: true, invoker: ''public'' }, async \\(\\) => {\n    logger.info\\(''--- TRIGGER RANK SCORES \\(manual\\) ---''\\);\n    try {\n        const n = await computeScoresLogic\\(\\);\n        return { data: { updated: n } };\n    } catch \\(e\\) {\n        logger.error\\(''TRIGGER RANK FAILURE:'', { message: e.message }\\);\n        return { data: null, debug: e.message };\n    }\n}\\);\n''@\n\nAdd-Content -Path ''C:\\\\Users\\\\thoma\\\\Documents\\\\COS App\\\\functions\\\\index.js'' -Value $content\nWrite-Host ''Append completed successfully.''\n\"\"\"\"\"\"\n\nwith open\\(ps1_path, ''w'', encoding=''utf-8''\\) as f:\n    f.write\\(script\\)\n\nprint\\(''ps1 file written to:'', ps1_path\\)\n\")",
+      "Bash(python3:*)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\thoma\\\\Documents\\\\COS-App\" -Recurse -Filter \"TileTeam*\")",
+      "Bash(Select-Object FullName)"
+    ]
+  }
+}
