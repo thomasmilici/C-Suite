@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Sparkles, BrainCircuit, Zap, BookOpen, BarChart2, Radio, FileText, Users, Lightbulb } from 'lucide-react';
+import { X, Send, Sparkles, BrainCircuit, Zap, BookOpen, BarChart2, Radio, FileText, Users, Lightbulb, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../../firebase';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { db } from '../../../firebase';
+import { getAuth } from 'firebase/auth';
 import ReactMarkdown from 'react-markdown';
 
 const MASTER_PROMPTS = [
@@ -12,7 +15,7 @@ const MASTER_PROMPTS = [
 
 Struttura la risposta così:
 ## Benvenuto in Quinta OS
-[Breve intro su cos'è e a chi serve]
+[Breve intro su cos'è e a cosa serve]
 
 ## Le sezioni principali
 Per ogni sezione (Strategic Themes, Daily Pulse, Risk Radar, Intelligence Reports, Daily Briefing, Decision Log, Shadow CoS) spiega: cosa è, a cosa serve, come si usa.
@@ -37,19 +40,81 @@ const getInitialMessage = () => {
     return `**${greeting}. Shadow CoS online.**  \n${today} — sistema operativo. Come posso supportarti?`;
 };
 
+// UX-05: Load/save chat history from Firestore per user
+const HISTORY_LIMIT = 20; // max messages saved
+
+async function loadChatHistory(uid) {
+    try {
+        const snap = await getDoc(doc(db, 'shadow_cos_prefs', uid));
+        if (snap.exists() && snap.data().history?.length > 0) {
+            return snap.data().history;
+        }
+    } catch (_) {}
+    return null;
+}
+
+async function saveChatMessage(uid, message) {
+    try {
+        const ref = doc(db, 'shadow_cos_prefs', uid);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+            await setDoc(ref, { history: [message], updatedAt: serverTimestamp() });
+        } else {
+            const existing = snap.data().history || [];
+            const updated = [...existing, message].slice(-HISTORY_LIMIT);
+            await updateDoc(ref, { history: updated, updatedAt: serverTimestamp() });
+        }
+    } catch (_) {}
+}
+
+async function clearChatHistory(uid) {
+    try {
+        await setDoc(doc(db, 'shadow_cos_prefs', uid), { history: [], updatedAt: serverTimestamp() });
+    } catch (_) {}
+}
+
 export const NeuralInterface = ({ onClose }) => {
     const [messages, setMessages] = useState([
         { id: 1, type: 'ai', text: getInitialMessage() }
     ]);
     const [input, setInput] = useState("");
     const [isThinking, setIsThinking] = useState(false);
+    const [historyLoaded, setHistoryLoaded] = useState(false);
+    const [uid, setUid] = useState(null);
     const scrollRef = useRef(null);
 
+    // Get current user UID
+    useEffect(() => {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user) setUid(user.uid);
+    }, []);
+
+    // UX-05: Load persistent history on open
+    useEffect(() => {
+        if (!uid || historyLoaded) return;
+        loadChatHistory(uid).then(history => {
+            if (history && history.length > 0) {
+                setMessages([
+                    { id: 0, type: 'ai', text: getInitialMessage() },
+                    ...history.map((m, i) => ({ id: i + 10, type: m.role === 'user' ? 'user' : 'ai', text: m.text }))
+                ]);
+            }
+            setHistoryLoaded(true);
+        });
+    }, [uid, historyLoaded]);
+
+    // Auto-scroll
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
+
+    const handleClearHistory = async () => {
+        if (uid) await clearChatHistory(uid);
+        setMessages([{ id: 1, type: 'ai', text: getInitialMessage() }]);
+    };
 
     const handleSend = async () => {
         if (!input.trim()) return;
@@ -60,21 +125,25 @@ export const NeuralInterface = ({ onClose }) => {
         setInput("");
         setIsThinking(true);
 
-        // Build history: all messages except the initial AI greeting and the current user msg
+        // Save user message to Firestore
+        if (uid) await saveChatMessage(uid, { role: 'user', text: input });
+
+        // Build history for AI (skip initial greeting)
         const history = currentMessages
-            .slice(1, -1) // skip initial greeting and current user msg
+            .slice(1, -1)
             .map(m => ({ role: m.type === 'user' ? 'user' : 'model', text: m.text }));
 
         try {
             const askShadow = httpsCallable(functions, 'askShadowCoS');
             const result = await askShadow({ query: input, history });
             const aiResponse = result.data.data;
+            const aiText = aiResponse || "Analysis incomplete. Try clarifying intent.";
 
-            setMessages(prev => [...prev, {
-                id: Date.now() + 1,
-                type: 'ai',
-                text: aiResponse || "Analysis incomplete. Try clarifying intent."
-            }]);
+            setMessages(prev => [...prev, { id: Date.now() + 1, type: 'ai', text: aiText }]);
+
+            // UX-05: Save AI response to Firestore
+            if (uid) await saveChatMessage(uid, { role: 'model', text: aiText });
+
         } catch (error) {
             console.error("AI Error:", error);
             setMessages(prev => [...prev, {
@@ -96,7 +165,7 @@ export const NeuralInterface = ({ onClose }) => {
                 initial={{ opacity: 0, y: 50, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 50, scale: 0.95 }}
-                className="w-full sm:w-[500px] h-[80vh] sm:h-[600px] bg-zinc-950 border border-zinc-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto relative"
+                className="w-full sm:w-[500px] h-[80vh] sm:h-[620px] bg-zinc-950 border border-zinc-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto relative"
             >
                 {/* Header */}
                 <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
@@ -111,17 +180,43 @@ export const NeuralInterface = ({ onClose }) => {
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
                                 </span>
-                                <span className="text-[10px] text-zinc-400 font-mono">NEURAL UPLINK ACTIVE</span>
+                                <span className="text-[10px] text-zinc-400 font-mono">
+                                    NEURAL UPLINK ACTIVE
+                                    {historyLoaded && messages.length > 1 && (
+                                        <span className="text-indigo-500 ml-1">· MEMORIA ATTIVA</span>
+                                    )}
+                                </span>
                             </div>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-500 hover:text-white">
-                        <X className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        {/* Clear history button */}
+                        {uid && messages.length > 1 && (
+                            <button
+                                onClick={handleClearHistory}
+                                title="Cancella memoria"
+                                className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-600 hover:text-red-400"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                        <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-500 hover:text-white">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Chat Area */}
                 <div className="flex-grow bg-black/50 p-6 overflow-y-auto space-y-6 scrollbar-thin scrollbar-thumb-zinc-800" ref={scrollRef}>
+                    {/* UX-05: Memory banner when history loaded */}
+                    {historyLoaded && messages.length > 2 && (
+                        <div className="flex justify-center">
+                            <span className="text-[9px] font-mono text-indigo-500/60 border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                                ↑ conversazione precedente
+                            </span>
+                        </div>
+                    )}
+
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex ${msg.type === 'user' ? "justify-end" : "justify-start"}`}>
                             <div className={`max-w-[85%] p-4 rounded-xl text-sm leading-relaxed ${msg.type === 'user'
@@ -129,7 +224,7 @@ export const NeuralInterface = ({ onClose }) => {
                                     : "bg-indigo-900/10 border border-indigo-500/10 text-zinc-300 rounded-tl-sm"
                                 }`}>
                                 {msg.type === 'ai' ? (
-                                    <ReactMarkdown className="prose prose-invert prose-sm">
+                                    <ReactMarkdown className="prose prose-invert prose-sm max-w-none prose-p:text-zinc-300 prose-strong:text-white prose-headings:text-zinc-200">
                                         {msg.text}
                                     </ReactMarkdown>
                                 ) : (
@@ -173,7 +268,7 @@ export const NeuralInterface = ({ onClose }) => {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                             placeholder="Ask for strategic analysis..."
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-4 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono placeholder:text-zinc-600"
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-4 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono placeholder:text-zinc-500"
                             autoFocus
                         />
                         <button

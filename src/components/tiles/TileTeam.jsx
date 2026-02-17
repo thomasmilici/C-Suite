@@ -39,6 +39,8 @@ export const TileTeam = ({ isAdmin = false }) => {
         return () => unsub();
     }, []);
 
+    const rankColors = ['text-yellow-400', 'text-zinc-300', 'text-amber-600', 'text-zinc-500', 'text-zinc-600'];
+
     return (
         <div className="h-full flex flex-col p-7 relative">
             {/* Subtle top highlight line */}
@@ -69,22 +71,25 @@ export const TileTeam = ({ isAdmin = false }) => {
                 </div>
             </div>
 
-            <div className="flex-grow space-y-2.5 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/5">
+            <div className="flex-grow space-y-2 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/5">
                 <AnimatePresence>
-                    {team.map((member) => (
+                    {team.length > 0 ? team.map((member) => (
                         <motion.div
                             layout
                             key={member.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0 }}
-                            className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.12] transition-all group"
+                            whileHover={{ scale: 1.01, backgroundColor: 'rgba(255,255,255,0.05)' }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                            className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:border-white/[0.12] transition-colors group cursor-default"
                         >
                             <div className="flex items-center gap-3">
-                                <span className={`text-xs font-mono w-5 text-center ${member.rank === 1 ? 'text-yellow-400' : 'text-zinc-600'}`}>
+                                <span className={`text-xs font-mono w-5 text-center font-bold ${rankColors[member.rank - 1] ?? 'text-zinc-600'}`}>
                                     {member.rank < 10 ? `0${member.rank}` : member.rank}
                                 </span>
                                 <div className="flex flex-col">
+                                    {/* BUG-04: zinc-200 → white on hover, role zinc-500 (WCAG pass) */}
                                     <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">
                                         {member.displayName}
                                     </span>
@@ -98,10 +103,17 @@ export const TileTeam = ({ isAdmin = false }) => {
                                 <span className="text-sm font-mono font-bold text-white">
                                     {member.rank_score > 0 ? member.rank_score : '—'}
                                 </span>
-                                <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-wider">score</span>
+                                {/* BUG-04: zinc-600 → zinc-500 */}
+                                <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">score</span>
                             </div>
                         </motion.div>
-                    ))}
+                    )) : (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                            className="flex flex-col items-center justify-center gap-2 py-10">
+                            <Trophy className="w-7 h-7 text-zinc-700" />
+                            <p className="text-xs font-mono text-zinc-600 uppercase tracking-widest">Nessun agente attivo</p>
+                        </motion.div>
+                    )}
                 </AnimatePresence>
             </div>
 

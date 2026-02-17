@@ -104,9 +104,10 @@ export const TileCompass = ({ isAdmin, onOpenModal }) => {
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0 }}
-                            transition={{ delay: index * 0.07 }}
+                            whileHover={{ scale: 1.01 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 25, delay: index * 0.05 }}
                             key={okr.id}
-                            className={`group flex items-center gap-4 p-3 rounded-xl border transition-all
+                            className={`group flex items-center gap-4 p-3 rounded-xl border transition-colors
                                 bg-white/[0.02] border-white/[0.05]
                                 ${isAdmin ? 'cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12]' : ''}`}
                             onClick={() => handleEdit(okr)}
