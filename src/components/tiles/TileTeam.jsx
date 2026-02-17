@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, ChevronUp, ChevronDown, Activity } from 'lucide-react';
+import { Trophy, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -58,12 +58,9 @@ export const TileTeam = () => {
 
                             <div className="flex flex-col items-end">
                                 <span className="text-sm font-mono font-bold text-white">
-                                    {member.rank_score}
+                                    {member.rank_score > 0 ? member.rank_score : '—'}
                                 </span>
-                                <div className="flex items-center text-[10px] text-emerald-500">
-                                    <ChevronUp className="w-3 h-3" />
-                                    <span>2.4%</span>
-                                </div>
+                                <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-wider">score</span>
                             </div>
                         </motion.div>
                     ))}

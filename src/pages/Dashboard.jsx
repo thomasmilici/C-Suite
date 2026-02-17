@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/authService';
@@ -7,12 +7,13 @@ import { TileCompass } from '../components/tiles/TileCompass';
 import { TilePulse } from '../components/tiles/TilePulse';
 import { TileTeam } from '../components/tiles/TileTeam';
 import { TileRadar } from '../components/tiles/TileRadar';
+import { TileIntelligence } from '../components/tiles/TileIntelligence';
 import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterface';
 import { ProactiveAlerts } from '../components/modules/Intelligence/ProactiveAlerts';
 import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
 import { OKRManager } from '../components/modals/OKRManager';
 import { SignalInput } from '../components/modals/SignalInput';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export const Dashboard = ({ user }) => {
@@ -22,6 +23,8 @@ export const Dashboard = ({ user }) => {
     const [showSignalModal, setShowSignalModal] = useState(false);
     const [showOKRModal, setShowOKRModal] = useState(false);
     const [selectedOKR, setSelectedOKR] = useState(null);
+    const [okrs, setOkrs] = useState([]);
+    const [signals, setSignals] = useState([]);
 
     useEffect(() => {
         const checkRole = async () => {
@@ -34,6 +37,34 @@ export const Dashboard = ({ user }) => {
         };
         checkRole();
     }, [user]);
+
+    // Fetch OKRs e signals per il termometro
+    useEffect(() => {
+        const unsubOkrs = onSnapshot(collection(db, 'okrs'), snap => {
+            setOkrs(snap.docs.map(d => d.data()));
+        });
+        const unsubSignals = onSnapshot(collection(db, 'signals'), snap => {
+            setSignals(snap.docs.map(d => d.data()));
+        });
+        return () => { unsubOkrs(); unsubSignals(); };
+    }, []);
+
+    // Calcola health score (0-100) basato su OKR e segnali
+    const healthScore = useMemo(() => {
+        if (okrs.length === 0 && signals.length === 0) return null;
+        let score = 100;
+        // Penalizza OKR a rischio o con progress bassa
+        okrs.forEach(okr => {
+            if (okr.status === 'risk') score -= 15;
+            else if ((okr.progress || 0) < 30) score -= 10;
+        });
+        // Penalizza segnali HIGH
+        const highSignals = signals.filter(s => s.level === 'high').length;
+        const medSignals = signals.filter(s => s.level === 'medium').length;
+        score -= highSignals * 12;
+        score -= medSignals * 4;
+        return Math.max(0, Math.min(100, score));
+    }, [okrs, signals]);
 
     const handleLogout = async () => {
         await AuthService.logout();
@@ -62,7 +93,29 @@ export const Dashboard = ({ user }) => {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-6 text-xs font-mono">
+                <div className="flex items-center gap-4 text-xs font-mono">
+                    {/* Termometro salute strategica — solo admin */}
+                    {isAdmin && healthScore !== null && (
+                        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 border border-white/[0.07] bg-white/[0.02] rounded-lg backdrop-blur-sm">
+                            <span className="text-[10px] text-zinc-600 uppercase tracking-widest">HEALTH</span>
+                            <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full rounded-full transition-all duration-1000"
+                                    style={{
+                                        width: `${healthScore}%`,
+                                        background: healthScore >= 70
+                                            ? 'linear-gradient(90deg, #10b981, #34d399)'
+                                            : healthScore >= 40
+                                            ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
+                                            : 'linear-gradient(90deg, #ef4444, #f87171)'
+                                    }}
+                                />
+                            </div>
+                            <span className={`text-[11px] font-bold font-mono ${healthScore >= 70 ? 'text-emerald-400' : healthScore >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                {healthScore}%
+                            </span>
+                        </div>
+                    )}
                     {isAdmin && (
                         <button onClick={() => navigate('/admin')} className="text-red-400 hover:text-red-300 flex items-center gap-1.5 border border-red-900/50 bg-red-900/10 px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
                             <Shield className="w-3 h-3" /> ADMIN
@@ -83,53 +136,54 @@ export const Dashboard = ({ user }) => {
                 {/* Proactive Alerts */}
                 <ProactiveAlerts />
 
-                {/* Bento Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[minmax(320px,auto)]">
+                {/* Bento Grid — 3 colonne */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-                    {/* Tile 1: Compass */}
-                    <div className="md:col-span-2 md:row-span-1 rounded-2xl
-                        bg-white/[0.03]
-                        border border-white/[0.07]
+                    {/* ROW 1: Compass (1col) | Pulse (1col) | Team (1col) */}
+                    <div className="rounded-2xl min-h-[280px]
+                        bg-white/[0.03] border border-white/[0.07]
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
                         transition-all duration-300">
                         <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} />
                     </div>
 
-                    {/* Tile 3: Team (Right, Tall) */}
-                    <div className="md:col-span-1 md:row-span-2 rounded-2xl flex flex-col
-                        bg-white/[0.03]
-                        border border-white/[0.07]
-                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
-                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
-                        transition-all duration-300">
-                        <TileTeam />
-                    </div>
-
-                    {/* Tile 2: Pulse */}
-                    <div className="md:col-span-2 md:row-span-1 rounded-2xl
-                        bg-white/[0.03]
-                        border border-white/[0.07]
+                    <div className="rounded-2xl min-h-[280px]
+                        bg-white/[0.03] border border-white/[0.07]
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
                         transition-all duration-300">
                         <TilePulse />
                     </div>
 
-                    {/* Tile 4: Radar (Full Width) */}
-                    <div className="md:col-span-3 rounded-2xl min-h-[300px]
-                        bg-white/[0.03]
-                        border border-white/[0.07]
+                    <div className="rounded-2xl min-h-[280px]
+                        bg-white/[0.03] border border-white/[0.07]
+                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
+                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
+                        transition-all duration-300">
+                        <TileTeam />
+                    </div>
+
+                    {/* ROW 2: Radar (2col) | Intelligence Reports (1col) */}
+                    <div className="md:col-span-2 rounded-2xl min-h-[320px]
+                        bg-white/[0.03] border border-white/[0.07]
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
                         transition-all duration-300">
                         <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
                     </div>
 
-                    {/* Tile 5: Briefing Room (Full Width) */}
+                    <div className="rounded-2xl min-h-[320px]
+                        bg-white/[0.03] border border-white/[0.07]
+                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
+                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
+                        transition-all duration-300">
+                        <TileIntelligence adminName={user?.displayName} />
+                    </div>
+
+                    {/* ROW 3: Briefing Room (full width) */}
                     <div className="md:col-span-3 rounded-2xl min-h-[340px]
-                        bg-white/[0.03]
-                        border border-white/[0.07]
+                        bg-white/[0.03] border border-white/[0.07]
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
                         transition-all duration-300">

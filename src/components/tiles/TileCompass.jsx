@@ -49,7 +49,7 @@ export const TileCompass = ({ isAdmin, onOpenModal }) => {
                 </div>
             </div>
 
-            <div className="space-y-5 flex-grow overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/5">
+            <div className="space-y-5 flex-grow overflow-y-auto overflow-x-hidden pr-1 scrollbar-thin scrollbar-thumb-white/5">
                 {okrs.length > 0 ? okrs.map((okr, index) => (
                     <motion.div
                         initial={{ opacity: 0, x: -10 }}

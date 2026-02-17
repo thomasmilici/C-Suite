@@ -1,9 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, Sparkles, BrainCircuit } from 'lucide-react';
+import { X, Send, Sparkles, BrainCircuit, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../../firebase';
 import ReactMarkdown from 'react-markdown';
+
+const MASTER_PROMPTS = [
+    {
+        label: 'Guida App', icon: '📖',
+        prompt: `Sei la guida interattiva di Quinta OS. Spiegami come funziona l'app in modo chiaro e semplice, come se fossi un novellino. Descrivimi tutte le sezioni principali e cosa posso fare con ciascuna. Usa un tono amichevole e pratico, con esempi concreti.
+
+Struttura la risposta così:
+## Benvenuto in Quinta OS
+[Breve intro su cos'è e a chi serve]
+
+## Le sezioni principali
+Per ogni sezione (Strategic Themes, Daily Pulse, Risk Radar, Intelligence Reports, Daily Briefing, Decision Log, Shadow CoS) spiega: cosa è, a cosa serve, come si usa.
+
+## Come iniziare
+[3 azioni concrete da fare subito per un nuovo utente]
+
+## Consigli pratici
+[2-3 suggerimenti per usare l'app al meglio]`
+    },
+    { label: 'Analisi OKR', icon: '📊', prompt: 'Analizza lo stato attuale degli OKR strategici. Identifica quelli a rischio e dimmi cosa fare concretamente.' },
+    { label: 'Radar Rischi', icon: '⚡', prompt: 'Analizza i segnali di rischio registrati e dimmi quali sono le minacce più critiche da gestire oggi.' },
+    { label: 'Briefing', icon: '📋', prompt: 'Dammi un briefing rapido sulla situazione operativa attuale: OKR, rischi e focus del giorno.' },
+    { label: 'Allineamento Team', icon: '🎯', prompt: 'Come è allineato il team rispetto agli obiettivi strategici? Cosa dovrei comunicare o correggere?' },
+    { label: 'Decisione Rapida', icon: '🔍', prompt: 'Ho bisogno di prendere una decisione strategica. Analizza il contesto attuale e guidami.' },
+];
 
 const getInitialMessage = () => {
     const hour = new Date().getHours();
@@ -123,8 +148,23 @@ export const NeuralInterface = ({ onClose }) => {
                     )}
                 </div>
 
+                {/* Master Prompts */}
+                <div className="px-4 pt-3 pb-1 bg-zinc-900/50 border-t border-zinc-800 flex flex-wrap gap-2">
+                    {MASTER_PROMPTS.map((mp) => (
+                        <button
+                            key={mp.label}
+                            onClick={() => setInput(mp.prompt)}
+                            disabled={isThinking}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono text-zinc-400 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <span>{mp.icon}</span>
+                            <span>{mp.label}</span>
+                        </button>
+                    ))}
+                </div>
+
                 {/* Input Area */}
-                <div className="p-4 bg-zinc-900/50 border-t border-zinc-800">
+                <div className="p-4 pt-2 bg-zinc-900/50">
                     <div className="relative flex items-center">
                         <input
                             type="text"
