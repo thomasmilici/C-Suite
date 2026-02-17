@@ -159,3 +159,136 @@ TONO: assertivo, diretto, da CoS di alto livello. Niente frasi generiche.
         };
     }
 });
+
+exports.researchAndReport = onCall({
+    cors: true,
+    secrets: ["GOOGLE_API_KEY"],
+    invoker: "public"
+}, async (request) => {
+
+    logger.info("--- RESEARCH & REPORT START ---");
+    logger.info("Invoked by:", request.auth?.token.email || "Unauthenticated");
+
+    try {
+        const apiKey = process.env.GOOGLE_API_KEY;
+        if (!apiKey) throw new Error("GOOGLE_API_KEY not found in process.env");
+
+        const { topic, reportType = "strategic" } = request.data;
+        if (!topic) throw new Error("Missing topic in request data");
+        logger.info("Research topic:", topic, "| type:", reportType);
+
+        const { okrs, signals } = await fetchContext();
+
+        const systemInstruction = `Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS — un analista strategico con accesso a fonti web in tempo reale.
+
+REGOLE:
+- Usa SEMPRE la ricerca web per trovare dati, notizie e trend recenti sul topic richiesto.
+- Rispondi nella stessa lingua della richiesta (italiano o inglese).
+- Il tuo stile è da CoS di alto livello: assertivo, preciso, orientato all'azione.
+- NON inventare dati. Cita solo informazioni verificate dalle fonti web.
+- Collega sempre le informazioni al contesto operativo dell'azienda quando rilevante.
+
+CONTESTO OPERATIVO:
+- OKR Strategici: ${okrs.length > 0 ? JSON.stringify(okrs) : 'Nessun OKR attivo'}
+- Segnali di Rischio: ${signals.length > 0 ? JSON.stringify(signals) : 'Nessun segnale rilevato'}`;
+
+        const reportTemplates = {
+            strategic: `Ricerca il seguente topic usando fonti web aggiornate e produci un REPORT STRATEGICO strutturato così:
+
+# Report Strategico: ${topic}
+
+## Executive Summary
+[2-3 frasi: situazione attuale basata su dati reali]
+
+## Trend & Dati Chiave
+[Dati, statistiche, notizie recenti con fonti]
+
+## Implicazioni per Quinta OS
+[Come questo impatta gli OKR e le priorità aziendali]
+
+## Raccomandazioni Tattiche
+[3 azioni concrete e prioritizzate]
+
+## Fonti
+[Lista delle fonti utilizzate]`,
+
+            competitive: `Ricerca il seguente topic usando fonti web aggiornate e produci un REPORT COMPETITIVO strutturato così:
+
+# Analisi Competitiva: ${topic}
+
+## Panorama Attuale
+[Chi sono i player principali, quote di mercato, posizionamento]
+
+## Mosse Recenti dei Competitor
+[Ultime notizie: funding, lanci, acquisizioni, partnership]
+
+## Opportunità & Minacce
+[Spazi aperti vs rischi per Quinta OS]
+
+## Raccomandazione Strategica
+[1 mossa prioritaria]
+
+## Fonti
+[Lista delle fonti utilizzate]`,
+
+            market: `Ricerca il seguente topic usando fonti web aggiornate e produci un REPORT DI MERCATO strutturato così:
+
+# Market Intelligence: ${topic}
+
+## Dimensioni & Crescita del Mercato
+[TAM/SAM/SOM, CAGR, proiezioni]
+
+## Driver di Crescita
+[Fattori che stanno accelerando il mercato]
+
+## Barriere & Rischi
+[Ostacoli regolatori, tecnologici, economici]
+
+## Opportunità per Quinta OS
+[Dove posizionarsi]
+
+## Fonti
+[Lista delle fonti utilizzate]`,
+        };
+
+        const prompt = reportTemplates[reportType] || reportTemplates.strategic;
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash",
+            systemInstruction,
+            tools: [{ googleSearch: {} }],
+        });
+
+        logger.info("Calling Gemini with Google Search grounding...");
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const text = response.text();
+
+        // Extract grounding metadata (sources) if available
+        const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+        const sources = groundingMetadata?.groundingChunks?.map(chunk => ({
+            title: chunk.web?.title || '',
+            uri: chunk.web?.uri || '',
+        })).filter(s => s.uri) || [];
+
+        logger.info(`Report generated. Length: ${text.length}, Sources: ${sources.length}`);
+
+        return {
+            data: {
+                content: text,
+                sources,
+                topic,
+                reportType,
+                generatedAt: new Date().toISOString(),
+            }
+        };
+
+    } catch (error) {
+        logger.error("RESEARCH FAILURE:", { error: error.message, stack: error.stack });
+        return {
+            data: null,
+            debug: error.message
+        };
+    }
+});
