@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0d1b3e"/>
+      <stop offset="100%" stop-color="#050508"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7dd3fc" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="arc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="50%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <filter id="glow-filter">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#bg)"/>
+
+  <!-- Outer glow -->
+  <circle cx="256" cy="256" r="200" fill="url(#glow)"/>
+
+  <!-- C shape — thick arc -->
+  <path d="
+    M 256,80
+    A 176,176 0 1,0 256,432
+    L 256,380
+    A 124,124 0 1,1 256,132
+    Z
+  " fill="url(#arc)" opacity="0.95"/>
+
+  <!-- Circuit lines radiating from center -->
+  <g filter="url(#glow-filter)" opacity="0.8">
+    <!-- Line 1 -->
+    <line x1="256" y1="256" x2="180" y2="120" stroke="#7dd3fc" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="180" cy="120" r="5" fill="#7dd3fc"/>
+    <!-- Line 2 -->
+    <line x1="256" y1="256" x2="140" y2="200" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="140" cy="200" r="4" fill="#7dd3fc"/>
+    <!-- Line 3 -->
+    <line x1="256" y1="256" x2="130" y2="280" stroke="#93c5fd" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="130" cy="280" r="4" fill="#93c5fd"/>
+    <!-- Line 4 -->
+    <line x1="256" y1="256" x2="160" y2="360" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="160" cy="360" r="5" fill="#7dd3fc"/>
+    <!-- Line 5 -->
+    <line x1="256" y1="256" x2="220" y2="400" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="220" cy="400" r="4" fill="#7dd3fc"/>
+    <!-- Line 6 -->
+    <line x1="256" y1="256" x2="310" y2="100" stroke="#93c5fd" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="310" cy="100" r="4" fill="#93c5fd"/>
+    <!-- Line 7 -->
+    <line x1="256" y1="256" x2="350" y2="420" stroke="#7dd3fc" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="350" cy="420" r="4" fill="#7dd3fc"/>
+    <!-- Line 8 — curved upper -->
+    <line x1="256" y1="256" x2="200" y2="155" stroke="#bfdbfe" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="200" cy="155" r="3.5" fill="#bfdbfe"/>
+    <!-- Line 9 -->
+    <line x1="256" y1="256" x2="170" y2="320" stroke="#93c5fd" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="170" cy="320" r="3.5" fill="#93c5fd"/>
+    <!-- Line 10 -->
+    <line x1="256" y1="256" x2="290" y2="390" stroke="#bfdbfe" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="290" cy="390" r="3.5" fill="#bfdbfe"/>
+  </g>
+
+  <!-- Center dot -->
+  <circle cx="256" cy="256" r="10" fill="#e0f2fe" opacity="0.95"/>
+  <circle cx="256" cy="256" r="5" fill="white"/>
+
+  <!-- Inner glow at center -->
+  <circle cx="256" cy="256" r="30" fill="#7dd3fc" opacity="0.15"/>
+</svg>

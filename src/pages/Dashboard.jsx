@@ -117,15 +117,22 @@ export const Dashboard = ({ user }) => {
 
             {/* Header */}
             <header className="max-w-screen-2xl mx-auto mb-6 flex justify-between items-center border-b border-white/5 pb-4 sticky top-0 z-20 bg-[#050508]/70 backdrop-blur-xl">
-                <div>
-                    <h1 className="text-xl font-mono font-bold tracking-tighter text-white">
-                        QUINTA <span className="text-zinc-600">OS</span>
-                    </h1>
-                    <div className="flex items-center gap-2 mt-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                        <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
-                            Execution Layer • Active
-                        </p>
+                <div className="flex items-center gap-3">
+                    <img
+                        src="/logo.png"
+                        alt="C-Suite OS"
+                        className="w-9 h-9 rounded-xl object-contain flex-shrink-0"
+                    />
+                    <div>
+                        <h1 className="text-xl font-mono font-bold tracking-tighter text-white leading-none">
+                            C-Suite <span className="text-zinc-600">OS</span>
+                        </h1>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                            <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
+                                Execution Layer • Active
+                            </p>
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-4 text-xs font-mono">
