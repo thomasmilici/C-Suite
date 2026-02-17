@@ -2,12 +2,12 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/authService';
-import { LogOut, Shield, Sparkles } from 'lucide-react';
+import { LogOut, Shield, Sparkles, Archive } from 'lucide-react';
 import { TileCompass } from '../components/tiles/TileCompass';
 import { TilePulse } from '../components/tiles/TilePulse';
 import { TileTeam } from '../components/tiles/TileTeam';
 import { TileRadar } from '../components/tiles/TileRadar';
-import { TileIntelligence } from '../components/tiles/TileIntelligence';
+import { TileIntelligence, ReportsArchiveModal } from '../components/tiles/TileIntelligence';
 import { TileDecisionLog } from '../components/tiles/TileDecisionLog';
 import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterface';
 import { ProactiveAlerts } from '../components/modules/Intelligence/ProactiveAlerts';
@@ -55,6 +55,7 @@ export const Dashboard = ({ user }) => {
     const navigate = useNavigate();
     const [isAdmin, setIsAdmin] = useState(false);
     const [showNeural, setShowNeural] = useState(false);
+    const [showArchive, setShowArchive] = useState(false);
     const [showSignalModal, setShowSignalModal] = useState(false);
     const [showOKRModal, setShowOKRModal] = useState(false);
     const [selectedOKR, setSelectedOKR] = useState(null);
@@ -135,17 +136,25 @@ export const Dashboard = ({ user }) => {
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs font-mono">
+                <div className="flex items-center gap-3 text-xs font-mono">
                     {/* Termometro salute strategica — solo admin */}
                     {isAdmin && healthScore !== null && (
                         <HealthGauge score={healthScore} />
                     )}
+                    {/* Archivio Reports — visibile a tutti */}
+                    <button
+                        onClick={() => setShowArchive(true)}
+                        className="hidden sm:flex touch-target items-center gap-1.5 text-zinc-400 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 px-3 py-1.5 rounded-lg transition-all backdrop-blur-sm"
+                    >
+                        <Archive className="w-3 h-3" />
+                        <span>Archivio</span>
+                    </button>
                     {isAdmin && (
                         <button onClick={() => navigate('/admin')} className="touch-target text-red-400 hover:text-red-300 flex items-center gap-1.5 border border-red-900/50 bg-red-900/10 px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
                             <Shield className="w-3 h-3" /> ADMIN
                         </button>
                     )}
-                    <div className="text-zinc-500 hidden sm:block">
+                    <div className="text-zinc-500 hidden md:block">
                         OP: <span className="text-white uppercase">{user?.displayName || 'Unknown'}</span>
                     </div>
                     <button onClick={handleLogout} className="touch-target text-zinc-400 hover:text-white transition-colors flex items-center gap-2">
@@ -215,6 +224,14 @@ export const Dashboard = ({ user }) => {
             {showNeural && <NeuralInterface onClose={() => setShowNeural(false)} />}
             {showSignalModal && createPortal(<SignalInput onClose={() => setShowSignalModal(false)} />, document.body)}
             {showOKRModal && createPortal(<OKRManager onClose={() => setShowOKRModal(false)} existingOKR={selectedOKR} />, document.body)}
+            {showArchive && createPortal(
+                <ReportsArchiveModal
+                    onClose={() => setShowArchive(false)}
+                    adminName={user?.displayName}
+                    onOpenReport={() => {}}
+                />,
+                document.body
+            )}
 
         </div>
     );

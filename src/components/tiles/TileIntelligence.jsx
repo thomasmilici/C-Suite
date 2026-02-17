@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Zap, Search, FileSearch, ChevronRight, Loader2, X, ExternalLink, Download, BookOpen, Clock, AlertTriangle, BarChart2, Swords, Globe, Archive, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
@@ -304,11 +305,21 @@ const ReportModal = ({ report, onClose, adminName }) => {
 };
 
 // ── ARCHIVE MODAL ────────────────────────────────────────────────────────────
-const ArchiveModal = ({ onClose, adminName, onOpenReport }) => {
+export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
     const [allReports, setAllReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [deletingId, setDeletingId] = useState(null);
-    const [confirmDelete, setConfirmDelete] = useState(null); // id to confirm
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const [internalReport, setInternalReport] = useState(null); // for self-contained viewer
+
+    const handleOpenReport = (r) => {
+        if (onOpenReport) {
+            onOpenReport(r);
+            onClose();
+        } else {
+            setInternalReport(r);
+        }
+    };
 
     useEffect(() => {
         const q = query(collection(db, 'reports'), orderBy('savedAt', 'desc'));
@@ -391,7 +402,7 @@ const ArchiveModal = ({ onClose, adminName, onOpenReport }) => {
                                         className="group flex items-center gap-3 p-3.5 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:bg-white/[0.04] hover:border-white/[0.1] transition-all"
                                     >
                                         {/* Info */}
-                                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { onOpenReport(r); onClose(); }}>
+                                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpenReport(r)}>
                                             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                                                 <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border ${TYPE_COLORS[r.reportType] || 'text-zinc-400 border-white/10 bg-white/5'}`}>
                                                     {TYPE_LABELS[r.reportType] || 'Report'}
@@ -456,6 +467,18 @@ const ArchiveModal = ({ onClose, adminName, onOpenReport }) => {
                     )}
                 </div>
             </motion.div>
+
+            {/* Internal report viewer (when used standalone from Dashboard header) */}
+            {internalReport && createPortal(
+                <AnimatePresence>
+                    <ReportModal
+                        report={internalReport}
+                        onClose={() => setInternalReport(null)}
+                        adminName={adminName}
+                    />
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 };
@@ -583,8 +606,8 @@ export const TileIntelligence = ({ adminName }) => {
                         )}
                         <button
                             onClick={() => setShowArchive(true)}
-                            title="Archivio completo"
-                            className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono text-zinc-500 hover:text-indigo-300 border border-white/[0.06] hover:border-indigo-500/20 bg-white/[0.02] hover:bg-indigo-500/5 rounded-lg transition-all"
+                            title="Archivio completo Intelligence Reports"
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-medium text-indigo-400 hover:text-indigo-300 border border-indigo-500/25 hover:border-indigo-500/50 bg-indigo-500/8 hover:bg-indigo-500/15 rounded-lg transition-all"
                         >
                             <Archive className="w-3 h-3" />
                             Archivio
@@ -683,27 +706,29 @@ export const TileIntelligence = ({ adminName }) => {
                 <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-indigo-500/[0.04] to-transparent rounded-tl-full pointer-events-none" />
             </div>
 
-            {/* Report Modal */}
-            <AnimatePresence>
-                {activeReport && (
+            {/* Report Modal — portal to body to escape overflow:hidden on tile */}
+            {activeReport && createPortal(
+                <AnimatePresence>
                     <ReportModal
                         report={activeReport}
                         onClose={() => setActiveReport(null)}
                         adminName={adminName}
                     />
-                )}
-            </AnimatePresence>
+                </AnimatePresence>,
+                document.body
+            )}
 
-            {/* Archive Modal */}
-            <AnimatePresence>
-                {showArchive && (
-                    <ArchiveModal
+            {/* Archive Modal — portal to body */}
+            {showArchive && createPortal(
+                <AnimatePresence>
+                    <ReportsArchiveModal
                         onClose={() => setShowArchive(false)}
                         adminName={adminName}
                         onOpenReport={(r) => setActiveReport(r)}
                     />
-                )}
-            </AnimatePresence>
+                </AnimatePresence>,
+                document.body
+            )}
         </>
     );
 };

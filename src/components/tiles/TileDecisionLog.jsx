@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { BookOpen, Plus, X, Loader2, ChevronRight, AlertTriangle, CheckCircle, Minus, Download, Pencil, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
@@ -752,24 +753,29 @@ export const TileDecisionLog = ({ isAdmin, adminName }) => {
                 <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-indigo-500/[0.04] to-transparent rounded-tl-full pointer-events-none" />
             </div>
 
-            <AnimatePresence>
-                {showForm && (
+            {/* Portal to body — escape overflow:hidden on parent tile */}
+            {showForm && createPortal(
+                <AnimatePresence>
                     <NewDecisionForm
                         onClose={() => setShowForm(false)}
                         onSuccess={handleSuccess}
                         isAdmin={isAdmin}
                         adminName={adminName}
                     />
-                )}
-                {activeDecision && (
+                </AnimatePresence>,
+                document.body
+            )}
+            {activeDecision && createPortal(
+                <AnimatePresence>
                     <DecisionModal
                         entry={activeDecision}
                         onClose={() => setActiveDecision(null)}
                         adminName={adminName}
                         isAdmin={isAdmin}
                     />
-                )}
-            </AnimatePresence>
+                </AnimatePresence>,
+                document.body
+            )}
         </>
     );
 };
