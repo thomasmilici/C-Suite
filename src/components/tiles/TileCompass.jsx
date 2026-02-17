@@ -1,8 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { Compass, Plus } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
+
+// Circular SVG progress ring
+const ProgressRing = ({ progress = 0, status = 'on-track', size = 36 }) => {
+    const radius = (size - 6) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const pct = Math.min(Math.max(progress, 0), 100);
+    const offset = circumference - (pct / 100) * circumference;
+    const color = status === 'risk' ? '#f87171' : pct >= 80 ? '#34d399' : '#6366f1';
+
+    return (
+        <svg width={size} height={size} className="flex-shrink-0 -rotate-90">
+            {/* Track */}
+            <circle
+                cx={size / 2} cy={size / 2} r={radius}
+                fill="none"
+                stroke="rgba(255,255,255,0.06)"
+                strokeWidth={3}
+            />
+            {/* Progress */}
+            <motion.circle
+                cx={size / 2} cy={size / 2} r={radius}
+                fill="none"
+                stroke={color}
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                initial={{ strokeDashoffset: circumference }}
+                animate={{ strokeDashoffset: offset }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
+            />
+            {/* Percentage text (rotated back) */}
+            <text
+                x={size / 2} y={size / 2}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill={color}
+                fontSize={size < 40 ? 8 : 10}
+                fontFamily="monospace"
+                fontWeight="700"
+                transform={`rotate(90, ${size / 2}, ${size / 2})`}
+            >
+                {pct}%
+            </text>
+        </svg>
+    );
+};
 
 export const TileCompass = ({ isAdmin, onOpenModal }) => {
     const [okrs, setOkrs] = useState([]);
@@ -15,15 +61,13 @@ export const TileCompass = ({ isAdmin, onOpenModal }) => {
         return () => unsubscribe();
     }, []);
 
-    const handleEdit = (okr) => {
-        if (!isAdmin) return;
-        onOpenModal(okr);
-    };
+    const handleEdit = (okr) => { if (isAdmin) onOpenModal(okr); };
+    const handleAdd = (e) => { e.stopPropagation(); onOpenModal(null); };
 
-    const handleAdd = (e) => {
-        e.stopPropagation();
-        onOpenModal(null);
-    }
+    // Overall health — average progress
+    const avgProgress = okrs.length > 0
+        ? Math.round(okrs.reduce((s, o) => s + (o.progress || 0), 0) / okrs.length)
+        : 0;
 
     return (
         <div className="h-full flex flex-col p-7 relative">
@@ -35,13 +79,16 @@ export const TileCompass = ({ isAdmin, onOpenModal }) => {
                     <Compass className="w-3.5 h-3.5 text-indigo-400" /> Strategic Themes
                 </h3>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-zinc-500 font-mono px-2 py-1 border border-white/5 bg-white/[0.03] rounded-lg backdrop-blur-sm">
-                        Q1 2026
-                    </span>
+                    {okrs.length > 0 && (
+                        <span className="text-[10px] text-zinc-500 font-mono px-2 py-1 border border-white/5 bg-white/[0.03] rounded-lg">
+                            Q1 2026 · Ø {avgProgress}%
+                        </span>
+                    )}
                     {isAdmin && (
                         <button
                             onClick={handleAdd}
-                            className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/10 hover:border-white/20 backdrop-blur-sm"
+                            title="Aggiungi OKR"
+                            className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/10 hover:border-white/20 cursor-pointer"
                         >
                             <Plus className="w-3 h-3" />
                         </button>
@@ -49,45 +96,63 @@ export const TileCompass = ({ isAdmin, onOpenModal }) => {
                 </div>
             </div>
 
-            <div className="space-y-5 flex-grow overflow-y-auto overflow-x-hidden pr-1 scrollbar-thin scrollbar-thumb-white/5">
-                {okrs.length > 0 ? okrs.map((okr, index) => (
-                    <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        key={okr.id}
-                        className={`group ${isAdmin ? 'cursor-pointer hover:bg-white/[0.04] p-3 rounded-xl -mx-3 transition-all' : 'py-1'}`}
-                        onClick={() => handleEdit(okr)}
-                    >
-                        <div className="flex justify-between items-end mb-2">
-                            <span className="text-sm text-zinc-200 font-mono truncate w-3/4 group-hover:text-white transition-colors">{okr.title}</span>
-                            <div className="flex items-center gap-2">
-                                {okr.keyResults?.length > 0 && (
-                                    <span className="text-[10px] font-mono text-zinc-600">
-                                        {okr.keyResults.filter(kr => kr.completed).length}/{okr.keyResults.length} KR
-                                    </span>
-                                )}
-                                <span className={`text-xs font-bold font-mono ${okr.status === 'risk' ? 'text-red-400' : 'text-emerald-400'}`}>
-                                    {okr.progress}%
-                                </span>
-                            </div>
-                        </div>
-                        <div className="h-1.5 w-full bg-white/5 overflow-hidden rounded-full">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${okr.progress}%` }}
-                                transition={{ duration: 1, ease: "easeOut", delay: index * 0.1 }}
-                                className={`h-full rounded-full ${okr.status === 'risk' ? 'bg-gradient-to-r from-red-600 to-red-400' : 'bg-gradient-to-r from-emerald-600 to-emerald-400'}`}
-                            />
-                        </div>
-                    </motion.div>
-                )) : (
-                    <div className="h-full flex items-center justify-center text-zinc-700 text-xs font-mono tracking-widest">
-                        NO ACTIVE STRATEGIES
-                    </div>
-                )}
-            </div>
+            <div className="space-y-3 flex-grow overflow-y-auto overflow-x-hidden pr-1 scrollbar-thin scrollbar-thumb-white/5">
+                <AnimatePresence>
+                    {okrs.length > 0 ? okrs.map((okr, index) => (
+                        <motion.div
+                            layout
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ delay: index * 0.07 }}
+                            key={okr.id}
+                            className={`group flex items-center gap-4 p-3 rounded-xl border transition-all
+                                bg-white/[0.02] border-white/[0.05]
+                                ${isAdmin ? 'cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12]' : ''}`}
+                            onClick={() => handleEdit(okr)}
+                        >
+                            {/* Circular gauge */}
+                            <ProgressRing progress={okr.progress} status={okr.status} size={40} />
 
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm text-zinc-200 font-mono truncate group-hover:text-white transition-colors leading-snug">
+                                    {okr.title}
+                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    {okr.keyResults?.length > 0 && (
+                                        <span className="text-[10px] font-mono text-zinc-600">
+                                            {okr.keyResults.filter(kr => kr.completed).length}/{okr.keyResults.length} KR
+                                        </span>
+                                    )}
+                                    {okr.status === 'risk' && (
+                                        <span className="text-[9px] font-bold font-mono text-red-400 uppercase tracking-wider">
+                                            ⚠ A rischio
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    )) : (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="h-full flex flex-col items-center justify-center gap-3 py-10 text-center"
+                        >
+                            <Compass className="w-8 h-8 text-zinc-700" />
+                            <p className="text-xs font-mono text-zinc-600 uppercase tracking-widest">No Active Strategies</p>
+                            {isAdmin && (
+                                <button
+                                    onClick={handleAdd}
+                                    className="text-[10px] font-mono text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+                                >
+                                    + Crea primo OKR
+                                </button>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 };

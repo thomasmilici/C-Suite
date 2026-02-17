@@ -140,11 +140,20 @@ export const BriefingRoom = ({ isAdmin }) => {
                             )}
                             {!loadingBriefing && !briefingError && !briefing && (
                                 <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                    className="flex flex-col items-center justify-center gap-4 h-32 text-center">
-                                    <p className="text-zinc-600 text-xs font-mono">NO BRIEFING FOR TODAY</p>
+                                    className="flex flex-col items-center justify-center gap-4 py-10 text-center">
+                                    <div className="relative">
+                                        <FileText className="w-10 h-10 text-zinc-700" />
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500/20 border border-blue-500/30 rounded-full flex items-center justify-center">
+                                            <Zap className="w-1.5 h-1.5 text-blue-400" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-zinc-400 text-xs font-mono font-bold uppercase tracking-widest">Nessun briefing oggi</p>
+                                        <p className="text-zinc-600 text-[10px] font-mono mt-1">L'AI analizzerà OKR, segnali e decisioni recenti</p>
+                                    </div>
                                     <button onClick={handleGenerate}
-                                        className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-1.5">
-                                        <Zap className="w-3 h-3" /> GENERATE
+                                        className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 hover:border-blue-500/40 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-2 cursor-pointer">
+                                        <Zap className="w-3 h-3" /> Genera Briefing
                                     </button>
                                 </motion.div>
                             )}
@@ -172,6 +181,24 @@ export const BriefingRoom = ({ isAdmin }) => {
                     </div>
 
                     <div className="flex-grow overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-white/5">
+                        {decisions.length === 0 && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="flex flex-col items-center justify-center gap-3 py-8 text-center"
+                            >
+                                <BookOpen className="w-7 h-7 text-zinc-700" />
+                                <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Nessuna decisione</p>
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => setShowDecisionModal(true)}
+                                        className="text-[10px] font-mono text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+                                    >
+                                        + Prima decisione
+                                    </button>
+                                )}
+                            </motion.div>
+                        )}
                         {decisions.length > 0 ? decisions.map(decision => (
                             <motion.div
                                 key={decision.id}

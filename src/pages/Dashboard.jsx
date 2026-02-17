@@ -17,6 +17,40 @@ import { SignalInput } from '../components/modals/SignalInput';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
+// Circular health gauge for header
+const HealthGauge = ({ score }) => {
+    const size = 36;
+    const radius = 14;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (score / 100) * circumference;
+    const color = score >= 70 ? '#34d399' : score >= 40 ? '#fbbf24' : '#f87171';
+    const label = score >= 70 ? 'OPTIMAL' : score >= 40 ? 'ATTENZIONE' : 'CRITICO';
+    return (
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 border border-white/[0.07] bg-white/[0.02] rounded-lg backdrop-blur-sm" title={`Health: ${score}% — ${label}`}>
+            <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-mono">HEALTH</span>
+            <svg width={size} height={size} className="-rotate-90">
+                <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={3} />
+                <circle
+                    cx={size/2} cy={size/2} r={radius}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    style={{ transition: 'stroke-dashoffset 1s ease-out' }}
+                />
+                <text x={size/2} y={size/2} textAnchor="middle" dominantBaseline="middle"
+                    fill={color} fontSize={8} fontFamily="monospace" fontWeight="700"
+                    transform={`rotate(90,${size/2},${size/2})`}>
+                    {score}
+                </text>
+            </svg>
+            <span className="text-[10px] font-mono" style={{ color }}>{label}</span>
+        </div>
+    );
+};
+
 export const Dashboard = ({ user }) => {
     const navigate = useNavigate();
     const [isAdmin, setIsAdmin] = useState(false);
@@ -97,35 +131,17 @@ export const Dashboard = ({ user }) => {
                 <div className="flex items-center gap-4 text-xs font-mono">
                     {/* Termometro salute strategica — solo admin */}
                     {isAdmin && healthScore !== null && (
-                        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 border border-white/[0.07] bg-white/[0.02] rounded-lg backdrop-blur-sm">
-                            <span className="text-[10px] text-zinc-600 uppercase tracking-widest">HEALTH</span>
-                            <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full rounded-full transition-all duration-1000"
-                                    style={{
-                                        width: `${healthScore}%`,
-                                        background: healthScore >= 70
-                                            ? 'linear-gradient(90deg, #10b981, #34d399)'
-                                            : healthScore >= 40
-                                            ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
-                                            : 'linear-gradient(90deg, #ef4444, #f87171)'
-                                    }}
-                                />
-                            </div>
-                            <span className={`text-[11px] font-bold font-mono ${healthScore >= 70 ? 'text-emerald-400' : healthScore >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                {healthScore}%
-                            </span>
-                        </div>
+                        <HealthGauge score={healthScore} />
                     )}
                     {isAdmin && (
-                        <button onClick={() => navigate('/admin')} className="text-red-400 hover:text-red-300 flex items-center gap-1.5 border border-red-900/50 bg-red-900/10 px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
+                        <button onClick={() => navigate('/admin')} className="touch-target text-red-400 hover:text-red-300 flex items-center gap-1.5 border border-red-900/50 bg-red-900/10 px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
                             <Shield className="w-3 h-3" /> ADMIN
                         </button>
                     )}
                     <div className="text-zinc-500 hidden sm:block">
                         OP: <span className="text-white uppercase">{user?.displayName || 'Unknown'}</span>
                     </div>
-                    <button onClick={handleLogout} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2">
+                    <button onClick={handleLogout} className="touch-target text-zinc-400 hover:text-white transition-colors flex items-center gap-2">
                         <LogOut className="w-4 h-4" />
                     </button>
                 </div>
