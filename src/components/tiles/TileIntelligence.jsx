@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Zap, Search, FileSearch, ChevronRight, Loader2, X, ExternalLink, Download, BookOpen, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Zap, Search, FileSearch, ChevronRight, Loader2, X, ExternalLink, Download, BookOpen, Clock, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
@@ -315,57 +315,127 @@ const ReportModal = ({ report, onClose, adminName }) => {
 
 // ── MAIN TILE ────────────────────────────────────────────────────────────────
 export const TileIntelligence = ({ adminName }) => {
-    const [selectedType, setSelectedType] = useState('strategic');
     const [customTopic, setCustomTopic] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeReport, setActiveReport] = useState(null);
     const [recentReports, setRecentReports] = useState([]);
+    const [error, setError] = useState(null);
+    // Dialog per topic preset
+    const [topicDialog, setTopicDialog] = useState(null); // { preset } oppure null
+    const [topicInput, setTopicInput] = useState('');
 
-    // Load recent reports from Firestore
+    // Load recent reports from Firestore (ordinati per savedAt)
     useEffect(() => {
         const q = query(collection(db, 'reports'), orderBy('savedAt', 'desc'), limit(5));
         const unsub = onSnapshot(q, (snap) => {
-            setRecentReports(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            // Filtra documenti che hanno un content valido (almeno 100 char) e un topic
+            const valid = snap.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(r => r.topic && r.content && r.content.length > 100);
+            setRecentReports(valid);
+        }, (err) => {
+            console.error('Firestore reports error:', err);
         });
         return () => unsub();
     }, []);
 
-    const handleGenerate = async (presetType = null, presetTopic = null) => {
-        const type = presetType || selectedType;
-        const topic = presetTopic || customTopic.trim();
-        if (!topic) return;
-
+    const runGenerate = async (type, topic) => {
+        if (!topic.trim()) return;
         setIsGenerating(true);
+        setError(null);
         try {
             const researchFn = httpsCallable(functions, 'researchAndReport');
-            const result = await researchFn({ topic, reportType: type });
-            if (result.data?.data) {
+            const result = await researchFn({ topic: topic.trim(), reportType: type });
+            if (result.data?.data && result.data.data.content) {
                 const docNumber = generateDocNumber();
                 const reportData = { ...result.data.data, docNumber };
-
-                // Save to Firestore
+                // Salva su Firestore
                 await addDoc(collection(db, 'reports'), {
                     ...reportData,
                     savedAt: serverTimestamp(),
                 });
-
                 setActiveReport(reportData);
                 setCustomTopic('');
+            } else {
+                setError('La generazione del report non ha prodotto contenuto. Riprova.');
             }
         } catch (e) {
             console.error('Research error:', e);
+            setError('Errore nella generazione del report. Controlla la connessione e riprova.');
         } finally {
             setIsGenerating(false);
         }
     };
 
+    // Click su preset → apre dialog per inserire il topic specifico
     const handlePreset = (preset) => {
-        setSelectedType(preset.type);
-        handleGenerate(preset.type, preset.label);
+        setTopicDialog(preset);
+        setTopicInput('');
+    };
+
+    // Conferma dal dialog
+    const handleDialogConfirm = () => {
+        if (!topicInput.trim() || !topicDialog) return;
+        const { type } = topicDialog;
+        setTopicDialog(null);
+        runGenerate(type, topicInput);
+    };
+
+    // Genera da campo libero
+    const handleCustomGenerate = () => {
+        runGenerate('strategic', customTopic);
     };
 
     return (
         <>
+            {/* Dialog per topic specifico */}
+            <AnimatePresence>
+                {topicDialog && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center p-4 rounded-2xl overflow-hidden">
+                        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-2xl" onClick={() => setTopicDialog(null)} />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="relative z-10 w-full max-w-xs bg-zinc-950 border border-white/[0.1] rounded-xl p-5 shadow-2xl"
+                        >
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-lg">{topicDialog.icon}</span>
+                                <div>
+                                    <p className="text-xs font-mono text-white font-bold">{topicDialog.label}</p>
+                                    <p className="text-[10px] text-zinc-500">{topicDialog.description}</p>
+                                </div>
+                            </div>
+                            <p className="text-[11px] text-zinc-400 font-mono mb-2">Su quale topic devo fare la ricerca?</p>
+                            <input
+                                autoFocus
+                                type="text"
+                                value={topicInput}
+                                onChange={(e) => setTopicInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleDialogConfirm()}
+                                placeholder="es. mercato SaaS italiano 2026..."
+                                className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/50 transition-all mb-3"
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setTopicDialog(null)}
+                                    className="flex-1 px-3 py-2 text-xs font-mono text-zinc-500 border border-white/[0.07] rounded-lg hover:bg-white/[0.04] transition-all"
+                                >
+                                    Annulla
+                                </button>
+                                <button
+                                    onClick={handleDialogConfirm}
+                                    disabled={!topicInput.trim()}
+                                    className="flex-1 px-3 py-2 text-xs font-mono text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Genera Report
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             <div className="h-full flex flex-col p-6 relative">
                 <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
@@ -381,6 +451,17 @@ export const TileIntelligence = ({ adminName }) => {
                         </div>
                     )}
                 </div>
+
+                {/* Errore */}
+                {error && (
+                    <div className="flex items-start gap-2 mb-3 px-3 py-2 bg-red-900/10 border border-red-500/20 rounded-lg">
+                        <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-[10px] font-mono text-red-400 leading-relaxed">{error}</p>
+                        <button onClick={() => setError(null)} className="ml-auto text-red-600 hover:text-red-400">
+                            <X className="w-3 h-3" />
+                        </button>
+                    </div>
+                )}
 
                 {/* Preset buttons */}
                 <div className="space-y-2 mb-4">
@@ -409,13 +490,13 @@ export const TileIntelligence = ({ adminName }) => {
                         type="text"
                         value={customTopic}
                         onChange={(e) => setCustomTopic(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCustomGenerate()}
                         placeholder="Topic personalizzato..."
                         disabled={isGenerating}
                         className="flex-grow bg-white/[0.03] border border-white/[0.07] rounded-xl px-3 py-2 text-xs font-mono text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/30 transition-all disabled:opacity-40"
                     />
                     <button
-                        onClick={() => handleGenerate()}
+                        onClick={handleCustomGenerate}
                         disabled={!customTopic.trim() || isGenerating}
                         className="px-3 py-2 bg-indigo-600/80 hover:bg-indigo-500 text-white rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
@@ -424,7 +505,7 @@ export const TileIntelligence = ({ adminName }) => {
                 </div>
 
                 {/* Recent reports */}
-                {recentReports.length > 0 && (
+                {recentReports.length > 0 ? (
                     <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5">
                         <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                             <Clock className="w-2.5 h-2.5" /> Report recenti
@@ -441,7 +522,7 @@ export const TileIntelligence = ({ adminName }) => {
                                             {r.topic}
                                         </p>
                                         <p className="text-[9px] text-zinc-700">
-                                            {TYPE_LABELS[r.reportType]} · {r.docNumber || ''}
+                                            {TYPE_LABELS[r.reportType] || 'Report'} · {r.docNumber || '—'}
                                         </p>
                                     </div>
                                     <BookOpen className="w-3 h-3 text-zinc-700 group-hover:text-indigo-400 flex-shrink-0 ml-2 transition-colors" />
@@ -449,6 +530,12 @@ export const TileIntelligence = ({ adminName }) => {
                             ))}
                         </div>
                     </div>
+                ) : (
+                    !isGenerating && (
+                        <p className="text-[10px] font-mono text-zinc-700 text-center mt-2">
+                            Nessun report ancora. Clicca un preset per iniziare.
+                        </p>
+                    )
                 )}
 
                 <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-indigo-500/[0.04] to-transparent rounded-tl-full pointer-events-none" />
