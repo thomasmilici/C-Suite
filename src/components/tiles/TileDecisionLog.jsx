@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Plus, X, Loader2, ChevronRight, AlertTriangle, CheckCircle, Minus, Download, ExternalLink } from 'lucide-react';
+import { BookOpen, Plus, X, Loader2, ChevronRight, AlertTriangle, CheckCircle, Minus, Download, Pencil, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
-import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
@@ -25,17 +25,15 @@ const exportDecisionToPDF = (entry, adminName) => {
     const dateStr = entry.analyzedAt
         ? new Date(entry.analyzedAt).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
         : new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
-    const { color: verdictColor, label: verdictLabel } = getVerdictMeta(entry.analysis);
+    const { color: verdictColor, label: verdictLabel } = getVerdictMeta(entry.verdict || entry.analysis);
 
-    // ── COVER PAGE (print-friendly: white bg, indigo accents) ────────────────
+    // ── COVER PAGE ────────────────────────────────────────────────────────────
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, W, H, 'F');
 
-    // Indigo top bar
     doc.setFillColor(79, 70, 229);
     doc.rect(0, 0, W, 18, 'F');
 
-    // Logo in top bar
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(255, 255, 255);
@@ -48,11 +46,9 @@ const exportDecisionToPDF = (entry, adminName) => {
     doc.setFontSize(6.5);
     doc.text(docNumber, W - margin, 12, { align: 'right' });
 
-    // Left sidebar accent
     doc.setFillColor(79, 70, 229);
     doc.rect(margin - 3, 26, 1.5, 220, 'F');
 
-    // Badge tipo documento
     doc.setFillColor(237, 233, 254);
     doc.roundedRect(margin, 32, 60, 8, 1.5, 1.5, 'F');
     doc.setFont('helvetica', 'bold');
@@ -60,7 +56,6 @@ const exportDecisionToPDF = (entry, adminName) => {
     doc.setTextColor(79, 70, 229);
     doc.text('DECISION ANALYSIS REPORT', margin + 3, 37.5);
 
-    // Titolo decisione
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
     doc.setTextColor(15, 23, 42);
@@ -68,7 +63,6 @@ const exportDecisionToPDF = (entry, adminName) => {
     doc.text(titleLines, margin, 54);
     let cursorY = 54 + titleLines.length * 9 + 2;
 
-    // Rationale se presente
     if (entry.rationale) {
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(9);
@@ -78,13 +72,11 @@ const exportDecisionToPDF = (entry, adminName) => {
         cursorY += rationaleLines.length * 5 + 4;
     }
 
-    // Separator
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.3);
     doc.line(margin, cursorY + 2, W - margin, cursorY + 2);
     cursorY += 10;
 
-    // Meta info
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
@@ -104,40 +96,29 @@ const exportDecisionToPDF = (entry, adminName) => {
     doc.text(docNumber, margin + 34, cursorY + 14);
     cursorY += 26;
 
-    // Verdict badge
     const [vr, vg, vb] = verdictColor;
-    doc.setFillColor(vr, vg, vb);
-    doc.setFillColor(vr, vg, vb, 0.08);
-    // draw fill manually
     doc.setDrawColor(vr, vg, vb);
     doc.setLineWidth(0.5);
-    doc.roundedRect(margin, cursorY, 48, 11, 2, 2, 'D');
-    // light fill
     doc.setFillColor(Math.min(vr + 180, 255), Math.min(vg + 180, 255), Math.min(vb + 180, 255));
     doc.roundedRect(margin, cursorY, 48, 11, 2, 2, 'F');
-    doc.setDrawColor(vr, vg, vb);
     doc.roundedRect(margin, cursorY, 48, 11, 2, 2, 'D');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(vr, vg, vb);
     doc.text(`VERDICT: ${verdictLabel}`, margin + 3, cursorY + 7.5);
 
-    // C-Suite Certification box
     const stampY = H - 65;
     doc.setFillColor(237, 233, 254);
     doc.setDrawColor(167, 139, 250);
     doc.setLineWidth(0.4);
     doc.roundedRect(margin, stampY, contentW, 40, 3, 3, 'FD');
-
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(79, 70, 229);
     doc.text('✦  C-SUITE CERTIFIED ANALYSIS', margin + 5, stampY + 8);
-
     doc.setDrawColor(167, 139, 250);
     doc.setLineWidth(0.2);
     doc.line(margin + 5, stampY + 11, margin + contentW - 5, stampY + 11);
-
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(79, 70, 229);
@@ -150,7 +131,6 @@ const exportDecisionToPDF = (entry, adminName) => {
         doc.text(`Autorizzato da: ${adminName}`, margin + 5, stampY + 36);
     }
 
-    // Footer bar
     doc.setFillColor(79, 70, 229);
     doc.rect(0, H - 10, W, 10, 'F');
     doc.setFont('helvetica', 'normal');
@@ -158,12 +138,10 @@ const exportDecisionToPDF = (entry, adminName) => {
     doc.setTextColor(199, 195, 255);
     doc.text(`${docNumber}  ·  QUINTA OS  ·  CONFIDENZIALE & RISERVATO`, W / 2, H - 4, { align: 'center' });
 
-    // ── CONTENT PAGES (print-friendly: white bg) ──────────────────────────────
+    // ── CONTENT PAGES ─────────────────────────────────────────────────────────
     const addHeaderFooter = (pageNum) => {
-        // White bg
         doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, W, H, 'F');
-        // Indigo top bar
         doc.setFillColor(79, 70, 229);
         doc.rect(0, 0, W, 10, 'F');
         doc.setFont('helvetica', 'bold');
@@ -173,10 +151,8 @@ const exportDecisionToPDF = (entry, adminName) => {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(199, 195, 255);
         doc.text(docNumber, W - margin, 7, { align: 'right' });
-        // Sidebar accent
         doc.setFillColor(79, 70, 229);
         doc.rect(margin - 3, 12, 1.5, H - 24, 'F');
-        // Footer bar
         doc.setFillColor(79, 70, 229);
         doc.rect(0, H - 10, W, 10, 'F');
         doc.setFont('helvetica', 'normal');
@@ -189,7 +165,6 @@ const exportDecisionToPDF = (entry, adminName) => {
     doc.addPage();
     addHeaderFooter(2);
 
-    // Analysis content
     let y = 18;
     const analysis = entry.analysis || '';
     const lines = analysis.split('\n');
@@ -202,7 +177,6 @@ const exportDecisionToPDF = (entry, adminName) => {
             addHeaderFooter(pageNum);
             y = 18;
         }
-
         const trimmed = line.trim();
         if (!trimmed) { y += 3; continue; }
 
@@ -219,13 +193,13 @@ const exportDecisionToPDF = (entry, adminName) => {
             y += 3;
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
-            doc.setTextColor(15, 23, 42); // slate-900
+            doc.setTextColor(15, 23, 42);
             doc.text(trimmed.replace('# ', ''), margin, y);
             y += 7;
         } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
-            doc.setTextColor(51, 65, 85); // slate-700
+            doc.setTextColor(51, 65, 85);
             const bullet = trimmed.replace(/^[-*] /, '');
             const wrapped = doc.splitTextToSize(`• ${bullet}`, contentW - 4);
             wrapped.forEach(wl => {
@@ -236,7 +210,7 @@ const exportDecisionToPDF = (entry, adminName) => {
         } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
-            doc.setTextColor(15, 23, 42); // slate-900
+            doc.setTextColor(15, 23, 42);
             const wrapped = doc.splitTextToSize(trimmed.replace(/\*\*/g, ''), contentW);
             wrapped.forEach(wl => {
                 if (y > H - 18) { doc.addPage(); pageNum++; addHeaderFooter(pageNum); y = 18; }
@@ -246,7 +220,7 @@ const exportDecisionToPDF = (entry, adminName) => {
         } else {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
-            doc.setTextColor(51, 65, 85); // slate-700
+            doc.setTextColor(51, 65, 85);
             const clean = trimmed.replace(/\*\*/g, '').replace(/\*/g, '');
             const wrapped = doc.splitTextToSize(clean, contentW);
             wrapped.forEach(wl => {
@@ -262,15 +236,25 @@ const exportDecisionToPDF = (entry, adminName) => {
 };
 
 // ── VERDICT META ──────────────────────────────────────────────────────────────
-const getVerdictMeta = (analysis = '') => {
-    const upper = analysis.toUpperCase();
-    if (upper.includes('A RISCHIO') || upper.includes('AT RISK')) return { color: [239, 68, 68], label: 'A RISCHIO', icon: 'risk' };
-    if (upper.includes('ALLINEATA') || upper.includes('ALIGNED')) return { color: [16, 185, 129], label: 'ALLINEATA', icon: 'ok' };
-    return { color: [245, 158, 11], label: 'NEUTRALE', icon: 'neutral' };
+const VERDICTS = [
+    { key: 'aligned', keywords: ['allineata', 'aligned'], color: [16, 185, 129], label: 'ALLINEATA', icon: 'ok' },
+    { key: 'risk', keywords: ['a rischio', 'at risk'], color: [239, 68, 68], label: 'A RISCHIO', icon: 'risk' },
+    { key: 'neutral', keywords: ['neutrale', 'neutral'], color: [245, 158, 11], label: 'NEUTRALE', icon: 'neutral' },
+];
+
+const getVerdictMeta = (text = '', overrideVerdict = null) => {
+    if (overrideVerdict) {
+        const found = VERDICTS.find(v => v.key === overrideVerdict);
+        if (found) return found;
+    }
+    const upper = text.toUpperCase();
+    if (upper.includes('A RISCHIO') || upper.includes('AT RISK')) return VERDICTS[1];
+    if (upper.includes('ALLINEATA') || upper.includes('ALIGNED')) return VERDICTS[0];
+    return VERDICTS[2];
 };
 
-const VerdictBadge = ({ analysis }) => {
-    const { color, label, icon } = getVerdictMeta(analysis);
+const VerdictBadge = ({ analysis, overrideVerdict }) => {
+    const { color, label, icon } = getVerdictMeta(analysis, overrideVerdict);
     const [r, g, b] = color;
     return (
         <span
@@ -285,85 +269,189 @@ const VerdictBadge = ({ analysis }) => {
     );
 };
 
-// ── DECISION MODAL ────────────────────────────────────────────────────────────
-const DecisionModal = ({ entry, onClose, adminName }) => (
-    <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        onClick={onClose}
-    >
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-        <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 20 }}
-            className="relative z-10 w-full max-w-2xl max-h-[85vh] bg-zinc-950 border border-white/[0.08] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-            onClick={e => e.stopPropagation()}
-        >
-            {/* Modal header */}
-            <div className="p-5 border-b border-white/[0.06] flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">Decision Analysis</span>
-                        <VerdictBadge analysis={entry.analysis} />
-                    </div>
-                    <h3 className="text-sm font-mono font-bold text-white leading-snug truncate">{entry.decision}</h3>
-                    {entry.rationale && (
-                        <p className="text-[10px] text-zinc-500 mt-1 italic">"{entry.rationale}"</p>
-                    )}
-                    <p className="text-[9px] text-zinc-700 mt-1">
-                        {entry.decisionMaker} · {entry.analyzedAt ? new Date(entry.analyzedAt).toLocaleDateString('it-IT') : '—'} · {entry.docNumber}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                        onClick={() => exportDecisionToPDF(entry, adminName)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/15 rounded-lg transition-all"
-                    >
-                        <Download className="w-3 h-3" /> Esporta PDF
-                    </button>
-                    <button onClick={onClose} className="p-1.5 hover:bg-white/[0.05] rounded-lg transition-colors text-zinc-500 hover:text-white">
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
-
-            {/* Analysis content */}
-            <div className="flex-grow overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-white/5">
-                <ReactMarkdown
-                    className="prose prose-invert prose-sm max-w-none"
-                    components={{
-                        h2: ({ children }) => (
-                            <h2 className="text-[11px] font-mono font-bold text-indigo-300 uppercase tracking-widest border-b border-white/[0.05] pb-1 mb-2 mt-5 first:mt-0">{children}</h2>
-                        ),
-                        p: ({ children }) => (
-                            <p className="text-xs text-zinc-300 leading-relaxed mb-2">{children}</p>
-                        ),
-                        li: ({ children }) => (
-                            <li className="text-xs text-zinc-300 leading-relaxed">{children}</li>
-                        ),
-                        strong: ({ children }) => (
-                            <strong className="text-zinc-100 font-semibold">{children}</strong>
-                        ),
+// ── VERDICT SELECTOR ──────────────────────────────────────────────────────────
+const VerdictSelector = ({ value, onChange }) => (
+    <div className="flex gap-2">
+        {VERDICTS.map(v => {
+            const [r, g, b] = v.color;
+            const isActive = value === v.key;
+            return (
+                <button
+                    key={v.key}
+                    onClick={() => onChange(v.key)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-mono font-bold transition-all border"
+                    style={{
+                        background: isActive ? `rgba(${r},${g},${b},0.15)` : 'rgba(255,255,255,0.02)',
+                        color: isActive ? `rgb(${r},${g},${b})` : 'rgb(113,113,122)',
+                        borderColor: isActive ? `rgba(${r},${g},${b},0.4)` : 'rgba(255,255,255,0.06)',
                     }}
                 >
-                    {entry.analysis}
-                </ReactMarkdown>
-            </div>
-        </motion.div>
-    </motion.div>
+                    {v.icon === 'ok' && <CheckCircle className="w-3 h-3" />}
+                    {v.icon === 'risk' && <AlertTriangle className="w-3 h-3" />}
+                    {v.icon === 'neutral' && <Minus className="w-3 h-3" />}
+                    {v.label}
+                </button>
+            );
+        })}
+    </div>
 );
 
-// ── NEW DECISION FORM ─────────────────────────────────────────────────────────
+// ── DECISION MODAL (view + edit saved) ───────────────────────────────────────
+const DecisionModal = ({ entry, onClose, adminName, isAdmin }) => {
+    const [editing, setEditing] = useState(false);
+    const [editText, setEditText] = useState(entry.analysis || '');
+    const [editVerdict, setEditVerdict] = useState(entry.verdict || null);
+    const [saving, setSaving] = useState(false);
+
+    const handleSaveEdit = async () => {
+        setSaving(true);
+        try {
+            await updateDoc(doc(db, 'decisions', entry.id), {
+                analysis: editText,
+                verdict: editVerdict,
+            });
+            setEditing(false);
+        } catch (e) {
+            console.error('Edit save error:', e);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const entryForPDF = { ...entry, analysis: editText, verdict: editVerdict };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            onClick={onClose}
+        >
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 20 }}
+                className="relative z-10 w-full max-w-2xl max-h-[85vh] bg-zinc-950 border border-white/[0.08] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Modal header */}
+                <div className="p-5 border-b border-white/[0.06] flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">Decision Analysis</span>
+                            <VerdictBadge analysis={entry.analysis} overrideVerdict={editing ? editVerdict : entry.verdict} />
+                        </div>
+                        <h3 className="text-sm font-mono font-bold text-white leading-snug truncate">{entry.decision}</h3>
+                        {entry.rationale && (
+                            <p className="text-[10px] text-zinc-500 mt-1 italic">"{entry.rationale}"</p>
+                        )}
+                        <p className="text-[9px] text-zinc-700 mt-1">
+                            {entry.decisionMaker} · {entry.analyzedAt ? new Date(entry.analyzedAt).toLocaleDateString('it-IT') : '—'} · {entry.docNumber}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        {isAdmin && !editing && (
+                            <button
+                                onClick={() => { setEditText(entry.analysis || ''); setEditVerdict(entry.verdict || null); setEditing(true); }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-zinc-400 border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.06] rounded-lg transition-all"
+                            >
+                                <Pencil className="w-3 h-3" /> Modifica
+                            </button>
+                        )}
+                        {isAdmin && editing && (
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={saving}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-emerald-300 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/15 rounded-lg transition-all disabled:opacity-50"
+                            >
+                                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                {saving ? 'Salvo...' : 'Salva'}
+                            </button>
+                        )}
+                        {isAdmin && editing && (
+                            <button
+                                onClick={() => setEditing(false)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-zinc-500 border border-white/[0.06] rounded-lg hover:bg-white/[0.03] transition-all"
+                            >
+                                Annulla
+                            </button>
+                        )}
+                        {!editing && (
+                            <button
+                                onClick={() => exportDecisionToPDF(entryForPDF, adminName)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/15 rounded-lg transition-all"
+                            >
+                                <Download className="w-3 h-3" /> Esporta PDF
+                            </button>
+                        )}
+                        <button onClick={onClose} className="p-1.5 hover:bg-white/[0.05] rounded-lg transition-colors text-zinc-500 hover:text-white">
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Edit mode: verdict selector */}
+                {editing && (
+                    <div className="px-5 pt-4 pb-2">
+                        <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Verdict</p>
+                        <VerdictSelector value={editVerdict || getVerdictMeta(entry.analysis).key} onChange={setEditVerdict} />
+                    </div>
+                )}
+
+                {/* Analysis content */}
+                <div className="flex-grow overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-white/5">
+                    {editing ? (
+                        <textarea
+                            value={editText}
+                            onChange={e => setEditText(e.target.value)}
+                            className="w-full h-full min-h-[300px] bg-white/[0.02] border border-white/[0.07] rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500/40 transition-all resize-none"
+                            placeholder="Testo analisi..."
+                        />
+                    ) : (
+                        <ReactMarkdown
+                            className="prose prose-invert prose-sm max-w-none"
+                            components={{
+                                h2: ({ children }) => (
+                                    <h2 className="text-[11px] font-mono font-bold text-indigo-300 uppercase tracking-widest border-b border-white/[0.05] pb-1 mb-2 mt-5 first:mt-0">{children}</h2>
+                                ),
+                                p: ({ children }) => (
+                                    <p className="text-xs text-zinc-300 leading-relaxed mb-2">{children}</p>
+                                ),
+                                li: ({ children }) => (
+                                    <li className="text-xs text-zinc-300 leading-relaxed">{children}</li>
+                                ),
+                                strong: ({ children }) => (
+                                    <strong className="text-zinc-100 font-semibold">{children}</strong>
+                                ),
+                            }}
+                        >
+                            {entry.analysis}
+                        </ReactMarkdown>
+                    )}
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};
+
+// ── NEW DECISION FORM (with review step) ─────────────────────────────────────
 const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName }) => {
+    const [step, setStep] = useState('input'); // 'input' | 'review'
     const [decision, setDecision] = useState('');
     const [rationale, setRationale] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState(null);
 
-    const handleSubmit = async () => {
+    // Review step state
+    const [aiResult, setAiResult] = useState(null);   // raw result from CF
+    const [editedAnalysis, setEditedAnalysis] = useState('');
+    const [selectedVerdict, setSelectedVerdict] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Step 1: send to AI
+    const handleAnalyze = async () => {
         if (!decision.trim()) return;
         setIsAnalyzing(true);
         setError(null);
@@ -374,18 +462,14 @@ const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName }) => {
                 rationale: rationale.trim(),
                 decisionMaker: adminName || 'Admin',
             });
-
             if (result.data?.data?.analysis) {
-                const docNumber = generateDocNumber();
-                const entry = {
-                    ...result.data.data,
-                    docNumber,
-                };
-                await addDoc(collection(db, 'decisions'), {
-                    ...entry,
-                    savedAt: serverTimestamp(),
-                });
-                onSuccess(entry);
+                const data = result.data.data;
+                setAiResult(data);
+                setEditedAnalysis(data.analysis);
+                // Auto-detect verdict from AI text
+                const meta = getVerdictMeta(data.analysis);
+                setSelectedVerdict(meta.key);
+                setStep('review');
             } else {
                 setError("L'analisi non ha prodotto risultati. Riprova.");
             }
@@ -394,6 +478,32 @@ const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName }) => {
             setError('Errore nella connessione. Controlla e riprova.');
         } finally {
             setIsAnalyzing(false);
+        }
+    };
+
+    // Step 2: save to Firestore
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const docNumber = generateDocNumber();
+            const entry = {
+                ...aiResult,
+                analysis: editedAnalysis,
+                verdict: selectedVerdict,
+                docNumber,
+                decision: decision.trim(),
+                rationale: rationale.trim(),
+                decisionMaker: adminName || 'Admin',
+            };
+            await addDoc(collection(db, 'decisions'), {
+                ...entry,
+                savedAt: serverTimestamp(),
+            });
+            onSuccess(entry);
+        } catch (e) {
+            console.error('Save decision error:', e);
+            setError('Errore nel salvataggio. Riprova.');
+            setIsSaving(false);
         }
     };
 
@@ -416,78 +526,135 @@ const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName }) => {
                 {/* Header */}
                 <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
                     <div>
-                        <h3 className="text-sm font-mono font-bold text-white">Nuova Decisione</h3>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">L'AI analizzerà la decisione nel contesto degli OKR e segnali attivi</p>
+                        <h3 className="text-sm font-mono font-bold text-white">
+                            {step === 'input' ? 'Nuova Decisione' : 'Rivedi Analisi AI'}
+                        </h3>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">
+                            {step === 'input'
+                                ? "L'AI analizzerà la decisione nel contesto degli OKR e segnali attivi"
+                                : 'Puoi modificare il testo e cambiare il verdict prima di salvare'}
+                        </p>
                     </div>
                     <button onClick={onClose} className="p-1.5 hover:bg-white/[0.05] rounded-lg transition-colors text-zinc-500 hover:text-white">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                {/* Form */}
-                <div className="p-5 space-y-4">
-                    <div>
-                        <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-1.5">
-                            Decisione *
-                        </label>
-                        <textarea
-                            value={decision}
-                            onChange={e => setDecision(e.target.value)}
-                            placeholder="Descrivi la decisione presa... (es. Investire €50k in una campagna marketing Q2)"
-                            rows={3}
-                            disabled={isAnalyzing}
-                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40 transition-all resize-none disabled:opacity-50"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-1.5">
-                            Motivazione <span className="text-zinc-700">(opzionale)</span>
-                        </label>
-                        <textarea
-                            value={rationale}
-                            onChange={e => setRationale(e.target.value)}
-                            placeholder="Perché è stata presa questa decisione?"
-                            rows={2}
-                            disabled={isAnalyzing}
-                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40 transition-all resize-none disabled:opacity-50"
-                        />
-                    </div>
-
-                    {error && (
-                        <div className="flex items-start gap-2 px-3 py-2 bg-red-900/10 border border-red-500/20 rounded-lg">
-                            <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0 mt-0.5" />
-                            <p className="text-[10px] font-mono text-red-400">{error}</p>
+                {/* Step indicators */}
+                <div className="flex px-5 pt-3 gap-2">
+                    {['input', 'review'].map((s, i) => (
+                        <div key={s} className="flex items-center gap-1.5">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-mono font-bold transition-colors ${step === s || (s === 'input' && step === 'review') ? 'bg-indigo-600 text-white' : 'bg-white/[0.05] text-zinc-600'}`}>
+                                {s === 'input' && step === 'review' ? '✓' : i + 1}
+                            </div>
+                            <span className={`text-[9px] font-mono uppercase tracking-wider ${step === s ? 'text-zinc-300' : 'text-zinc-700'}`}>
+                                {s === 'input' ? 'Input' : 'Review'}
+                            </span>
+                            {i < 1 && <div className="w-6 h-px bg-white/[0.1] mx-1" />}
                         </div>
-                    )}
+                    ))}
                 </div>
 
-                {/* Actions */}
-                <div className="px-5 pb-5 flex gap-3">
-                    <button
-                        onClick={onClose}
-                        disabled={isAnalyzing}
-                        className="flex-1 px-4 py-2.5 text-xs font-mono text-zinc-500 border border-white/[0.07] rounded-xl hover:bg-white/[0.03] transition-all disabled:opacity-40"
-                    >
-                        Annulla
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={!decision.trim() || isAnalyzing}
-                        className="flex-1 px-4 py-2.5 text-xs font-mono text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                        {isAnalyzing ? (
-                            <>
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                Analisi AI in corso...
-                            </>
-                        ) : (
-                            <>
-                                <BookOpen className="w-3 h-3" />
-                                Analizza & Registra
-                            </>
+                {/* STEP 1: Input form */}
+                {step === 'input' && (
+                    <div className="p-5 space-y-4">
+                        <div>
+                            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-1.5">Decisione *</label>
+                            <textarea
+                                value={decision}
+                                onChange={e => setDecision(e.target.value)}
+                                placeholder="Descrivi la decisione presa... (es. Investire €50k in una campagna marketing Q2)"
+                                rows={3}
+                                disabled={isAnalyzing}
+                                className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40 transition-all resize-none disabled:opacity-50"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-1.5">
+                                Motivazione <span className="text-zinc-700">(opzionale)</span>
+                            </label>
+                            <textarea
+                                value={rationale}
+                                onChange={e => setRationale(e.target.value)}
+                                placeholder="Perché è stata presa questa decisione?"
+                                rows={2}
+                                disabled={isAnalyzing}
+                                className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40 transition-all resize-none disabled:opacity-50"
+                            />
+                        </div>
+                        {error && (
+                            <div className="flex items-start gap-2 px-3 py-2 bg-red-900/10 border border-red-500/20 rounded-lg">
+                                <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0 mt-0.5" />
+                                <p className="text-[10px] font-mono text-red-400">{error}</p>
+                            </div>
                         )}
-                    </button>
-                </div>
+                        <div className="flex gap-3 pt-1">
+                            <button onClick={onClose} disabled={isAnalyzing} className="flex-1 px-4 py-2.5 text-xs font-mono text-zinc-500 border border-white/[0.07] rounded-xl hover:bg-white/[0.03] transition-all disabled:opacity-40">
+                                Annulla
+                            </button>
+                            <button
+                                onClick={handleAnalyze}
+                                disabled={!decision.trim() || isAnalyzing}
+                                className="flex-1 px-4 py-2.5 text-xs font-mono text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isAnalyzing ? (
+                                    <><Loader2 className="w-3 h-3 animate-spin" /> Analisi AI in corso...</>
+                                ) : (
+                                    <><BookOpen className="w-3 h-3" /> Analizza con AI</>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* STEP 2: Review & edit AI output */}
+                {step === 'review' && (
+                    <div className="p-5 space-y-4">
+                        {/* Verdict selector */}
+                        <div>
+                            <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-2">Verdict</label>
+                            <VerdictSelector value={selectedVerdict} onChange={setSelectedVerdict} />
+                        </div>
+
+                        {/* Editable analysis */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Analisi AI</label>
+                                <span className="text-[9px] font-mono text-zinc-600">Puoi modificare liberamente il testo</span>
+                            </div>
+                            <textarea
+                                value={editedAnalysis}
+                                onChange={e => setEditedAnalysis(e.target.value)}
+                                rows={10}
+                                className="w-full bg-white/[0.02] border border-indigo-500/20 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500/40 transition-all resize-none"
+                            />
+                        </div>
+
+                        {error && (
+                            <div className="flex items-start gap-2 px-3 py-2 bg-red-900/10 border border-red-500/20 rounded-lg">
+                                <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0 mt-0.5" />
+                                <p className="text-[10px] font-mono text-red-400">{error}</p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-3 pt-1">
+                            <button onClick={() => setStep('input')} disabled={isSaving} className="px-4 py-2.5 text-xs font-mono text-zinc-500 border border-white/[0.07] rounded-xl hover:bg-white/[0.03] transition-all disabled:opacity-40">
+                                ← Indietro
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving || !editedAnalysis.trim()}
+                                className="flex-1 px-4 py-2.5 text-xs font-mono text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isSaving ? (
+                                    <><Loader2 className="w-3 h-3 animate-spin" /> Salvataggio...</>
+                                ) : (
+                                    <><Save className="w-3 h-3" /> Salva Decisione</>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </motion.div>
         </motion.div>
     );
@@ -517,10 +684,8 @@ export const TileDecisionLog = ({ isAdmin, adminName }) => {
     return (
         <>
             <div className="h-full flex flex-col p-7 relative">
-                {/* Top highlight */}
                 <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-                {/* Header */}
                 <div className="flex items-center justify-between mb-5">
                     <h3 className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
                         <BookOpen className="w-3.5 h-3.5 text-indigo-400" /> Decision Log
@@ -535,7 +700,6 @@ export const TileDecisionLog = ({ isAdmin, adminName }) => {
                     )}
                 </div>
 
-                {/* Decision list */}
                 <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 space-y-2 pr-1">
                     {decisions.length > 0 ? (
                         <AnimatePresence>
@@ -551,7 +715,7 @@ export const TileDecisionLog = ({ isAdmin, adminName }) => {
                                 >
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <VerdictBadge analysis={d.analysis} />
+                                            <VerdictBadge analysis={d.analysis} overrideVerdict={d.verdict} />
                                             <span className="text-[9px] font-mono text-zinc-700">
                                                 {d.analyzedAt ? new Date(d.analyzedAt).toLocaleDateString('it-IT') : '—'}
                                             </span>
@@ -585,11 +749,9 @@ export const TileDecisionLog = ({ isAdmin, adminName }) => {
                     )}
                 </div>
 
-                {/* Bottom glow */}
                 <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-indigo-500/[0.04] to-transparent rounded-tl-full pointer-events-none" />
             </div>
 
-            {/* Modals via portal */}
             <AnimatePresence>
                 {showForm && (
                     <NewDecisionForm
@@ -604,6 +766,7 @@ export const TileDecisionLog = ({ isAdmin, adminName }) => {
                         entry={activeDecision}
                         onClose={() => setActiveDecision(null)}
                         adminName={adminName}
+                        isAdmin={isAdmin}
                     />
                 )}
             </AnimatePresence>

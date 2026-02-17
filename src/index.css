@@ -32,6 +32,77 @@
     text-wrap: balance;
   }
 
+  /* ── GLASSMORPHISM TILE ───────────────────────────────────────────────────
+   * Sfondo: semi-trasparente bianco su dark (più visibile rispetto a white/[0.03])
+   * Bordo: leggero bianco + highlight superiore (effetto riflesso vetro)
+   * Blur: backdrop-filter per effetto glass reale
+   * Shadow: profonda + inset highlight 1px in cima (riflesso luce)
+   */
+  .glass-tile {
+    /* Background più chiaro di prima — si vede davvero */
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.07) 0%,
+      rgba(255, 255, 255, 0.04) 50%,
+      rgba(255, 255, 255, 0.06) 100%
+    );
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+
+    /* Bordo vetro: sottile bianco, con riflesso superiore */
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-top-color: rgba(255, 255, 255, 0.18); /* highlight top edge */
+
+    /* Shadow: profondità + inner glow in cima */
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.45),
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10),  /* riflesso luce superiore */
+      inset 0 -1px 0 rgba(0, 0, 0, 0.15);       /* ombra inferiore interna */
+
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  /* Pseudo-elemento per shimmer highlight in cima */
+  .glass-tile::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(255, 255, 255, 0.25),
+      transparent
+    );
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 999px;
+  }
+
+  /* Hover: più luminoso, bordo più evidente */
+  .glass-tile:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.10) 0%,
+      rgba(255, 255, 255, 0.06) 50%,
+      rgba(255, 255, 255, 0.09) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.16);
+    border-top-color: rgba(255, 255, 255, 0.28);
+    box-shadow:
+      0 12px 48px rgba(0, 0, 0, 0.5),
+      0 4px 12px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+    transform: translateY(-1px);
+  }
+  /* ── END GLASSMORPHISM ──────────────────────────────────────────────────── */
+
   /* UX-02/03: Tile typography scale — use these classes for consistent hierarchy */
   .tile-title {
     font-size: clamp(0.625rem, 1vw, 0.75rem); /* 10–12px */

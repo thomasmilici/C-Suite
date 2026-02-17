@@ -164,61 +164,33 @@ export const Dashboard = ({ user }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                     {/* ROW 1: Compass (1col) | Pulse (1col) | Team (1col) */}
-                    <div className="rounded-2xl min-h-[280px]
-                        bg-white/[0.03] border border-white/[0.07]
-                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
-                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
-                        transition-all duration-300">
+                    <div className="glass-tile rounded-2xl min-h-[280px]">
                         <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} />
                     </div>
 
-                    <div className="rounded-2xl min-h-[280px]
-                        bg-white/[0.03] border border-white/[0.07]
-                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
-                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
-                        transition-all duration-300">
+                    <div className="glass-tile rounded-2xl min-h-[280px]">
                         <TilePulse />
                     </div>
 
-                    <div className="rounded-2xl min-h-[280px]
-                        bg-white/[0.03] border border-white/[0.07]
-                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
-                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
-                        transition-all duration-300">
+                    <div className="glass-tile rounded-2xl min-h-[280px]">
                         <TileTeam isAdmin={isAdmin} />
                     </div>
 
                     {/* ROW 2: Radar (2col) | Intelligence Reports (1col) */}
-                    <div className="md:col-span-2 rounded-2xl min-h-[320px]
-                        bg-white/[0.03] border border-white/[0.07]
-                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
-                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
-                        transition-all duration-300">
+                    <div className="glass-tile md:col-span-2 rounded-2xl min-h-[320px]">
                         <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
                     </div>
 
-                    <div className="rounded-2xl min-h-[320px] relative overflow-hidden
-                        bg-white/[0.03] border border-white/[0.07]
-                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
-                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
-                        transition-all duration-300">
+                    <div className="glass-tile rounded-2xl min-h-[320px] relative overflow-hidden">
                         <TileIntelligence adminName={user?.displayName} />
                     </div>
 
                     {/* ROW 3: Briefing Room (2col) | Decision Log (1col) */}
-                    <div className="md:col-span-2 rounded-2xl min-h-[340px]
-                        bg-white/[0.03] border border-white/[0.07]
-                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
-                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
-                        transition-all duration-300">
+                    <div className="glass-tile md:col-span-2 rounded-2xl min-h-[340px]">
                         <BriefingRoom isAdmin={isAdmin} />
                     </div>
 
-                    <div className="rounded-2xl min-h-[340px]
-                        bg-white/[0.03] border border-white/[0.07]
-                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
-                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
-                        transition-all duration-300">
+                    <div className="glass-tile rounded-2xl min-h-[340px]">
                         <TileDecisionLog isAdmin={isAdmin} adminName={user?.displayName} />
                     </div>
 
