@@ -8,6 +8,7 @@ import { TilePulse } from '../components/tiles/TilePulse';
 import { TileTeam } from '../components/tiles/TileTeam';
 import { TileRadar } from '../components/tiles/TileRadar';
 import { TileIntelligence } from '../components/tiles/TileIntelligence';
+import { TileDecisionLog } from '../components/tiles/TileDecisionLog';
 import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterface';
 import { ProactiveAlerts } from '../components/modules/Intelligence/ProactiveAlerts';
 import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
@@ -181,13 +182,21 @@ export const Dashboard = ({ user }) => {
                         <TileIntelligence adminName={user?.displayName} />
                     </div>
 
-                    {/* ROW 3: Briefing Room (full width) */}
-                    <div className="md:col-span-3 rounded-2xl min-h-[340px]
+                    {/* ROW 3: Briefing Room (2col) | Decision Log (1col) */}
+                    <div className="md:col-span-2 rounded-2xl min-h-[340px]
                         bg-white/[0.03] border border-white/[0.07]
                         shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
                         hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
                         transition-all duration-300">
                         <BriefingRoom isAdmin={isAdmin} />
+                    </div>
+
+                    <div className="rounded-2xl min-h-[340px]
+                        bg-white/[0.03] border border-white/[0.07]
+                        shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]
+                        hover:border-white/[0.13] hover:bg-white/[0.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)]
+                        transition-all duration-300">
+                        <TileDecisionLog isAdmin={isAdmin} adminName={user?.displayName} />
                     </div>
 
                 </div>

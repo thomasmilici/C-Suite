@@ -181,8 +181,9 @@ exports.researchAndReport = onCall({
 
         const systemInstruction = `Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS — un analista strategico con accesso a fonti web in tempo reale.
 
-REGOLE:
+REGOLE FONDAMENTALI:
 - Usa SEMPRE la ricerca web per trovare dati, notizie e trend recenti sul topic richiesto.
+- CRITICO: Il topic di ricerca è ESATTAMENTE quello indicato dall'utente. NON sostituirlo, NON disambiguarlo, NON rimpiazzarlo con soggetti simili o più noti. Se il topic è "Andersen Italia", ricerca SOLO "Andersen Italia", non "Accenture" né altri nomi simili.
 - Rispondi nella stessa lingua della richiesta (italiano o inglese).
 - Il tuo stile è da CoS di alto livello: assertivo, preciso, orientato all'azione.
 - NON inventare dati. Cita solo informazioni verificate dalle fonti web.
@@ -193,7 +194,7 @@ CONTESTO OPERATIVO:
 - Segnali di Rischio: ${signals.length > 0 ? JSON.stringify(signals) : 'Nessun segnale rilevato'}`;
 
         const reportTemplates = {
-            strategic: `Ricerca il seguente topic usando fonti web aggiornate e produci un REPORT STRATEGICO strutturato così:
+            strategic: `Il topic di questa ricerca è ESATTAMENTE: "${topic}". Ricerca SOLO questo soggetto specifico usando fonti web aggiornate e produci un REPORT STRATEGICO strutturato così:
 
 # Report Strategico: ${topic}
 
@@ -212,7 +213,7 @@ CONTESTO OPERATIVO:
 ## Fonti
 [Lista delle fonti utilizzate]`,
 
-            competitive: `Ricerca il seguente topic usando fonti web aggiornate e produci un REPORT COMPETITIVO strutturato così:
+            competitive: `Il topic di questa ricerca è ESATTAMENTE: "${topic}". Ricerca SOLO questo soggetto specifico usando fonti web aggiornate e produci un REPORT COMPETITIVO strutturato così:
 
 # Analisi Competitiva: ${topic}
 
@@ -231,7 +232,7 @@ CONTESTO OPERATIVO:
 ## Fonti
 [Lista delle fonti utilizzate]`,
 
-            market: `Ricerca il seguente topic usando fonti web aggiornate e produci un REPORT DI MERCATO strutturato così:
+            market: `Il topic di questa ricerca è ESATTAMENTE: "${topic}". Ricerca SOLO questo soggetto specifico usando fonti web aggiornate e produci un REPORT DI MERCATO strutturato così:
 
 # Market Intelligence: ${topic}
 
@@ -286,6 +287,83 @@ CONTESTO OPERATIVO:
 
     } catch (error) {
         logger.error("RESEARCH FAILURE:", { error: error.message, stack: error.stack });
+        return {
+            data: null,
+            debug: error.message
+        };
+    }
+});
+
+exports.analyzeDecision = onCall({
+    cors: true,
+    secrets: ["GOOGLE_API_KEY"],
+    invoker: "public"
+}, async (request) => {
+
+    logger.info("--- ANALYZE DECISION START ---");
+    logger.info("Invoked by:", request.auth?.token.email || "Unauthenticated");
+
+    try {
+        const apiKey = process.env.GOOGLE_API_KEY;
+        if (!apiKey) throw new Error("GOOGLE_API_KEY not found in process.env");
+
+        const { decision, rationale = "", decisionMaker = "Admin" } = request.data;
+        if (!decision) throw new Error("Missing decision in request data");
+        logger.info("Decision:", decision);
+
+        const { okrs, signals } = await fetchContext();
+
+        const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+        const prompt = `Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS — analista strategico di alto livello.
+
+Il responsabile "${decisionMaker}" ha registrato la seguente decisione strategica in data ${today}:
+
+DECISIONE: "${decision}"
+${rationale ? `MOTIVAZIONE DICHIARATA: "${rationale}"` : ''}
+
+CONTESTO OPERATIVO CORRENTE:
+- OKR Strategici: ${okrs.length > 0 ? JSON.stringify(okrs) : 'Nessun OKR attivo'}
+- Segnali di Rischio recenti: ${signals.length > 0 ? JSON.stringify(signals) : 'Nessun segnale rilevato'}
+
+Produci una VALUTAZIONE STRATEGICA strutturata così (usa esattamente questo formato markdown):
+
+## Sintesi della Decisione
+[1-2 frasi che riformulano la decisione in chiave strategica]
+
+## Allineamento con gli OKR
+[Come questa decisione si collega agli OKR attivi. Se non ci sono OKR, indica che la decisione opera in assenza di obiettivi misurati.]
+
+## Implicazioni e Rischi
+[2-3 punti: possibili conseguenze positive e rischi da monitorare. Collega ai segnali di rischio se pertinenti.]
+
+## Raccomandazioni di Follow-up
+[3 azioni concrete che il team dovrebbe eseguire per massimizzare l'efficacia di questa decisione]
+
+## Verdict Strategico
+[Una valutazione sintetica: ALLINEATA / NEUTRALE / A RISCHIO — con 1 frase di motivazione]
+
+TONO: assertivo, diretto, da Chief of Staff. Nessun giudizio morale, solo analisi strategica.`;
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+
+        logger.info("Decision analysis generated. Length:", text.length);
+
+        return {
+            data: {
+                analysis: text,
+                decision,
+                rationale,
+                decisionMaker,
+                analyzedAt: new Date().toISOString(),
+            }
+        };
+
+    } catch (error) {
+        logger.error("ANALYZE DECISION FAILURE:", { error: error.message, stack: error.stack });
         return {
             data: null,
             debug: error.message
