@@ -41,117 +41,140 @@ const exportToPDF = (report, adminName) => {
         ? new Date(report.generatedAt).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
         : new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-    // ── COVER PAGE ──────────────────────────────────────────────────────────
-    pdf.setFillColor(5, 5, 8);
+    // ── COVER PAGE (print-friendly: white bg, indigo accents) ───────────────
+    // White background
+    pdf.setFillColor(255, 255, 255);
     pdf.rect(0, 0, pageW, pageH, 'F');
 
-    // Accent line top
-    pdf.setFillColor(99, 102, 241);
-    pdf.rect(0, 0, pageW, 2, 'F');
+    // Indigo top bar (full bleed, 18mm tall)
+    pdf.setFillColor(79, 70, 229);
+    pdf.rect(0, 0, pageW, 18, 'F');
 
-    // Logo area
-    pdf.setFont('courier', 'bold');
-    pdf.setFontSize(28);
+    // Logo in top bar
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
     pdf.setTextColor(255, 255, 255);
-    pdf.text('QUINTA', marginL, 50);
-    pdf.setTextColor(80, 80, 100);
-    pdf.text(' OS', marginL + 50, 50);
+    pdf.text('QUINTA OS', marginL, 12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7);
+    pdf.setTextColor(199, 195, 255);
+    pdf.text('C-SUITE INTELLIGENCE PLATFORM', marginL, 16);
 
-    pdf.setFontSize(8);
-    pdf.setTextColor(80, 80, 100);
+    // Doc number top-right
     pdf.setFont('courier', 'normal');
-    pdf.text('C-SUITE OPERATING SYSTEM', marginL, 57);
+    pdf.setFontSize(6.5);
+    pdf.setTextColor(199, 195, 255);
+    pdf.text(docNumber, pageW - marginR, 12, { align: 'right' });
 
-    // Horizontal separator
-    pdf.setDrawColor(40, 40, 60);
-    pdf.setLineWidth(0.3);
-    pdf.line(marginL, 65, pageW - marginR, 65);
+    // Left indigo sidebar (thin decorative line)
+    pdf.setFillColor(79, 70, 229);
+    pdf.rect(marginL - 3, 26, 1.5, 220, 'F');
 
     // Report type badge
-    pdf.setFillColor(99, 102, 241, 0.15);
-    pdf.roundedRect(marginL, 75, 55, 8, 2, 2, 'F');
-    pdf.setFontSize(7);
-    pdf.setTextColor(150, 130, 255);
-    pdf.setFont('courier', 'bold');
-    pdf.text(TYPE_LABELS[report.reportType]?.toUpperCase() || 'INTELLIGENCE REPORT', marginL + 4, 80.5);
+    pdf.setFillColor(237, 233, 254); // indigo-100
+    pdf.roundedRect(marginL, 32, 60, 8, 1.5, 1.5, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(6.5);
+    pdf.setTextColor(79, 70, 229);
+    pdf.text(TYPE_LABELS[report.reportType]?.toUpperCase() || 'INTELLIGENCE REPORT', marginL + 3, 37.5);
 
     // Report title
-    pdf.setFont('courier', 'bold');
-    pdf.setFontSize(20);
-    pdf.setTextColor(220, 220, 230);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(22);
+    pdf.setTextColor(15, 23, 42); // slate-900
     const titleLines = pdf.splitTextToSize(report.topic, contentW);
-    pdf.text(titleLines, marginL, 96);
+    pdf.text(titleLines, marginL, 56);
+
+    // Thin separator
+    const metaY = 56 + titleLines.length * 10 + 4;
+    pdf.setDrawColor(203, 213, 225); // slate-300
+    pdf.setLineWidth(0.3);
+    pdf.line(marginL, metaY, pageW - marginR, metaY);
 
     // Meta info
-    const metaY = 96 + titleLines.length * 10 + 10;
-    pdf.setFont('courier', 'normal');
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
-    pdf.setTextColor(90, 90, 110);
-    pdf.text(`Generato: ${generatedDate}`, marginL, metaY);
-    pdf.text(`Operatore: ${adminName?.toUpperCase() || 'QUINTA OS SYSTEM'}`, marginL, metaY + 6);
-    pdf.text(`Documento: ${docNumber}`, marginL, metaY + 12);
+    pdf.setTextColor(100, 116, 139); // slate-500
+    pdf.text(`Data generazione:`, marginL, metaY + 8);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text(generatedDate, marginL + 36, metaY + 8);
 
-    // C-Suite Certification Stamp
-    const stampX = pageW - marginR - 55;
-    const stampY = metaY - 8;
-    pdf.setDrawColor(99, 102, 241);
-    pdf.setLineWidth(0.5);
-    pdf.roundedRect(stampX, stampY, 55, 28, 3, 3);
-    pdf.setFontSize(6);
-    pdf.setFont('courier', 'bold');
-    pdf.setTextColor(150, 130, 255);
-    pdf.text('C-SUITE CERTIFIED', stampX + 4, stampY + 7);
-    pdf.setDrawColor(99, 102, 241, 0.3);
-    pdf.setLineWidth(0.2);
-    pdf.line(stampX + 3, stampY + 10, stampX + 52, stampY + 10);
-    pdf.setFont('courier', 'normal');
-    pdf.setFontSize(5.5);
-    pdf.setTextColor(100, 100, 130);
-    pdf.text('QUINTA OS INTELLIGENCE', stampX + 4, stampY + 15);
-    pdf.text(docNumber, stampX + 4, stampY + 20);
-    pdf.setFont('courier', 'bold');
-    pdf.setFontSize(5);
-    pdf.setTextColor(130, 110, 220);
-    pdf.text('CERTIFICATO & VERIFICATO', stampX + 4, stampY + 25);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Preparato da:`, marginL, metaY + 15);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text(adminName || 'Quinta OS System', marginL + 36, metaY + 15);
 
-    // Decorative bottom element on cover
-    pdf.setFillColor(99, 102, 241);
-    pdf.rect(0, pageH - 2, pageW, 2, 'F');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`N° Documento:`, marginL, metaY + 22);
+    pdf.setFont('courier', 'bold');
+    pdf.setTextColor(79, 70, 229);
+    pdf.text(docNumber, marginL + 36, metaY + 22);
+
+    // C-Suite Certification box (bottom of page, above footer)
+    const stampY = pageH - 65;
+    pdf.setFillColor(237, 233, 254); // indigo-100
+    pdf.setDrawColor(167, 139, 250); // indigo-400
+    pdf.setLineWidth(0.4);
+    pdf.roundedRect(marginL, stampY, contentW, 38, 3, 3, 'FD');
+
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(7);
-    pdf.setFont('courier', 'normal');
-    pdf.setTextColor(60, 60, 80);
-    pdf.text(`${docNumber}  ·  QUINTA OS C-SUITE INTELLIGENCE  ·  CONFIDENZIALE`, pageW / 2, pageH - 6, { align: 'center' });
+    pdf.setTextColor(79, 70, 229);
+    pdf.text('✦  C-SUITE CERTIFIED INTELLIGENCE', marginL + 5, stampY + 8);
 
-    // ── CONTENT PAGES ────────────────────────────────────────────────────────
+    pdf.setDrawColor(167, 139, 250);
+    pdf.setLineWidth(0.2);
+    pdf.line(marginL + 5, stampY + 11, marginL + contentW - 5, stampY + 11);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(6.5);
+    pdf.setTextColor(79, 70, 229);
+    pdf.text('Questo documento è stato generato da Quinta OS Intelligence Layer e certificato per uso interno C-Suite.', marginL + 5, stampY + 17);
+    pdf.text(`Analisi condotta da: Shadow CoS v2 (Gemini 2.0 Flash + Google Search Grounding)`, marginL + 5, stampY + 23);
+    pdf.text(`Doc. Rif.: ${docNumber}  ·  Classificazione: RISERVATO — USO INTERNO`, marginL + 5, stampY + 29);
+    if (adminName) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(109, 40, 217);
+        pdf.text(`Autorizzato da: ${adminName}`, marginL + 5, stampY + 35);
+    }
+
+    // Footer bar
+    pdf.setFillColor(79, 70, 229);
+    pdf.rect(0, pageH - 10, pageW, 10, 'F');
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(6);
+    pdf.setTextColor(199, 195, 255);
+    pdf.text(`${docNumber}  ·  QUINTA OS  ·  CONFIDENZIALE & RISERVATO`, pageW / 2, pageH - 4, { align: 'center' });
+
+    // ── CONTENT PAGES (print-friendly: white bg, indigo accents) ─────────────
     const addHeaderFooter = (pageNum, totalPages) => {
-        // Header
-        pdf.setFillColor(5, 5, 8);
-        pdf.rect(0, 0, pageW, 14, 'F');
-        pdf.setFillColor(99, 102, 241);
-        pdf.rect(0, 0, pageW, 1, 'F');
-        pdf.setFont('courier', 'bold');
-        pdf.setFontSize(7);
-        pdf.setTextColor(150, 130, 255);
-        pdf.text('QUINTA OS', marginL, 9);
-        pdf.setFont('courier', 'normal');
-        pdf.setTextColor(70, 70, 90);
-        pdf.text(`${docNumber}  ·  ${TYPE_LABELS[report.reportType] || 'INTELLIGENCE REPORT'}`, pageW / 2, 9, { align: 'center' });
-        pdf.text(`${pageNum} / ${totalPages}`, pageW - marginR, 9, { align: 'right' });
-        pdf.setDrawColor(30, 30, 45);
-        pdf.setLineWidth(0.2);
-        pdf.line(marginL, 13, pageW - marginR, 13);
+        // White page background
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, pageW, pageH, 'F');
+
+        // Header: indigo top bar
+        pdf.setFillColor(79, 70, 229);
+        pdf.rect(0, 0, pageW, 10, 'F');
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(6);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text('QUINTA OS', marginL, 7);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(199, 195, 255);
+        pdf.text(`${docNumber}  ·  ${TYPE_LABELS[report.reportType] || 'INTELLIGENCE REPORT'}`, pageW / 2, 7, { align: 'center' });
+        pdf.text(`${pageNum} / ${totalPages}`, pageW - marginR, 7, { align: 'right' });
+
+        // Left sidebar accent
+        pdf.setFillColor(79, 70, 229);
+        pdf.rect(marginL - 3, 12, 1.5, pageH - 24, 'F');
 
         // Footer
-        pdf.setFillColor(5, 5, 8);
-        pdf.rect(0, pageH - 12, pageW, 12, 'F');
-        pdf.setDrawColor(30, 30, 45);
-        pdf.line(marginL, pageH - 11, pageW - marginR, pageH - 11);
-        pdf.setFillColor(99, 102, 241);
-        pdf.rect(0, pageH - 1, pageW, 1, 'F');
-        pdf.setFont('courier', 'normal');
+        pdf.setFillColor(79, 70, 229);
+        pdf.rect(0, pageH - 10, pageW, 10, 'F');
+        pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(6);
-        pdf.setTextColor(60, 60, 80);
-        pdf.text(`Generato da Quinta OS  ·  C-Suite Certified  ·  ${generatedDate}`, pageW / 2, pageH - 5, { align: 'center' });
+        pdf.setTextColor(199, 195, 255);
+        pdf.text(`Quinta OS Intelligence  ·  C-Suite Certified  ·  ${generatedDate}  ·  CONFIDENZIALE`, pageW / 2, pageH - 4, { align: 'center' });
     };
 
     // Render content text
@@ -176,12 +199,23 @@ const exportToPDF = (report, adminName) => {
             addHeaderFooter(pageNum, Math.max(totalEstimatedPages, pageNum));
             y = 22;
         }
-        const isHeading = line.trim().match(/^(#{1,3}|[A-Z][A-Z\s]+:)/);
-        pdf.setFont('courier', isHeading ? 'bold' : 'normal');
-        pdf.setFontSize(isHeading ? 9 : 8);
-        pdf.setTextColor(isHeading ? 200 : 140, isHeading ? 200 : 140, isHeading ? 220 : 160);
-        pdf.text(line, marginL, y);
-        y += isHeading ? lineH + 2 : lineH;
+        const isHeading = line.trim().match(/^(#{1,3}|[A-Z][A-Z\s]{4,}:)/);
+        if (isHeading) {
+            // Section heading: indigo background pill
+            pdf.setFillColor(237, 233, 254);
+            pdf.rect(marginL - 1, y - 4, contentW + 2, 6.5, 'F');
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(8);
+            pdf.setTextColor(79, 70, 229);
+            pdf.text(line.replace(/^#+\s*/, ''), marginL + 1, y);
+            y += lineH + 3;
+        } else {
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(30, 41, 59); // slate-800
+            pdf.text(line, marginL, y);
+            y += lineH;
+        }
     });
 
     // Sources page if any
@@ -189,28 +223,29 @@ const exportToPDF = (report, adminName) => {
         pdf.addPage();
         pageNum++;
         addHeaderFooter(pageNum, pageNum);
-        pdf.setFont('courier', 'bold');
+        pdf.setFillColor(237, 233, 254);
+        pdf.rect(marginL - 1, 16, contentW + 2, 7, 'F');
+        pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(9);
-        pdf.setTextColor(150, 130, 255);
-        pdf.text('FONTI & RIFERIMENTI', marginL, 26);
-        pdf.setDrawColor(60, 60, 80);
-        pdf.line(marginL, 29, pageW - marginR, 29);
-        let sy = 36;
+        pdf.setTextColor(79, 70, 229);
+        pdf.text('FONTI & RIFERIMENTI WEB', marginL + 1, 21);
+        let sy = 30;
         report.sources.slice(0, 20).forEach((src, i) => {
-            pdf.setFont('courier', 'normal');
+            if (sy > contentPageH) return;
+            pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(7);
-            pdf.setTextColor(120, 120, 150);
+            pdf.setTextColor(79, 70, 229);
             pdf.text(`${i + 1}.`, marginL, sy);
-            pdf.setTextColor(100, 120, 200);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(30, 64, 175); // blue-800
             const uriLines = pdf.splitTextToSize(src.uri || '', contentW - 8);
             pdf.text(uriLines, marginL + 6, sy);
             if (src.title) {
-                pdf.setTextColor(80, 80, 100);
-                pdf.setFontSize(6);
-                pdf.text(src.title, marginL + 6, sy + 4);
+                pdf.setTextColor(71, 85, 105); // slate-500
+                pdf.setFontSize(6.5);
+                pdf.text(src.title, marginL + 6, sy + uriLines.length * 4 + 1);
             }
-            sy += src.title ? 10 : 7;
-            if (sy > contentPageH) return;
+            sy += src.title ? uriLines.length * 4 + 8 : uriLines.length * 4 + 5;
         });
     }
 

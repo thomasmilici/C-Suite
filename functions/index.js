@@ -273,11 +273,18 @@ CONTESTO OPERATIVO:
             uri: chunk.web?.uri || '',
         })).filter(s => s.uri) || [];
 
-        logger.info(`Report generated. Length: ${text.length}, Sources: ${sources.length}`);
+        // Strip AI conversational preamble (everything before the first markdown heading)
+        let cleanContent = text;
+        const firstHeadingIdx = text.search(/^#{1,3}\s/m);
+        if (firstHeadingIdx > 0) {
+            cleanContent = text.slice(firstHeadingIdx).trim();
+        }
+
+        logger.info(`Report generated. Length: ${cleanContent.length}, Sources: ${sources.length}`);
 
         return {
             data: {
-                content: text,
+                content: cleanContent,
                 sources,
                 topic,
                 reportType,
@@ -350,11 +357,18 @@ TONO: assertivo, diretto, da Chief of Staff. Nessun giudizio morale, solo analis
         const result = await model.generateContent(prompt);
         const text = result.response.text();
 
-        logger.info("Decision analysis generated. Length:", text.length);
+        // Strip AI conversational preamble (everything before the first markdown heading)
+        let cleanAnalysis = text;
+        const firstHeadingIdx = text.search(/^#{1,3}\s/m);
+        if (firstHeadingIdx > 0) {
+            cleanAnalysis = text.slice(firstHeadingIdx).trim();
+        }
+
+        logger.info("Decision analysis generated. Length:", cleanAnalysis.length);
 
         return {
             data: {
-                analysis: text,
+                analysis: cleanAnalysis,
                 decision,
                 rationale,
                 decisionMaker,

@@ -25,129 +25,165 @@ const exportDecisionToPDF = (entry, adminName) => {
     const dateStr = entry.analyzedAt
         ? new Date(entry.analyzedAt).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
         : new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
+    const { color: verdictColor, label: verdictLabel } = getVerdictMeta(entry.analysis);
 
-    // ── COVER PAGE ────────────────────────────────────────────────────────────
-    doc.setFillColor(5, 5, 8);
+    // ── COVER PAGE (print-friendly: white bg, indigo accents) ────────────────
+    doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, W, H, 'F');
 
-    // Accent bar top
-    doc.setFillColor(99, 102, 241);
-    doc.rect(0, 0, W, 2, 'F');
+    // Indigo top bar
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, 0, W, 18, 'F');
 
-    // Logo
+    // Logo in top bar
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
+    doc.setFontSize(14);
     doc.setTextColor(255, 255, 255);
-    doc.text('QUINTA', margin, 22);
-    doc.setTextColor(80, 80, 120);
-    doc.text(' OS', margin + 32, 22);
-
-    doc.setFontSize(7);
+    doc.text('QUINTA OS', margin, 12);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 60, 80);
-    doc.text('DECISION INTELLIGENCE LAYER', margin, 28);
+    doc.setFontSize(7);
+    doc.setTextColor(199, 195, 255);
+    doc.text('DECISION INTELLIGENCE LAYER', margin, 16);
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(6.5);
+    doc.text(docNumber, W - margin, 12, { align: 'right' });
+
+    // Left sidebar accent
+    doc.setFillColor(79, 70, 229);
+    doc.rect(margin - 3, 26, 1.5, 220, 'F');
 
     // Badge tipo documento
-    const badgeX = margin;
-    const badgeY = 48;
-    doc.setFillColor(99, 102, 241, 0.15);
-    doc.setDrawColor(99, 102, 241);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(badgeX, badgeY, 52, 7, 1.5, 1.5, 'FD');
+    doc.setFillColor(237, 233, 254);
+    doc.roundedRect(margin, 32, 60, 8, 1.5, 1.5, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6);
-    doc.setTextColor(130, 130, 210);
-    doc.text('DECISION ANALYSIS REPORT', badgeX + 4, badgeY + 4.5);
+    doc.setFontSize(6.5);
+    doc.setTextColor(79, 70, 229);
+    doc.text('DECISION ANALYSIS REPORT', margin + 3, 37.5);
 
     // Titolo decisione
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(15, 23, 42);
     const titleLines = doc.splitTextToSize(entry.decision, contentW);
-    doc.text(titleLines, margin, 72);
-    const titleH = titleLines.length * 8;
+    doc.text(titleLines, margin, 54);
+    let cursorY = 54 + titleLines.length * 9 + 2;
 
     // Rationale se presente
-    let cursorY = 72 + titleH + 4;
     if (entry.rationale) {
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(9);
-        doc.setTextColor(120, 120, 160);
+        doc.setTextColor(100, 116, 139);
         const rationaleLines = doc.splitTextToSize(`"${entry.rationale}"`, contentW);
         doc.text(rationaleLines, margin, cursorY);
-        cursorY += rationaleLines.length * 5 + 6;
+        cursorY += rationaleLines.length * 5 + 4;
     }
+
+    // Separator
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
+    doc.line(margin, cursorY + 2, W - margin, cursorY + 2);
+    cursorY += 10;
 
     // Meta info
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(80, 80, 100);
-    doc.text(`Data analisi: ${dateStr}`, margin, cursorY + 6);
-    doc.text(`Decision Maker: ${entry.decisionMaker || adminName || 'Admin'}`, margin, cursorY + 12);
-    doc.text(`Documento: ${docNumber}`, margin, cursorY + 18);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Data analisi:', margin, cursorY);
+    doc.setTextColor(15, 23, 42);
+    doc.text(dateStr, margin + 34, cursorY);
+
+    doc.setTextColor(100, 116, 139);
+    doc.text('Decision Maker:', margin, cursorY + 7);
+    doc.setTextColor(15, 23, 42);
+    doc.text(entry.decisionMaker || adminName || 'Admin', margin + 34, cursorY + 7);
+
+    doc.setTextColor(100, 116, 139);
+    doc.text('N° Documento:', margin, cursorY + 14);
+    doc.setFont('courier', 'bold');
+    doc.setTextColor(79, 70, 229);
+    doc.text(docNumber, margin + 34, cursorY + 14);
+    cursorY += 26;
 
     // Verdict badge
-    const verdictY = cursorY + 32;
-    const { color, label } = getVerdictMeta(entry.analysis);
-    doc.setFillColor(...color, 0.1);
-    doc.setDrawColor(...color);
-    doc.setLineWidth(0.4);
-    doc.roundedRect(margin, verdictY, 40, 10, 2, 2, 'FD');
+    const [vr, vg, vb] = verdictColor;
+    doc.setFillColor(vr, vg, vb);
+    doc.setFillColor(vr, vg, vb, 0.08);
+    // draw fill manually
+    doc.setDrawColor(vr, vg, vb);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(margin, cursorY, 48, 11, 2, 2, 'D');
+    // light fill
+    doc.setFillColor(Math.min(vr + 180, 255), Math.min(vg + 180, 255), Math.min(vb + 180, 255));
+    doc.roundedRect(margin, cursorY, 48, 11, 2, 2, 'F');
+    doc.setDrawColor(vr, vg, vb);
+    doc.roundedRect(margin, cursorY, 48, 11, 2, 2, 'D');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    doc.setTextColor(...color);
-    doc.text(`VERDICT: ${label}`, margin + 3, verdictY + 6.5);
+    doc.setTextColor(vr, vg, vb);
+    doc.text(`VERDICT: ${verdictLabel}`, margin + 3, cursorY + 7.5);
 
-    // C-Suite Certification stamp
-    const stampY = H - 60;
-    doc.setDrawColor(60, 60, 90);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(margin, stampY, contentW, 32, 3, 3, 'D');
+    // C-Suite Certification box
+    const stampY = H - 65;
+    doc.setFillColor(237, 233, 254);
+    doc.setDrawColor(167, 139, 250);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(margin, stampY, contentW, 40, 3, 3, 'FD');
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
-    doc.setTextColor(80, 80, 120);
-    doc.text('C-SUITE CERTIFIED ANALYSIS', margin + 4, stampY + 7);
+    doc.setTextColor(79, 70, 229);
+    doc.text('✦  C-SUITE CERTIFIED ANALYSIS', margin + 5, stampY + 8);
+
+    doc.setDrawColor(167, 139, 250);
+    doc.setLineWidth(0.2);
+    doc.line(margin + 5, stampY + 11, margin + contentW - 5, stampY + 11);
+
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(60, 60, 80);
-    doc.text('Questo documento è stato generato e validato da Quinta OS Decision Intelligence.', margin + 4, stampY + 13);
-    doc.text(`Analisi AI: Shadow CoS v2 (Gemini 2.0 Flash) | Certificato per uso interno C-Suite.`, margin + 4, stampY + 18);
-    doc.text(`Doc. N°: ${docNumber} | Prodotto il: ${dateStr} | Riservato e confidenziale.`, margin + 4, stampY + 23);
+    doc.setFontSize(6.5);
+    doc.setTextColor(79, 70, 229);
+    doc.text('Documento generato e validato da Quinta OS Decision Intelligence Layer.', margin + 5, stampY + 17);
+    doc.text('Analisi: Shadow CoS v2 (Gemini 2.0 Flash) | Certificato per uso interno C-Suite.', margin + 5, stampY + 23);
+    doc.text(`Doc. Rif.: ${docNumber}  ·  Prodotto il: ${dateStr}  ·  Classificazione: RISERVATO`, margin + 5, stampY + 29);
     if (adminName) {
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6);
-        doc.setTextColor(99, 102, 241);
-        doc.text(`Autorizzato da: ${adminName}`, margin + 4, stampY + 28);
+        doc.setTextColor(109, 40, 217);
+        doc.text(`Autorizzato da: ${adminName}`, margin + 5, stampY + 36);
     }
 
-    // Bottom accent
-    doc.setFillColor(99, 102, 241);
-    doc.rect(0, H - 2, W, 2, 'F');
+    // Footer bar
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, H - 10, W, 10, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(199, 195, 255);
+    doc.text(`${docNumber}  ·  QUINTA OS  ·  CONFIDENZIALE & RISERVATO`, W / 2, H - 4, { align: 'center' });
 
-    // ── CONTENT PAGES ─────────────────────────────────────────────────────────
+    // ── CONTENT PAGES (print-friendly: white bg) ──────────────────────────────
     const addHeaderFooter = (pageNum) => {
-        // Header
-        doc.setFillColor(99, 102, 241);
-        doc.rect(0, 0, W, 1.5, 'F');
+        // White bg
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, W, H, 'F');
+        // Indigo top bar
+        doc.setFillColor(79, 70, 229);
+        doc.rect(0, 0, W, 10, 'F');
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(6);
-        doc.setTextColor(80, 80, 120);
-        doc.text('QUINTA OS — DECISION INTELLIGENCE', margin, 8);
+        doc.setTextColor(255, 255, 255);
+        doc.text('QUINTA OS — DECISION INTELLIGENCE', margin, 7);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(60, 60, 80);
-        doc.text(docNumber, W - margin, 8, { align: 'right' });
-        doc.setDrawColor(40, 40, 60);
-        doc.setLineWidth(0.2);
-        doc.line(margin, 10, W - margin, 10);
-
-        // Footer
-        doc.line(margin, H - 12, W - margin, 12);
+        doc.setTextColor(199, 195, 255);
+        doc.text(docNumber, W - margin, 7, { align: 'right' });
+        // Sidebar accent
+        doc.setFillColor(79, 70, 229);
+        doc.rect(margin - 3, 12, 1.5, H - 24, 'F');
+        // Footer bar
+        doc.setFillColor(79, 70, 229);
+        doc.rect(0, H - 10, W, 10, 'F');
+        doc.setFont('helvetica', 'normal');
         doc.setFontSize(6);
-        doc.setTextColor(60, 60, 80);
-        doc.text('RISERVATO — C-SUITE ONLY | Quinta OS Decision Intelligence', margin, H - 8);
-        doc.text(`Pagina ${pageNum}`, W - margin, H - 8, { align: 'right' });
-        doc.setFillColor(99, 102, 241);
-        doc.rect(0, H - 2, W, 2, 'F');
+        doc.setTextColor(199, 195, 255);
+        doc.text(`RISERVATO — C-SUITE ONLY | Quinta OS Decision Intelligence`, margin, H - 4);
+        doc.text(`Pagina ${pageNum}`, W - margin, H - 4, { align: 'right' });
     };
 
     doc.addPage();
@@ -160,7 +196,7 @@ const exportDecisionToPDF = (entry, adminName) => {
     let pageNum = 2;
 
     for (const line of lines) {
-        if (y > H - 20) {
+        if (y > H - 18) {
             doc.addPage();
             pageNum++;
             addHeaderFooter(pageNum);
@@ -171,50 +207,50 @@ const exportDecisionToPDF = (entry, adminName) => {
         if (!trimmed) { y += 3; continue; }
 
         if (trimmed.startsWith('## ')) {
-            y += 4;
-            doc.setFillColor(20, 20, 35);
-            doc.rect(margin - 2, y - 4, contentW + 4, 8, 'F');
+            y += 3;
+            doc.setFillColor(237, 233, 254);
+            doc.rect(margin - 1, y - 4, contentW + 2, 7, 'F');
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9);
-            doc.setTextColor(130, 130, 210);
+            doc.setTextColor(79, 70, 229);
             doc.text(trimmed.replace('## ', '').toUpperCase(), margin, y + 1);
             y += 8;
         } else if (trimmed.startsWith('# ')) {
             y += 3;
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
-            doc.setTextColor(200, 200, 230);
+            doc.setTextColor(15, 23, 42); // slate-900
             doc.text(trimmed.replace('# ', ''), margin, y);
             y += 7;
         } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
-            doc.setTextColor(180, 180, 200);
+            doc.setTextColor(51, 65, 85); // slate-700
             const bullet = trimmed.replace(/^[-*] /, '');
             const wrapped = doc.splitTextToSize(`• ${bullet}`, contentW - 4);
             wrapped.forEach(wl => {
-                if (y > H - 20) { doc.addPage(); pageNum++; addHeaderFooter(pageNum); y = 18; }
+                if (y > H - 18) { doc.addPage(); pageNum++; addHeaderFooter(pageNum); y = 18; }
                 doc.text(wl, margin + 3, y);
                 y += 5;
             });
         } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
-            doc.setTextColor(200, 200, 230);
+            doc.setTextColor(15, 23, 42); // slate-900
             const wrapped = doc.splitTextToSize(trimmed.replace(/\*\*/g, ''), contentW);
             wrapped.forEach(wl => {
-                if (y > H - 20) { doc.addPage(); pageNum++; addHeaderFooter(pageNum); y = 18; }
+                if (y > H - 18) { doc.addPage(); pageNum++; addHeaderFooter(pageNum); y = 18; }
                 doc.text(wl, margin, y);
                 y += 5;
             });
         } else {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
-            doc.setTextColor(160, 160, 180);
+            doc.setTextColor(51, 65, 85); // slate-700
             const clean = trimmed.replace(/\*\*/g, '').replace(/\*/g, '');
             const wrapped = doc.splitTextToSize(clean, contentW);
             wrapped.forEach(wl => {
-                if (y > H - 20) { doc.addPage(); pageNum++; addHeaderFooter(pageNum); y = 18; }
+                if (y > H - 18) { doc.addPage(); pageNum++; addHeaderFooter(pageNum); y = 18; }
                 doc.text(wl, margin, y);
                 y += 5;
             });
