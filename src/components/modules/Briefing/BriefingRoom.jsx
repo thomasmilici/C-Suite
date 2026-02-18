@@ -8,13 +8,40 @@ import { db } from '../../../firebase';
 import ReactMarkdown from 'react-markdown';
 import { createPortal } from 'react-dom';
 import { DecisionInput } from '../../modals/DecisionInput';
+import EventHealthBar from '../../ui/EventHealthBar';
+import EventTimeline from '../../ui/EventTimeline';
 
 const getBriefingDocKey = (eventId) => {
   const date = new Date().toISOString().split('T')[0];
   return eventId ? `${eventId}_${date}` : date;
 };
 
-export const BriefingRoom = ({ isAdmin, eventId }) => {
+/**
+ * Maps event data to EventTimeline phases array.
+ * Falls back to a sensible default if event has no phases.
+ */
+const buildPhasesFromEvent = (event) => {
+  if (!event) return null;
+  if (event.phases && Array.isArray(event.phases)) return event.phases;
+
+  // Auto-generate from phase field
+  const ALL_PHASES = [
+    { id: 'briefing', label: 'Briefing Iniziale' },
+    { id: 'analysis', label: 'Analisi Rischi' },
+    { id: 'planning', label: 'Pianificazione' },
+    { id: 'execution', label: 'Esecuzione' },
+    { id: 'review', label: 'Review Finale' },
+  ];
+  const currentPhase = event.phase || 'planning';
+  const currentIdx = ALL_PHASES.findIndex(p => p.id === currentPhase);
+
+  return ALL_PHASES.map((p, idx) => ({
+    ...p,
+    status: idx < currentIdx ? 'completed' : idx === currentIdx ? 'active' : 'pending',
+  }));
+};
+
+export const BriefingRoom = ({ isAdmin, eventId, event }) => {
   const [briefing, setBriefing] = useState(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [briefingError, setBriefingError] = useState(null);
@@ -22,6 +49,7 @@ export const BriefingRoom = ({ isAdmin, eventId }) => {
   const [showDecisionModal, setShowDecisionModal] = useState(false);
 
   const briefingDocKey = getBriefingDocKey(eventId);
+  const phases = buildPhasesFromEvent(event);
 
   // Load decisions from Firestore (scoped to eventId if present)
   useEffect(() => {
@@ -89,7 +117,6 @@ export const BriefingRoom = ({ isAdmin, eventId }) => {
   };
 
   const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
-
   const outcomeStyle = {
     approved: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
     pending: 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10',
@@ -97,124 +124,141 @@ export const BriefingRoom = ({ isAdmin, eventId }) => {
   };
 
   return (
-    <div className="h-full flex gap-6 p-7">
-      {/* Left: AI Briefing */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h3 className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-              <FileText className="w-3.5 h-3.5 text-indigo-400" /> Daily Briefing
-            </h3>
-            <p className="text-[10px] font-mono text-zinc-700 mt-0.5">{today}</p>
-          </div>
-          {isAdmin && (
-            <button
-              onClick={handleGenerate}
-              disabled={loadingBriefing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/15 rounded-lg transition-all disabled:opacity-50"
-            >
-              {loadingBriefing ? (
-                <><RefreshCw className="w-3 h-3 animate-spin" /> Generando...</>
-              ) : (
-                <><Zap className="w-3 h-3" /> Genera Briefing</>
-              )}
-            </button>
-          )}
+    <div className="h-full flex flex-col gap-0 overflow-hidden">
+      {/* Event Health Bar — shown only when event context available */}
+      {event && (
+        <div className="px-7 pt-4 pb-0">
+          <EventHealthBar event={event} />
         </div>
+      )}
 
-        <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 text-xs text-zinc-300 font-mono">
-          {loadingBriefing && (
-            <p className="text-zinc-600 animate-pulse">GENERATING BRIEFING...</p>
-          )}
-          {!loadingBriefing && briefingError && (
-            <p className="text-red-400">{briefingError}</p>
-          )}
-          {!loadingBriefing && !briefingError && briefing && (
-            <ReactMarkdown className="prose prose-invert prose-sm max-w-none">{briefing}</ReactMarkdown>
-          )}
-          {!loadingBriefing && !briefingError && !briefing && (
-            <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
-              <FileText className="w-6 h-6 text-zinc-700" />
-              <p className="text-zinc-600">Nessun briefing oggi</p>
-              <p className="text-[9px] text-zinc-700">L&apos;AI analizzerà OKR, segnali e decisioni recenti</p>
-              {isAdmin && (
-                <button
-                  onClick={handleGenerate}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono text-white bg-indigo-600/80 hover:bg-indigo-500/80 rounded-xl transition-all"
-                >
-                  <Zap className="w-3 h-3" /> Genera Briefing
-                </button>
-              )}
+      <div className="flex-1 flex gap-6 px-7 pb-7 pt-4 min-h-0">
+        {/* Left: AI Briefing */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5 text-indigo-400" /> Daily Briefing
+              </h3>
+              <p className="text-[10px] font-mono text-zinc-700 mt-0.5">{today}</p>
             </div>
-          )}
+            {isAdmin && (
+              <button
+                onClick={handleGenerate}
+                disabled={loadingBriefing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/15 rounded-lg transition-all disabled:opacity-50"
+              >
+                {loadingBriefing ? (
+                  <><RefreshCw className="w-3 h-3 animate-spin" /> Generando...</>
+                ) : (
+                  <><Zap className="w-3 h-3" /> Genera Briefing</>
+                )}
+              </button>
+            )}
+          </div>
+          <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 text-xs text-zinc-300 font-mono">
+            {loadingBriefing && (
+              <p className="text-zinc-600 animate-pulse">GENERATING BRIEFING...</p>
+            )}
+            {!loadingBriefing && briefingError && (
+              <p className="text-red-400">{briefingError}</p>
+            )}
+            {!loadingBriefing && !briefingError && briefing && (
+              <ReactMarkdown className="prose prose-invert prose-sm max-w-none">{briefing}</ReactMarkdown>
+            )}
+            {!loadingBriefing && !briefingError && !briefing && (
+              <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+                <FileText className="w-6 h-6 text-zinc-700" />
+                <p className="text-zinc-600">Nessun briefing oggi</p>
+                <p className="text-[9px] text-zinc-700">L'AI analizzerà OKR, segnali e decisioni recenti</p>
+                {isAdmin && (
+                  <button
+                    onClick={handleGenerate}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono text-white bg-indigo-600/80 hover:bg-indigo-500/80 rounded-xl transition-all"
+                  >
+                    <Zap className="w-3 h-3" /> Genera Briefing
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Divider */}
-      <div className="w-px bg-white/[0.05] self-stretch" />
+        {/* Divider */}
+        <div className="w-px bg-white/[0.05] self-stretch" />
 
-      {/* Right: Decision Log */}
-      <div className="w-64 flex-shrink-0 flex flex-col">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-            <BookOpen className="w-3.5 h-3.5 text-indigo-400" /> Decision Log
-          </h3>
-          {isAdmin && (
-            <button
-              onClick={() => setShowDecisionModal(true)}
-              className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/10 hover:border-white/20"
-            >
-              <Plus className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-
-        <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 space-y-2">
-          {decisions.length === 0 && (
-            <div className="text-center py-6">
-              <p className="text-[10px] font-mono text-zinc-700">Nessuna decisione</p>
+        {/* Right: Decision Log + Timeline */}
+        <div className="w-64 flex-shrink-0 flex flex-col gap-4">
+          {/* Decision Log */}
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                <BookOpen className="w-3.5 h-3.5 text-indigo-400" /> Decision Log
+              </h3>
               {isAdmin && (
                 <button
                   onClick={() => setShowDecisionModal(true)}
-                  className="mt-2 text-[10px] font-mono text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+                  className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/10 hover:border-white/20"
                 >
-                  + Prima decisione
+                  <Plus className="w-3 h-3" />
                 </button>
               )}
             </div>
-          )}
-          {decisions.length > 0 ? decisions.map(decision => (
-            <div
-              key={decision.id}
-              className="flex items-start justify-between gap-2 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl group hover:border-white/10 transition-all"
-            >
-              <div className="flex-1 min-w-0">
-                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
-                  outcomeStyle[decision.outcome || 'pending']
-                }`}>
-                  {decision.outcome || 'pending'}
-                </span>
-                {isAdmin && (
-                  <button
-                    onClick={() => handleDeleteDecision(decision.id)}
-                    className="opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-400 transition-all flex-shrink-0 ml-1"
-                  >
-                    <Trash2 className="w-2.5 h-2.5" />
-                  </button>
-                )}
-                <p className="text-xs font-mono text-zinc-300 mt-1 leading-snug">{decision.title || decision.decision}</p>
-                {decision.context && (
-                  <p className="text-[9px] text-zinc-600 mt-1 line-clamp-2">{decision.context}</p>
-                )}
-                {decision.createdAt && (
-                  <p className="text-[9px] text-zinc-700 mt-1">
-                    {decision.createdAt.toDate?.().toLocaleDateString('it-IT') || ''}
-                  </p>
-                )}
-              </div>
+            <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 space-y-2">
+              {decisions.length === 0 && (
+                <div className="text-center py-6">
+                  <p className="text-[10px] font-mono text-zinc-700">Nessuna decisione</p>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setShowDecisionModal(true)}
+                      className="mt-2 text-[10px] font-mono text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+                    >
+                      + Prima decisione
+                    </button>
+                  )}
+                </div>
+              )}
+              {decisions.length > 0 ? decisions.map(decision => (
+                <div
+                  key={decision.id}
+                  className="flex items-start justify-between gap-2 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl group hover:border-white/10 transition-all"
+                >
+                  <div className="flex-1 min-w-0">
+                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
+                      outcomeStyle[decision.outcome || 'pending']
+                    }`}>
+                      {decision.outcome || 'pending'}
+                    </span>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleDeleteDecision(decision.id)}
+                        className="opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-400 transition-all flex-shrink-0 ml-1"
+                      >
+                        <Trash2 className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                    <p className="text-xs font-mono text-zinc-300 mt-1 leading-snug">{decision.title || decision.decision}</p>
+                    {decision.context && (
+                      <p className="text-[9px] text-zinc-600 mt-1 line-clamp-2">{decision.context}</p>
+                    )}
+                    {decision.createdAt && (
+                      <p className="text-[9px] text-zinc-700 mt-1">
+                        {decision.createdAt.toDate?.().toLocaleDateString('it-IT') || ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )) : (
+                <p className="text-[9px] font-mono text-zinc-800 uppercase tracking-widest text-center py-4">NO DECISIONS LOGGED</p>
+              )}
             </div>
-          )) : (
-            <p className="text-[9px] font-mono text-zinc-800 uppercase tracking-widest text-center py-4">NO DECISIONS LOGGED</p>
+          </div>
+
+          {/* Event Timeline — shown only when event context available */}
+          {phases && (
+            <div className="flex-shrink-0">
+              <EventTimeline phases={phases} compact={true} />
+            </div>
           )}
         </div>
       </div>
