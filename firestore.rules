@@ -59,6 +59,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── Shadow CoS Chat History ───────────────────────────────────────────────
+    // Each user can read/write only their own chat history document.
+    match /shadow_cos_prefs/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
     // ── Invites ───────────────────────────────────────────────────────────────
     // Lettura pubblica necessaria per validare il token sull'onboarding (/join).
     // Scrittura (generazione/consumo): solo ADMIN o utente autenticato (consumo).

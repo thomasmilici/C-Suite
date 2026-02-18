@@ -52,7 +52,6 @@ async function fetchContext() {
             description: d.data().description || '',
             status: d.data().status,
             teamSize: (d.data().teamMembers || []).length,
-            createdAt: d.data().createdAt?.toDate?.()?.toLocaleDateString('it-IT') || '—',
         }));
     } catch (e) { logger.warn("Failed to fetch Events:", e.message); }
 
@@ -93,57 +92,141 @@ async function fetchContext() {
     return { okrs, signals, pulse, events, decisions, reports, team };
 }
 
-// ── BUILD SYSTEM INSTRUCTION ──────────────────────────────────────────────────
-function buildSystemInstruction(ctx) {
-    const { okrs, signals, pulse, events, decisions, reports, team } = ctx;
+// ── GEMINI TOOLS SCHEMA ───────────────────────────────────────────────────────
+const SHADOW_COS_TOOLS = [
+    {
+        functionDeclarations: [
+            {
+                name: "createRiskSignal",
+                description: "Crea un nuovo segnale di rischio nel Risk Radar. Usalo quando l'utente vuole registrare una minaccia, un problema o un rischio strategico.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        text: { type: "STRING", description: "Descrizione chiara e concisa del segnale di rischio (max 200 caratteri)" },
+                        level: { type: "STRING", enum: ["high", "medium", "low"], description: "Livello di severità del rischio" },
+                        category: { type: "STRING", description: "Categoria del rischio (es. Strategico, Operativo, Finanziario, Reputazionale)" }
+                    },
+                    required: ["text", "level"]
+                }
+            },
+            {
+                name: "createOKR",
+                description: "Crea un nuovo OKR (Objective and Key Result) nei Strategic Themes. Usalo quando l'utente vuole definire un nuovo obiettivo strategico.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        title: { type: "STRING", description: "Titolo dell'obiettivo strategico" },
+                        description: { type: "STRING", description: "Descrizione dettagliata dell'obiettivo" },
+                        keyResult: { type: "STRING", description: "Primo Key Result misurabile (opzionale)" }
+                    },
+                    required: ["title"]
+                }
+            },
+            {
+                name: "updateDailyPulse",
+                description: "Aggiunge focus items al Daily Pulse di oggi. Usalo quando l'utente vuole impostare le priorità operative della giornata.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        items: {
+                            type: "ARRAY",
+                            description: "Lista di focus items da aggiungere al Daily Pulse",
+                            items: { type: "STRING" }
+                        },
+                        mood: { type: "STRING", enum: ["focused", "stressed", "energized", "uncertain"], description: "Stato operativo del team oggi" }
+                    },
+                    required: ["items"]
+                }
+            },
+            {
+                name: "logDecision",
+                description: "Registra una decisione strategica nel Decision Log. Usalo quando l'utente vuole tracciare una decisione importante presa dal team.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        decision: { type: "STRING", description: "Descrizione della decisione presa" },
+                        rationale: { type: "STRING", description: "Motivazione strategica della decisione" },
+                        decisionMaker: { type: "STRING", description: "Nome del responsabile della decisione" },
+                        verdict: { type: "STRING", enum: ["ALLINEATA", "NEUTRALE", "A RISCHIO"], description: "Valutazione strategica della decisione" }
+                    },
+                    required: ["decision"]
+                }
+            }
+        ]
+    }
+];
 
-    return `Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS — un assistente strategico intelligente, diretto e umano.
+// ── SERVER-SIDE TOOL EXECUTOR ─────────────────────────────────────────────────
+// Uses admin.firestore() — bypasses ALL Firestore security rules
+async function executeTool(name, args) {
+    const db = admin.firestore();
+    logger.info(`[TOOL CALL] ${name}`, args);
 
-REGOLE DI COMPORTAMENTO:
-- Rispondi SEMPRE nella stessa lingua dell'utente (italiano se scrive in italiano, inglese se scrive in inglese).
-- Sii conciso e diretto. Niente intro verbose o disclaimer.
-- Se il messaggio è un saluto o conversazionale (es. "ciao", "come stai"), rispondi in modo naturale e breve, poi offri il tuo aiuto strategico.
-- Quando hai dati di contesto rilevanti, usali per dare insight proattivi.
-- Il tuo stile è da CoS di alto livello: assertivo, preciso, orientato all'azione.
-- Ricorda il contesto della conversazione precedente e costruisci su di esso.
+    if (name === "createRiskSignal") {
+        const ref = await db.collection('signals').add({
+            text: args.text,
+            level: args.level || 'medium',
+            category: args.category || 'Strategico',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            source: 'shadow_cos',
+        });
+        return { success: true, id: ref.id, message: `Segnale di rischio creato con ID: ${ref.id}` };
+    }
 
-CAPACITÀ DI AZIONE (usa con giudizio):
-Puoi proporre azioni concrete all'utente. Quando ritieni che un'azione sia utile, includila ALLA FINE della tua risposta usando ESATTAMENTE questo formato (una riga, nessun testo aggiuntivo attorno):
-[ACTION:{"type":"CREATE_SIGNAL","params":{"text":"testo del segnale","level":"high|medium|low"}}]
-[ACTION:{"type":"RUN_REPORT","params":{"topic":"argomento","reportType":"strategic|competitive|market"}}]
-[ACTION:{"type":"CREATE_OKR","params":{"title":"titolo OKR","description":"descrizione"}}]
+    if (name === "createOKR") {
+        const keyResults = args.keyResult ? [{ title: args.keyResult, completed: false }] : [];
+        const ref = await db.collection('okrs').add({
+            title: args.title,
+            description: args.description || '',
+            status: 'on_track',
+            progress: 0,
+            keyResults,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            source: 'shadow_cos',
+        });
+        return { success: true, id: ref.id, message: `OKR creato con ID: ${ref.id}` };
+    }
 
-REGOLE PER LE AZIONI:
-- Proponi un'azione SOLO se l'utente lo chiede esplicitamente o se è chiaramente utile nel contesto.
-- Non proporre più di 1 azione per risposta.
-- L'azione viene mostrata all'utente come card di approvazione — lui decide se eseguirla.
-- Non inventare dati per le azioni: usa solo informazioni reali dal contesto o dalla conversazione.
+    if (name === "updateDailyPulse") {
+        const today = new Date().toISOString().split('T')[0];
+        const ref = db.collection('daily_pulse').doc(today);
+        const snap = await ref.get();
+        const newItems = (args.items || []).map(text => ({ text, completed: false }));
+        if (snap.exists) {
+            const existing = snap.data().focus_items || [];
+            await ref.update({
+                focus_items: [...existing, ...newItems],
+                mood: args.mood || snap.data().mood || 'focused',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedBy: 'shadow_cos',
+            });
+        } else {
+            await ref.set({
+                focus_items: newItems,
+                mood: args.mood || 'focused',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedBy: 'shadow_cos',
+            });
+        }
+        return { success: true, date: today, itemsAdded: newItems.length, message: `Daily Pulse aggiornato: ${newItems.length} item aggiunti per ${today}` };
+    }
 
-CONTESTO OPERATIVO COMPLETO:
+    if (name === "logDecision") {
+        const ref = await db.collection('decisions').add({
+            decision: args.decision,
+            rationale: args.rationale || '',
+            decisionMaker: args.decisionMaker || 'Shadow CoS',
+            verdict: args.verdict || 'NEUTRALE',
+            savedAt: admin.firestore.FieldValue.serverTimestamp(),
+            source: 'shadow_cos',
+        });
+        return { success: true, id: ref.id, message: `Decisione registrata con ID: ${ref.id}` };
+    }
 
-📁 DOSSIER ATTIVI (${events.length}):
-${events.length > 0 ? events.map(e => `• "${e.title}" [${e.status}] — ${e.description ? e.description.substring(0, 80) : 'nessuna descrizione'} — Team: ${e.teamSize} persone, aperto il ${e.createdAt}`).join('\n') : 'Nessun dossier attivo.'}
-
-🎯 OKR STRATEGICI (${okrs.length}):
-${okrs.length > 0 ? JSON.stringify(okrs) : 'Nessun OKR attivo.'}
-
-⚠️ SEGNALI DI RISCHIO (${signals.length}):
-${signals.length > 0 ? signals.map(s => `• [${s.level.toUpperCase()}] ${s.text}`).join('\n') : 'Nessun segnale rilevato.'}
-
-📋 FOCUS DEL GIORNO:
-${pulse.length > 0 ? JSON.stringify(pulse) : 'Nessun focus impostato oggi.'}
-
-🧠 ULTIME DECISIONI (${decisions.length}):
-${decisions.length > 0 ? decisions.map(d => `• "${d.decision}" — Verdict: ${d.verdict || 'N/A'} (${d.decisionMaker || 'Admin'})`).join('\n') : 'Nessuna decisione registrata.'}
-
-📊 REPORT INTELLIGENCE RECENTI (${reports.length}):
-${reports.length > 0 ? reports.map(r => `• [${r.reportType}] "${r.topic}" — ${r.docNumber || ''}`).join('\n') : 'Nessun report generato.'}
-
-👥 TEAM (${team.length} membri):
-${team.length > 0 ? team.map(m => `• ${m.name} [${m.role}] — Score: ${m.rank_score}`).join('\n') : 'Nessun membro registrato.'}`;
+    throw new Error(`Unknown tool: ${name}`);
 }
 
-// ── ASK SHADOW CoS ────────────────────────────────────────────────────────────
+// ── ASK SHADOW CoS (Native Function Calling + Agentic Loop) ──────────────────
 exports.askShadowCoS = onCall({
     cors: true,
     secrets: ["GOOGLE_API_KEY"],
@@ -164,30 +247,99 @@ exports.askShadowCoS = onCall({
 
         logger.info("Fetching full app context...");
         const ctx = await fetchContext();
-        logger.info(`Context: ${ctx.okrs.length} OKRs, ${ctx.signals.length} Signals, ${ctx.events.length} Events, ${ctx.decisions.length} Decisions, ${ctx.reports.length} Reports, ${ctx.team.length} Team`);
+        logger.info(`Context: ${ctx.okrs.length} OKRs, ${ctx.signals.length} Signals, ${ctx.events.length} Events, ${ctx.decisions.length} Decisions`);
 
-        const systemInstruction = buildSystemInstruction(ctx);
+        const { okrs, signals, pulse, events, decisions, reports, team } = ctx;
+        const systemInstruction = `Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS — un assistente strategico intelligente, diretto e umano.
 
-        logger.info("Calling Gemini API (multi-turn)...");
+REGOLE DI COMPORTAMENTO:
+- Rispondi SEMPRE nella stessa lingua dell'utente (italiano se scrive in italiano, inglese se scrive in inglese).
+- Sii conciso e diretto. Niente intro verbose o disclaimer.
+- Se il messaggio è un saluto o conversazionale, rispondi in modo naturale e breve, poi offri il tuo aiuto strategico.
+- Il tuo stile è da CoS di alto livello: assertivo, preciso, orientato all'azione.
+
+CAPACITÀ DI AZIONE:
+Hai accesso a funzioni che ti permettono di agire DIRETTAMENTE sull'app (nessuna approvazione richiesta — le azioni vengono eseguite immediatamente):
+- createRiskSignal: registra un segnale di rischio nel Risk Radar
+- createOKR: crea un nuovo obiettivo strategico nei Strategic Themes
+- updateDailyPulse: imposta le priorità operative del giorno
+- logDecision: registra una decisione nel Decision Log
+
+Usa queste funzioni quando l'utente lo richiede esplicitamente. Dopo aver eseguito un'azione, conferma brevemente cosa hai fatto.
+
+CONTESTO OPERATIVO:
+📁 DOSSIER (${events.length}): ${events.length > 0 ? events.map(e => `"${e.title}" [${e.status}]`).join(', ') : 'Nessuno'}
+🎯 OKR (${okrs.length}): ${okrs.length > 0 ? okrs.map(o => `"${o.title}" ${o.progress}%`).join(', ') : 'Nessuno'}
+⚠️ SEGNALI (${signals.length}): ${signals.length > 0 ? signals.map(s => `[${s.level}] ${s.text}`).join(' | ') : 'Nessuno'}
+📋 PULSE: ${pulse.length > 0 ? pulse.map(p => p.text || p).join(', ') : 'Nessun focus oggi'}
+🧠 DECISIONI (${decisions.length}): ${decisions.length > 0 ? decisions.map(d => `"${d.decision}"`).join(', ') : 'Nessuna'}
+📊 REPORT (${reports.length}): ${reports.length > 0 ? reports.map(r => `"${r.topic}"`).join(', ') : 'Nessuno'}
+👥 TEAM (${team.length}): ${team.length > 0 ? team.map(m => `${m.name} [${m.role}]`).join(', ') : 'Nessuno'}`;
+
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
             model: "gemini-2.0-flash",
             systemInstruction,
+            tools: SHADOW_COS_TOOLS,
         });
 
         // Build chat history from previous turns
         const { history = [] } = request.data;
         const chatHistory = history.map(h => ({
-            role: h.role, // 'user' or 'model'
+            role: h.role,
             parts: [{ text: h.text }],
         }));
 
         const chat = model.startChat({ history: chatHistory });
-        const result = await chat.sendMessage(query);
-        const text = result.response.text();
 
-        logger.info("Gemini Success. Length:", text.length);
-        return { data: text };
+        // ── AGENTIC EXECUTION LOOP ────────────────────────────────────────────
+        // Gemini may chain multiple function calls before producing a final text response.
+        // We loop until we get a text response (no more function calls).
+        let currentResult = await chat.sendMessage(query);
+        let loopCount = 0;
+        const MAX_LOOPS = 5; // safety cap
+
+        while (loopCount < MAX_LOOPS) {
+            loopCount++;
+            const response = currentResult.response;
+            const functionCalls = response.functionCalls ? response.functionCalls() : [];
+
+            // No function calls → Gemini produced a final text response
+            if (!functionCalls || functionCalls.length === 0) {
+                const text = response.text();
+                logger.info(`Gemini final response. Length: ${text.length}, Loops: ${loopCount}`);
+                return { data: text };
+            }
+
+            // Process all function calls in this turn
+            logger.info(`[LOOP ${loopCount}] Processing ${functionCalls.length} function call(s)`);
+            const functionResponseParts = [];
+
+            for (const call of functionCalls) {
+                let toolResult;
+                try {
+                    toolResult = await executeTool(call.name, call.args);
+                    logger.info(`[TOOL SUCCESS] ${call.name}:`, toolResult);
+                } catch (toolError) {
+                    logger.error(`[TOOL ERROR] ${call.name}:`, toolError.message);
+                    toolResult = { success: false, error: toolError.message };
+                }
+                functionResponseParts.push({
+                    functionResponse: {
+                        name: call.name,
+                        response: toolResult,
+                    }
+                });
+            }
+
+            // Send tool results back to Gemini for the next turn
+            currentResult = await chat.sendMessage(functionResponseParts);
+        }
+
+        // Safety fallback: hit MAX_LOOPS
+        logger.warn(`[LOOP CAP] Reached max loops (${MAX_LOOPS})`);
+        const fallbackText = currentResult.response.text();
+        return { data: fallbackText || "Operazione completata." };
 
     } catch (error) {
         logger.error("CRITICAL FAILURE:", { error: error.message, stack: error.stack });
