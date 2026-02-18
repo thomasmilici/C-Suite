@@ -85,7 +85,6 @@ export const ProjectDashboard = ({ user }) => {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(99,102,241,0.07),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_80%,rgba(20,184,166,0.05),transparent_60%)]" />
       </div>
-
       <header className="max-w-screen-2xl mx-auto mb-6 flex justify-between items-center border-b border-white/5 pb-4 sticky top-0 z-20 bg-[#040508]/70 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/dashboard')} className="w-9 h-9 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] flex items-center justify-center text-zinc-400 hover:text-white transition-colors flex-shrink-0" title="Torna alla Dashboard">
@@ -114,16 +113,13 @@ export const ProjectDashboard = ({ user }) => {
           </button>
         </div>
       </header>
-
       {event?.description && (
         <div className="max-w-screen-2xl mx-auto mb-4">
           <p className="text-xs text-zinc-500 font-mono px-1">{event.description}</p>
         </div>
       )}
-
       <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
           {/* ROW 1 */}
           <div className="glass-tile rounded-2xl min-h-[280px]">
             <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} eventId={eventId} />
@@ -134,7 +130,6 @@ export const ProjectDashboard = ({ user }) => {
           <div className="glass-tile rounded-2xl min-h-[280px]">
             <TileTeam isAdmin={isAdmin} event={event} />
           </div>
-
           {/* ROW 2 */}
           <div className="glass-tile md:col-span-2 rounded-2xl min-h-[320px]">
             <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} eventId={eventId} />
@@ -142,22 +137,18 @@ export const ProjectDashboard = ({ user }) => {
           <div className="glass-tile rounded-2xl min-h-[320px] relative overflow-hidden">
             <TileIntelligence adminName={user?.displayName} eventId={eventId} />
           </div>
-
           {/* ROW 3 */}
           <div className="glass-tile md:col-span-2 rounded-2xl min-h-[340px]">
-            <BriefingRoom isAdmin={isAdmin} eventId={eventId} />
+            <BriefingRoom isAdmin={isAdmin} eventId={eventId} event={event} />
           </div>
           <div className="glass-tile rounded-2xl min-h-[340px]">
             <TileDecisionLog isAdmin={isAdmin} adminName={user?.displayName} eventId={eventId} />
           </div>
-
         </div>
       </main>
-
       <button onClick={() => setShowNeural(true)} className="fixed bottom-8 right-8 w-14 h-14 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 hover:border-white/40 text-white rounded-full shadow-[0_0_30px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.5)] hover:shadow-[0_0_40px_rgba(255,255,255,0.18)] flex items-center justify-center z-50 transition-all duration-300 hover:scale-110 active:scale-95">
         <Sparkles className="w-5 h-5" />
       </button>
-
       {showNeural && <NeuralInterface onClose={() => setShowNeural(false)} />}
       {showSignalModal && createPortal(<SignalInput onClose={() => setShowSignalModal(false)} />, document.body)}
       {showOKRModal && createPortal(<OKRManager onClose={() => setShowOKRModal(false)} existingOKR={selectedOKR} />, document.body)}
@@ -165,7 +156,6 @@ export const ProjectDashboard = ({ user }) => {
         <ReportsArchiveModal onClose={() => setShowArchive(false)} adminName={user?.displayName} onOpenReport={() => {}} />,
         document.body
       )}
-
       <AppCredits />
     </div>
   );
