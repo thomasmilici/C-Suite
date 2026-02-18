@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Compass, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 // Circular SVG progress ring
@@ -50,16 +50,19 @@ const ProgressRing = ({ progress = 0, status = 'on-track', size = 36 }) => {
     );
 };
 
-export const TileCompass = ({ isAdmin, onOpenModal }) => {
+export const TileCompass = ({ isAdmin, onOpenModal, eventId }) => {
     const [okrs, setOkrs] = useState([]);
 
     useEffect(() => {
-        const q = query(collection(db, "okrs"), orderBy("createdAt", "desc"));
+        const base = collection(db, "okrs");
+        const q = eventId
+            ? query(base, where("eventId", "==", eventId), orderBy("createdAt", "desc"))
+            : query(base, orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             setOkrs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
         return () => unsubscribe();
-    }, []);
+    }, [eventId]);
 
     const handleEdit = (okr) => { if (isAdmin) onOpenModal(okr); };
     const handleAdd = (e) => { e.stopPropagation(); onOpenModal(null); };

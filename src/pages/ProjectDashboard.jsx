@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { getEvent } from '../services/eventService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { AuthService } from '../services/authService';
-import { LogOut, Shield, Sparkles, Archive } from 'lucide-react';
-import { AppCredits } from '../components/ui/AppCredits';
 import { TileCompass } from '../components/tiles/TileCompass';
 import { TilePulse } from '../components/tiles/TilePulse';
 import { TileTeam } from '../components/tiles/TileTeam';
@@ -11,103 +12,80 @@ import { TileRadar } from '../components/tiles/TileRadar';
 import { TileIntelligence, ReportsArchiveModal } from '../components/tiles/TileIntelligence';
 import { TileDecisionLog } from '../components/tiles/TileDecisionLog';
 import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterface';
-import { ProactiveAlerts } from '../components/modules/Intelligence/ProactiveAlerts';
 import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
 import { OKRManager } from '../components/modals/OKRManager';
 import { SignalInput } from '../components/modals/SignalInput';
-import { EventsList } from '../components/EventsList';
-import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { LogOut, Shield, ArrowLeft, Sparkles, Archive, Folder } from 'lucide-react';
+import { AppCredits } from '../components/ui/AppCredits';
 
-// Circular health gauge for header
-const HealthGauge = ({ score }) => {
-    const size = 36;
-    const radius = 14;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (score / 100) * circumference;
-    const color = score >= 70 ? '#34d399' : score >= 40 ? '#fbbf24' : '#f87171';
-    const label = score >= 70 ? 'OPTIMAL' : score >= 40 ? 'ATTENZIONE' : 'CRITICO';
-    return (
-        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 border border-white/[0.07] bg-white/[0.02] rounded-lg backdrop-blur-sm" title={`Health: ${score}% — ${label}`}>
-            <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-mono">HEALTH</span>
-            <svg width={size} height={size} className="-rotate-90">
-                <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={3} />
-                <circle
-                    cx={size/2} cy={size/2} r={radius}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={3}
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    style={{ transition: 'stroke-dashoffset 1s ease-out' }}
-                />
-                <text x={size/2} y={size/2} textAnchor="middle" dominantBaseline="middle"
-                    fill={color} fontSize={8} fontFamily="monospace" fontWeight="700"
-                    transform={`rotate(90,${size/2},${size/2})`}>
-                    {score}
-                </text>
-            </svg>
-            <span className="text-[10px] font-mono" style={{ color }}>{label}</span>
-        </div>
-    );
-};
-
-export const Dashboard = ({ user }) => {
+export const ProjectDashboard = ({ user }) => {
+    const { id: eventId } = useParams();
     const navigate = useNavigate();
+
+    const [event, setEvent] = useState(null);
+    const [loadingEvent, setLoadingEvent] = useState(true);
+    const [notFound, setNotFound] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+
     const [showNeural, setShowNeural] = useState(false);
     const [showArchive, setShowArchive] = useState(false);
     const [showSignalModal, setShowSignalModal] = useState(false);
     const [showOKRModal, setShowOKRModal] = useState(false);
     const [selectedOKR, setSelectedOKR] = useState(null);
-    const [okrs, setOkrs] = useState([]);
-    const [signals, setSignals] = useState([]);
 
+    // Fetch event metadata
     useEffect(() => {
-        const checkRole = async () => {
-            if (user) {
-                const snap = await getDoc(doc(db, "users", user.uid));
-                if (snap.exists() && snap.data().role === 'ADMIN') {
-                    setIsAdmin(true);
-                }
-            }
-        };
-        checkRole();
+        if (!eventId) return;
+        setLoadingEvent(true);
+        getEvent(eventId).then(data => {
+            if (!data) { setNotFound(true); }
+            else { setEvent(data); }
+            setLoadingEvent(false);
+        }).catch(err => {
+            console.error('[ProjectDashboard] getEvent error:', err);
+            setNotFound(true);
+            setLoadingEvent(false);
+        });
+    }, [eventId]);
+
+    // Check admin role
+    useEffect(() => {
+        if (!user) return;
+        getDoc(doc(db, 'users', user.uid)).then(snap => {
+            if (snap.exists() && snap.data().role === 'ADMIN') setIsAdmin(true);
+        });
     }, [user]);
-
-    // Fetch OKRs e signals per il termometro
-    useEffect(() => {
-        const unsubOkrs = onSnapshot(collection(db, 'okrs'), snap => {
-            setOkrs(snap.docs.map(d => d.data()));
-        });
-        const unsubSignals = onSnapshot(collection(db, 'signals'), snap => {
-            setSignals(snap.docs.map(d => d.data()));
-        });
-        return () => { unsubOkrs(); unsubSignals(); };
-    }, []);
-
-    // Calcola health score (0-100) basato su OKR e segnali
-    const healthScore = useMemo(() => {
-        if (okrs.length === 0 && signals.length === 0) return null;
-        let score = 100;
-        // Penalizza OKR a rischio o con progress bassa
-        okrs.forEach(okr => {
-            if (okr.status === 'risk') score -= 15;
-            else if ((okr.progress || 0) < 30) score -= 10;
-        });
-        // Penalizza segnali HIGH
-        const highSignals = signals.filter(s => s.level === 'high').length;
-        const medSignals = signals.filter(s => s.level === 'medium').length;
-        score -= highSignals * 12;
-        score -= medSignals * 4;
-        return Math.max(0, Math.min(100, score));
-    }, [okrs, signals]);
 
     const handleLogout = async () => {
         await AuthService.logout();
         navigate('/login');
     };
+
+    if (loadingEvent) {
+        return (
+            <div className="min-h-screen bg-[#050508] flex items-center justify-center">
+                <p className="text-xs text-zinc-600 font-mono animate-pulse tracking-widest">
+                    APERTURA DOSSIER...
+                </p>
+            </div>
+        );
+    }
+
+    if (notFound) {
+        return (
+            <div className="min-h-screen bg-[#050508] flex flex-col items-center justify-center gap-4">
+                <Folder className="w-10 h-10 text-zinc-700" />
+                <p className="text-sm text-zinc-500 font-mono">Dossier non trovato o accesso negato.</p>
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    className="text-xs font-mono text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition-colors"
+                >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Torna alla Centrale Operativa
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#050508] p-4 md:p-6 font-sans selection:bg-zinc-800 relative text-gray-200">
@@ -115,35 +93,32 @@ export const Dashboard = ({ user }) => {
             <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(99,102,241,0.07)_0%,transparent_60%)]" />
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_80%,rgba(20,184,166,0.05)_0%,transparent_60%)]" />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.02)_0%,transparent_50%)]" />
             </div>
 
             {/* Header */}
             <header className="max-w-screen-2xl mx-auto mb-6 flex justify-between items-center border-b border-white/5 pb-4 sticky top-0 z-20 bg-[#050508]/70 backdrop-blur-xl">
                 <div className="flex items-center gap-3">
-                    <img
-                        src="/logo.png"
-                        alt="C-Suite OS"
-                        className="w-9 h-9 rounded-xl object-contain flex-shrink-0"
-                    />
+                    {/* Back button */}
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="w-9 h-9 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] flex items-center justify-center text-zinc-400 hover:text-white transition-colors flex-shrink-0"
+                        title="Torna alla Dashboard"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                    </button>
                     <div>
-                        <h1 className="text-xl font-mono font-bold tracking-tighter text-white leading-none">
-                            C-Suite <span className="text-zinc-600">OS</span>
+                        <h1 className="text-xl font-mono font-bold tracking-tighter text-white leading-none truncate max-w-[220px] md:max-w-none">
+                            {event?.title}
                         </h1>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                             <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
-                                Execution Layer • Active
+                                Dossier • {event?.status === 'active' ? 'Attivo' : event?.status}
                             </p>
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 text-xs font-mono">
-                    {/* Termometro salute strategica — solo admin */}
-                    {isAdmin && healthScore !== null && (
-                        <HealthGauge score={healthScore} />
-                    )}
-                    {/* Archivio Reports — visibile a tutti */}
                     <button
                         onClick={() => setShowArchive(true)}
                         className="hidden sm:flex touch-target items-center gap-1.5 text-zinc-400 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 px-3 py-1.5 rounded-lg transition-all backdrop-blur-sm"
@@ -165,23 +140,20 @@ export const Dashboard = ({ user }) => {
                 </div>
             </header>
 
-            {/* Main Content */}
-            <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
-
-                {/* Proactive Alerts */}
-                <ProactiveAlerts />
-
-                {/* Events / Projects List */}
-                <div className="mb-6">
-                    <EventsList isAdmin={isAdmin} currentUser={user} />
+            {/* Project description badge */}
+            {event?.description && (
+                <div className="max-w-screen-2xl mx-auto mb-4">
+                    <p className="text-xs text-zinc-500 font-mono px-1">{event.description}</p>
                 </div>
+            )}
 
-                {/* Bento Grid — 3 colonne */}
+            {/* Main Content — stessa grid della Dashboard globale */}
+            <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-                    {/* ROW 1: Compass (1col) | Pulse (1col) | Team (1col) */}
+                    {/* ROW 1 */}
                     <div className="glass-tile rounded-2xl min-h-[280px]">
-                        <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} />
+                        <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} eventId={eventId} />
                     </div>
 
                     <div className="glass-tile rounded-2xl min-h-[280px]">
@@ -192,22 +164,22 @@ export const Dashboard = ({ user }) => {
                         <TileTeam isAdmin={isAdmin} />
                     </div>
 
-                    {/* ROW 2: Radar (2col) | Intelligence Reports (1col) */}
+                    {/* ROW 2 */}
                     <div className="glass-tile md:col-span-2 rounded-2xl min-h-[320px]">
-                        <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
+                        <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} eventId={eventId} />
                     </div>
 
                     <div className="glass-tile rounded-2xl min-h-[320px] relative overflow-hidden">
-                        <TileIntelligence adminName={user?.displayName} />
+                        <TileIntelligence adminName={user?.displayName} eventId={eventId} />
                     </div>
 
-                    {/* ROW 3: Briefing Room (2col) | Decision Log (1col) */}
+                    {/* ROW 3 */}
                     <div className="glass-tile md:col-span-2 rounded-2xl min-h-[340px]">
                         <BriefingRoom isAdmin={isAdmin} />
                     </div>
 
                     <div className="glass-tile rounded-2xl min-h-[340px]">
-                        <TileDecisionLog isAdmin={isAdmin} adminName={user?.displayName} />
+                        <TileDecisionLog isAdmin={isAdmin} adminName={user?.displayName} eventId={eventId} />
                     </div>
 
                 </div>

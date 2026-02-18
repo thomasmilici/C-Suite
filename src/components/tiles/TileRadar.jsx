@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Radar as RadarIcon, Radio, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import {
     RadarChart,
@@ -100,16 +100,19 @@ const SignalRow = ({ signal }) => {
 };
 
 // --- Main tile ---
-export const TileRadar = ({ isAdmin, onOpenModal }) => {
+export const TileRadar = ({ isAdmin, onOpenModal, eventId }) => {
     const [signals, setSignals] = useState([]);
 
     useEffect(() => {
-        const q = query(collection(db, "signals"), orderBy("createdAt", "desc"), limit(12));
+        const base = collection(db, "signals");
+        const q = eventId
+            ? query(base, where("eventId", "==", eventId), orderBy("createdAt", "desc"), limit(12))
+            : query(base, orderBy("createdAt", "desc"), limit(12));
         const unsub = onSnapshot(q, (snapshot) => {
             setSignals(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
         });
         return () => unsub();
-    }, []);
+    }, [eventId]);
 
     const radarData = useMemo(() => buildRadarData(signals), [signals]);
     const hasSignals = signals.length > 0;

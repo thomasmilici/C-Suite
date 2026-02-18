@@ -4,7 +4,7 @@ import { Zap, Search, FileSearch, ChevronRight, Loader2, X, ExternalLink, Downlo
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
-import { collection, query, orderBy, limit, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
@@ -484,7 +484,7 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
 };
 
 // ── MAIN TILE ────────────────────────────────────────────────────────────────
-export const TileIntelligence = ({ adminName }) => {
+export const TileIntelligence = ({ adminName, eventId }) => {
     const [customTopic, setCustomTopic] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeReport, setActiveReport] = useState(null);
@@ -495,7 +495,10 @@ export const TileIntelligence = ({ adminName }) => {
     const [showArchive, setShowArchive] = useState(false);
 
     useEffect(() => {
-        const q = query(collection(db, 'reports'), orderBy('savedAt', 'desc'), limit(5));
+        const base = collection(db, 'reports');
+        const q = eventId
+            ? query(base, where('eventId', '==', eventId), orderBy('savedAt', 'desc'), limit(5))
+            : query(base, orderBy('savedAt', 'desc'), limit(5));
         const unsub = onSnapshot(q, (snap) => {
             const valid = snap.docs
                 .map(d => ({ id: d.id, ...d.data() }))
@@ -505,7 +508,7 @@ export const TileIntelligence = ({ adminName }) => {
             console.error('Firestore reports error:', err);
         });
         return () => unsub();
-    }, []);
+    }, [eventId]);
 
     const runGenerate = async (type, topic) => {
         if (!topic.trim()) return;
@@ -519,6 +522,7 @@ export const TileIntelligence = ({ adminName }) => {
                 const reportData = { ...result.data.data, docNumber };
                 await addDoc(collection(db, 'reports'), {
                     ...reportData,
+                    ...(eventId && { eventId }),
                     savedAt: serverTimestamp(),
                 });
                 setActiveReport(reportData);

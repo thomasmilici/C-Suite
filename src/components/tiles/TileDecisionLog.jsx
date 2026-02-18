@@ -4,7 +4,7 @@ import { BookOpen, Plus, X, Loader2, ChevronRight, AlertTriangle, CheckCircle, M
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
-import { collection, query, orderBy, limit, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
@@ -443,7 +443,7 @@ const DecisionModal = ({ entry, onClose, adminName, isAdmin }) => {
 };
 
 // ── NEW DECISION FORM (with review step) ─────────────────────────────────────
-const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName }) => {
+const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName, eventId }) => {
     const [step, setStep] = useState('input'); // 'input' | 'review'
     const [decision, setDecision] = useState('');
     const [rationale, setRationale] = useState('');
@@ -503,6 +503,7 @@ const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName }) => {
             };
             await addDoc(collection(db, 'decisions'), {
                 ...entry,
+                ...(eventId && { eventId }),
                 savedAt: serverTimestamp(),
             });
             onSuccess(entry);
@@ -667,20 +668,23 @@ const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName }) => {
 };
 
 // ── MAIN TILE ─────────────────────────────────────────────────────────────────
-export const TileDecisionLog = ({ isAdmin, adminName }) => {
+export const TileDecisionLog = ({ isAdmin, adminName, eventId }) => {
     const [decisions, setDecisions] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [activeDecision, setActiveDecision] = useState(null);
 
     useEffect(() => {
-        const q = query(collection(db, 'decisions'), orderBy('savedAt', 'desc'), limit(10));
+        const base = collection(db, 'decisions');
+        const q = eventId
+            ? query(base, where('eventId', '==', eventId), orderBy('savedAt', 'desc'), limit(10))
+            : query(base, orderBy('savedAt', 'desc'), limit(10));
         const unsub = onSnapshot(q, snap => {
             setDecisions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         }, err => {
             console.error('Firestore decisions error:', err);
         });
         return () => unsub();
-    }, []);
+    }, [eventId]);
 
     const handleSuccess = (entry) => {
         setShowForm(false);
@@ -766,6 +770,7 @@ export const TileDecisionLog = ({ isAdmin, adminName }) => {
                         onSuccess={handleSuccess}
                         isAdmin={isAdmin}
                         adminName={adminName}
+                        eventId={eventId}
                     />
                 </AnimatePresence>,
                 document.body

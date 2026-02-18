@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
 import { Admin } from './pages/Admin';
 import { Join } from './pages/Join';
+import { ProjectDashboard } from './pages/ProjectDashboard';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const [user, setUser] = useState(auth.currentUser);
@@ -76,6 +77,15 @@ function App() {
           element={
             <ProtectedRoute requiredRole="ADMIN">
               <Admin />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/progetto/:id"
+          element={
+            <ProtectedRoute>
+              <ProjectDashboard user={user} />
             </ProtectedRoute>
           }
         />
