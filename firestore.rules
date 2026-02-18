@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    // Ogni utente può leggere/scrivere solo il proprio documento.
+    // Gli admin possono leggere tutti.
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ── Events (Dossier) ──────────────────────────────────────────────────────
+    // Lettura: tutti gli utenti autenticati.
+    // Scrittura: solo ADMIN.
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── OKRs ──────────────────────────────────────────────────────────────────
+    match /okrs/{okrId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Signals ───────────────────────────────────────────────────────────────
+    match /signals/{signalId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Decisions ─────────────────────────────────────────────────────────────
+    match /decisions/{decisionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Reports ───────────────────────────────────────────────────────────────
+    match /reports/{reportId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Daily Pulse ───────────────────────────────────────────────────────────
+    match /daily_pulse/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Invites ───────────────────────────────────────────────────────────────
+    // Lettura pubblica necessaria per validare il token sull'onboarding (/join).
+    // Scrittura (generazione/consumo): solo ADMIN o utente autenticato (consumo).
+    match /invites/{inviteId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAuthenticated(); // consumeInvite incrementa useCount
+      allow delete: if isAdmin();
+    }
+
+  }
+}
