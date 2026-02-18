@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { subscribeToActiveEvents, createEvent } from '../services/eventService';
-import { Plus, Folder, ArrowRight, Calendar, Users } from 'lucide-react';
+import { subscribeToActiveEvents, createEvent, deleteEvent } from '../services/eventService';
+import { Plus, Folder, ArrowRight, Calendar, Users, Trash2 } from 'lucide-react';
 
 const STATUS_COLORS = {
     active: { dot: 'bg-green-500', text: 'text-green-400', label: 'Attivo' },
@@ -9,18 +9,44 @@ const STATUS_COLORS = {
     archived: { dot: 'bg-zinc-600', text: 'text-zinc-500', label: 'Archiviato' },
 };
 
-const EventCard = ({ event, onClick }) => {
+const EventCard = ({ event, onClick, isAdmin, onDelete }) => {
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
     const status = STATUS_COLORS[event.status] || STATUS_COLORS.active;
     const createdDate = event.createdAt?.toDate
         ? event.createdAt.toDate().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
         : '—';
+
+    const handleDeleteClick = (e) => {
+        e.stopPropagation();
+        setConfirmDelete(true);
+    };
+
+    const handleConfirmDelete = async (e) => {
+        e.stopPropagation();
+        setDeleting(true);
+        try {
+            await deleteEvent(event.id);
+            if (onDelete) onDelete(event.id);
+        } catch (err) {
+            console.error('[EventCard] deleteEvent error:', err);
+            setDeleting(false);
+            setConfirmDelete(false);
+        }
+    };
+
+    const handleCancelDelete = (e) => {
+        e.stopPropagation();
+        setConfirmDelete(false);
+    };
 
     return (
         <button
             onClick={onClick}
             className="glass-tile rounded-2xl p-5 text-left w-full group
                 hover:border-indigo-500/30 hover:bg-indigo-500/5
-                transition-all duration-200 active:scale-[0.98]"
+                transition-all duration-200 active:scale-[0.98] relative"
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -38,25 +64,69 @@ const EventCard = ({ event, onClick }) => {
                         )}
                     </div>
                 </div>
-                <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-0.5" />
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Admin delete button */}
+                    {isAdmin && !confirmDelete && (
+                        <button
+                            onClick={handleDeleteClick}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                            title="Elimina dossier"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all mt-0.5" />
+                </div>
             </div>
 
-            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/[0.05]">
-                <div className="flex items-center gap-1.5">
-                    <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                    <span className={`text-[10px] font-mono uppercase tracking-wider ${status.text}`}>
-                        {status.label}
+            {/* Inline delete confirmation */}
+            {confirmDelete && (
+                <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-3 pt-3 border-t border-red-500/20 flex items-center justify-between gap-3"
+                >
+                    <span className="text-[10px] font-mono text-red-400 uppercase tracking-wider">
+                        Eliminare definitivamente?
                     </span>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleCancelDelete}
+                            disabled={deleting}
+                            className="px-2.5 py-1 rounded-lg border border-white/10 text-zinc-400 hover:text-white text-[10px] font-mono transition-colors disabled:opacity-50"
+                        >
+                            Annulla
+                        </button>
+                        <button
+                            onClick={handleConfirmDelete}
+                            disabled={deleting}
+                            className="px-2.5 py-1 rounded-lg bg-red-600/80 hover:bg-red-500/80 text-white text-[10px] font-mono transition-colors disabled:opacity-50"
+                        >
+                            {deleting ? 'Eliminazione...' : 'Elimina'}
+                        </button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-zinc-600">
-                    <Calendar className="w-3 h-3" />
-                    <span className="text-[10px] font-mono">{createdDate}</span>
+            )}
+
+            {/* Footer metadata */}
+            {!confirmDelete && (
+                <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/[0.05]">
+                    <div className="flex items-center gap-1.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                        <span className={`text-[10px] font-mono uppercase tracking-wider ${status.text}`}>
+                            {status.label}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-zinc-600">
+                        <Calendar className="w-3 h-3" />
+                        <span className="text-[10px] font-mono">{createdDate}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-zinc-600">
+                        <Users className="w-3 h-3" />
+                        <span className="text-[10px] font-mono">{event.teamMembers?.length ?? 1}</span>
+                    </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-zinc-600">
-                    <Users className="w-3 h-3" />
-                    <span className="text-[10px] font-mono">{event.teamMembers?.length ?? 1}</span>
-                </div>
-            </div>
+            )}
         </button>
     );
 };
@@ -164,6 +234,10 @@ export const EventsList = ({ isAdmin, currentUser }) => {
         navigate(`/progetto/${id}`);
     };
 
+    const handleDeleted = (id) => {
+        setEvents(prev => prev.filter(e => e.id !== id));
+    };
+
     return (
         <>
             <section>
@@ -210,7 +284,9 @@ export const EventsList = ({ isAdmin, currentUser }) => {
                             <EventCard
                                 key={event.id}
                                 event={event}
+                                isAdmin={isAdmin}
                                 onClick={() => navigate(`/progetto/${event.id}`)}
+                                onDelete={handleDeleted}
                             />
                         ))}
                     </div>
