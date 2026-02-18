@@ -16,6 +16,7 @@ import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
 import { OKRManager } from '../components/modals/OKRManager';
 import { SignalInput } from '../components/modals/SignalInput';
 import { EventsList } from '../components/EventsList';
+import { subscribeToActiveEvents } from '../services/eventService';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -31,9 +32,9 @@ const HealthGauge = ({ score }) => {
         <div className="hidden md:flex items-center gap-2 px-3 py-1.5 border border-white/[0.07] bg-white/[0.02] rounded-lg backdrop-blur-sm" title={`Health: ${score}% — ${label}`}>
             <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-mono">HEALTH</span>
             <svg width={size} height={size} className="-rotate-90">
-                <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={3} />
+                <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={3} />
                 <circle
-                    cx={size/2} cy={size/2} r={radius}
+                    cx={size / 2} cy={size / 2} r={radius}
                     fill="none"
                     stroke={color}
                     strokeWidth={3}
@@ -42,9 +43,9 @@ const HealthGauge = ({ score }) => {
                     strokeDashoffset={offset}
                     style={{ transition: 'stroke-dashoffset 1s ease-out' }}
                 />
-                <text x={size/2} y={size/2} textAnchor="middle" dominantBaseline="middle"
+                <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="middle"
                     fill={color} fontSize={8} fontFamily="monospace" fontWeight="700"
-                    transform={`rotate(90,${size/2},${size/2})`}>
+                    transform={`rotate(90,${size / 2},${size / 2})`}>
                     {score}
                 </text>
             </svg>
@@ -63,6 +64,8 @@ export const Dashboard = ({ user }) => {
     const [selectedOKR, setSelectedOKR] = useState(null);
     const [okrs, setOkrs] = useState([]);
     const [signals, setSignals] = useState([]);
+    const [events, setEvents] = useState([]);
+    const [alertCount, setAlertCount] = useState(0);
 
     useEffect(() => {
         const checkRole = async () => {
@@ -76,7 +79,7 @@ export const Dashboard = ({ user }) => {
         checkRole();
     }, [user]);
 
-    // Fetch OKRs e signals per il termometro
+    // Fetch OKRs, signals, events
     useEffect(() => {
         const unsubOkrs = onSnapshot(collection(db, 'okrs'), snap => {
             setOkrs(snap.docs.map(d => d.data()));
@@ -84,7 +87,11 @@ export const Dashboard = ({ user }) => {
         const unsubSignals = onSnapshot(collection(db, 'signals'), snap => {
             setSignals(snap.docs.map(d => d.data()));
         });
-        return () => { unsubOkrs(); unsubSignals(); };
+        const unsubEvents = subscribeToActiveEvents(
+            (data) => setEvents(data),
+            (err) => console.error('[Dashboard] events error:', err)
+        );
+        return () => { unsubOkrs(); unsubSignals(); unsubEvents(); };
     }, []);
 
     // Calcola health score (0-100) basato su OKR e segnali
@@ -169,7 +176,7 @@ export const Dashboard = ({ user }) => {
             <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
 
                 {/* Proactive Alerts */}
-                <ProactiveAlerts />
+                <ProactiveAlerts onAlertsChange={(count) => setAlertCount(count)} />
 
                 {/* Events / Projects List */}
                 <div className="mb-6">
@@ -215,7 +222,7 @@ export const Dashboard = ({ user }) => {
 
             {/* Shadow CoS AI FAB */}
             <button
-                onClick={() => setShowNeural(true)}
+                onClick={() => { setShowNeural(true); setAlertCount(0); }}
                 className="fixed bottom-8 right-8 w-14 h-14
                     bg-white/10 hover:bg-white/20 backdrop-blur-xl
                     border border-white/20 hover:border-white/40
@@ -223,19 +230,24 @@ export const Dashboard = ({ user }) => {
                     shadow-[0_0_30px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.5)]
                     hover:shadow-[0_0_40px_rgba(255,255,255,0.18)]
                     flex items-center justify-center z-50
-                    transition-all duration-300 hover:scale-110 active:scale-95"
+                    transition-all duration-300 hover:scale-110 active:scale-95 relative"
             >
                 <Sparkles className="w-6 h-6" />
+                {alertCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white animate-pulse">
+                        {alertCount > 9 ? '9+' : alertCount}
+                    </span>
+                )}
             </button>
 
-            {showNeural && <NeuralInterface onClose={() => setShowNeural(false)} />}
+            {showNeural && <NeuralInterface onClose={() => setShowNeural(false)} events={events} isAdmin={isAdmin} />}
             {showSignalModal && createPortal(<SignalInput onClose={() => setShowSignalModal(false)} />, document.body)}
             {showOKRModal && createPortal(<OKRManager onClose={() => setShowOKRModal(false)} existingOKR={selectedOKR} />, document.body)}
             {showArchive && createPortal(
                 <ReportsArchiveModal
                     onClose={() => setShowArchive(false)}
                     adminName={user?.displayName}
-                    onOpenReport={() => {}}
+                    onOpenReport={() => { }}
                 />,
                 document.body
             )}

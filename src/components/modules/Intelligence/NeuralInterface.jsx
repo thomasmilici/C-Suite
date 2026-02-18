@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Sparkles, BrainCircuit, Zap, BookOpen, BarChart2, Radio, FileText, Users, Lightbulb, Trash2 } from 'lucide-react';
+import { X, Send, Sparkles, BrainCircuit, Zap, BookOpen, BarChart2, Radio, FileText, Users, Lightbulb, Trash2, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../../firebase';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, updateDoc, addDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import { getAuth } from 'firebase/auth';
 import ReactMarkdown from 'react-markdown';
@@ -18,7 +18,7 @@ Struttura la risposta così:
 [Breve intro su cos'è e a cosa serve]
 
 ## Le sezioni principali
-Per ogni sezione (Strategic Themes, Daily Pulse, Risk Radar, Intelligence Reports, Daily Briefing, Decision Log, Shadow CoS) spiega: cosa è, a cosa serve, come si usa.
+Per ogni sezione (Dossier, Strategic Themes, Daily Pulse, Risk Radar, Intelligence Reports, Daily Briefing, Decision Log, Shadow CoS) spiega: cosa è, a cosa serve, come si usa.
 
 ## Come iniziare
 [3 azioni concrete da fare subito per un nuovo utente]
@@ -28,7 +28,7 @@ Per ogni sezione (Strategic Themes, Daily Pulse, Risk Radar, Intelligence Report
     },
     { label: 'Analisi OKR', Icon: BarChart2, prompt: 'Analizza lo stato attuale degli OKR strategici. Identifica quelli a rischio e dimmi cosa fare concretamente.' },
     { label: 'Radar Rischi', Icon: Radio, prompt: 'Analizza i segnali di rischio registrati e dimmi quali sono le minacce più critiche da gestire oggi.' },
-    { label: 'Briefing', Icon: FileText, prompt: 'Dammi un briefing rapido sulla situazione operativa attuale: OKR, rischi e focus del giorno.' },
+    { label: 'Briefing', Icon: FileText, prompt: 'Dammi un briefing rapido sulla situazione operativa attuale: dossier, OKR, rischi e focus del giorno.' },
     { label: 'Allineamento Team', Icon: Users, prompt: 'Come è allineato il team rispetto agli obiettivi strategici? Cosa dovrei comunicare o correggere?' },
     { label: 'Decisione Rapida', Icon: Lightbulb, prompt: 'Ho bisogno di prendere una decisione strategica. Analizza il contesto attuale e guidami.' },
 ];
@@ -40,8 +40,80 @@ const getInitialMessage = () => {
     return `**${greeting}. Shadow CoS online.**  \n${today} — sistema operativo. Come posso supportarti?`;
 };
 
-// UX-05: Load/save chat history from Firestore per user
-const HISTORY_LIMIT = 20; // max messages saved
+// ── ACTION PARSER ─────────────────────────────────────────────────────────────
+// Extracts [ACTION:{...}] blocks from AI response text
+function parseActions(text) {
+    const actionRegex = /\[ACTION:(\{[^}]+\})\]/g;
+    const actions = [];
+    let match;
+    while ((match = actionRegex.exec(text)) !== null) {
+        try {
+            actions.push(JSON.parse(match[1]));
+        } catch (_) { /* malformed JSON, skip */ }
+    }
+    return actions;
+}
+
+// Strip action blocks from display text
+function stripActions(text) {
+    return text.replace(/\[ACTION:\{[^}]+\}\]/g, '').trim();
+}
+
+// ── ACTION LABELS ─────────────────────────────────────────────────────────────
+const ACTION_META = {
+    CREATE_SIGNAL: { label: 'Crea Segnale di Rischio', color: 'text-red-400 border-red-500/30 bg-red-500/5' },
+    RUN_REPORT: { label: 'Avvia Intelligence Report', color: 'text-indigo-400 border-indigo-500/30 bg-indigo-500/5' },
+    CREATE_OKR: { label: 'Crea Nuovo OKR', color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5' },
+};
+
+// ── ACTION CARD ───────────────────────────────────────────────────────────────
+const ActionCard = ({ action, onApprove, onIgnore, executing }) => {
+    const meta = ACTION_META[action.type] || { label: action.type, color: 'text-zinc-400 border-white/10 bg-white/5' };
+    const params = action.params || {};
+
+    const paramLines = Object.entries(params).map(([k, v]) => (
+        <span key={k} className="block text-[10px] font-mono text-zinc-500">
+            <span className="text-zinc-600">{k}:</span> {String(v)}
+        </span>
+    ));
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className={`mt-3 border rounded-xl p-3 ${meta.color}`}
+        >
+            <div className="flex items-center gap-2 mb-2">
+                <Zap className="w-3 h-3 flex-shrink-0" />
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest">Azione Proposta</span>
+            </div>
+            <p className="text-xs font-mono font-semibold mb-1">{meta.label}</p>
+            <div className="mb-3">{paramLines}</div>
+            <div className="flex gap-2">
+                <button
+                    onClick={onApprove}
+                    disabled={executing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-mono transition-all disabled:opacity-50"
+                >
+                    {executing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                    {executing ? 'Esecuzione...' : 'Approva'}
+                </button>
+                <button
+                    onClick={onIgnore}
+                    disabled={executing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 text-xs font-mono text-zinc-500 transition-all disabled:opacity-50"
+                >
+                    <XCircle className="w-3 h-3" />
+                    Ignora
+                </button>
+            </div>
+        </motion.div>
+    );
+};
+
+// ── CHAT HISTORY PERSISTENCE ──────────────────────────────────────────────────
+const HISTORY_LIMIT = 20;
 
 async function loadChatHistory(uid) {
     try {
@@ -49,7 +121,7 @@ async function loadChatHistory(uid) {
         if (snap.exists() && snap.data().history?.length > 0) {
             return snap.data().history;
         }
-    } catch (_) {}
+    } catch (_) { }
     return null;
 }
 
@@ -64,23 +136,70 @@ async function saveChatMessage(uid, message) {
             const updated = [...existing, message].slice(-HISTORY_LIMIT);
             await updateDoc(ref, { history: updated, updatedAt: serverTimestamp() });
         }
-    } catch (_) {}
+    } catch (_) { }
 }
 
 async function clearChatHistory(uid) {
     try {
         await setDoc(doc(db, 'shadow_cos_prefs', uid), { history: [], updatedAt: serverTimestamp() });
-    } catch (_) {}
+    } catch (_) { }
 }
 
-export const NeuralInterface = ({ onClose }) => {
+// ── ACTION EXECUTOR ───────────────────────────────────────────────────────────
+async function executeAction(action) {
+    const { type, params } = action;
+
+    if (type === 'CREATE_SIGNAL') {
+        await addDoc(collection(db, 'signals'), {
+            text: params.text,
+            level: params.level || 'medium',
+            createdAt: serverTimestamp(),
+            source: 'shadow_cos',
+        });
+        return `✅ Segnale di rischio creato: "${params.text}" [${params.level}]`;
+    }
+
+    if (type === 'RUN_REPORT') {
+        const researchFn = httpsCallable(functions, 'researchAndReport');
+        const result = await researchFn({ topic: params.topic, reportType: params.reportType || 'strategic' });
+        if (result.data?.data?.content) {
+            const docNumber = `RPT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 9000) + 1000}`;
+            await addDoc(collection(db, 'reports'), {
+                ...result.data.data,
+                docNumber,
+                savedAt: serverTimestamp(),
+            });
+            return `✅ Report generato e salvato: "${params.topic}" — ${docNumber}`;
+        }
+        throw new Error('Report generation failed');
+    }
+
+    if (type === 'CREATE_OKR') {
+        await addDoc(collection(db, 'okrs'), {
+            title: params.title,
+            description: params.description || '',
+            status: 'on_track',
+            progress: 0,
+            keyResults: [],
+            createdAt: serverTimestamp(),
+            source: 'shadow_cos',
+        });
+        return `✅ OKR creato: "${params.title}"`;
+    }
+
+    throw new Error(`Unknown action type: ${type}`);
+}
+
+// ── MAIN COMPONENT ────────────────────────────────────────────────────────────
+export const NeuralInterface = ({ onClose, events = [], isAdmin = false }) => {
     const [messages, setMessages] = useState([
-        { id: 1, type: 'ai', text: getInitialMessage() }
+        { id: 1, type: 'ai', text: getInitialMessage(), actions: [] }
     ]);
     const [input, setInput] = useState("");
     const [isThinking, setIsThinking] = useState(false);
     const [historyLoaded, setHistoryLoaded] = useState(false);
     const [uid, setUid] = useState(null);
+    const [executingAction, setExecutingAction] = useState(null); // messageId_actionIdx
     const scrollRef = useRef(null);
 
     // Get current user UID
@@ -90,14 +209,14 @@ export const NeuralInterface = ({ onClose }) => {
         if (user) setUid(user.uid);
     }, []);
 
-    // UX-05: Load persistent history on open
+    // Load persistent history on open
     useEffect(() => {
         if (!uid || historyLoaded) return;
         loadChatHistory(uid).then(history => {
             if (history && history.length > 0) {
                 setMessages([
-                    { id: 0, type: 'ai', text: getInitialMessage() },
-                    ...history.map((m, i) => ({ id: i + 10, type: m.role === 'user' ? 'user' : 'ai', text: m.text }))
+                    { id: 0, type: 'ai', text: getInitialMessage(), actions: [] },
+                    ...history.map((m, i) => ({ id: i + 10, type: m.role === 'user' ? 'user' : 'ai', text: m.text, actions: [] }))
                 ]);
             }
             setHistoryLoaded(true);
@@ -113,48 +232,105 @@ export const NeuralInterface = ({ onClose }) => {
 
     const handleClearHistory = async () => {
         if (uid) await clearChatHistory(uid);
-        setMessages([{ id: 1, type: 'ai', text: getInitialMessage() }]);
+        setMessages([{ id: 1, type: 'ai', text: getInitialMessage(), actions: [] }]);
+    };
+
+    // Dismiss an action card (ignore)
+    const dismissAction = (messageId, actionIdx) => {
+        setMessages(prev => prev.map(m => {
+            if (m.id !== messageId) return m;
+            const newActions = [...(m.actions || [])];
+            newActions[actionIdx] = { ...newActions[actionIdx], dismissed: true };
+            return { ...m, actions: newActions };
+        }));
+    };
+
+    // Approve and execute an action
+    const approveAction = async (messageId, actionIdx, action) => {
+        const key = `${messageId}_${actionIdx}`;
+        setExecutingAction(key);
+        try {
+            const resultText = await executeAction(action);
+            // Mark action as executed and add confirmation message
+            setMessages(prev => {
+                const updated = prev.map(m => {
+                    if (m.id !== messageId) return m;
+                    const newActions = [...(m.actions || [])];
+                    newActions[actionIdx] = { ...newActions[actionIdx], executed: true };
+                    return { ...m, actions: newActions };
+                });
+                return [...updated, {
+                    id: Date.now(),
+                    type: 'system',
+                    text: resultText,
+                    actions: [],
+                }];
+            });
+        } catch (err) {
+            setMessages(prev => [...prev, {
+                id: Date.now(),
+                type: 'system',
+                text: `❌ Errore nell'esecuzione: ${err.message}`,
+                actions: [],
+            }]);
+        } finally {
+            setExecutingAction(null);
+        }
     };
 
     const handleSend = async () => {
         if (!input.trim()) return;
 
-        const userMsg = { id: Date.now(), type: 'user', text: input };
+        const userMsg = { id: Date.now(), type: 'user', text: input, actions: [] };
         const currentMessages = [...messages, userMsg];
         setMessages(currentMessages);
         setInput("");
         setIsThinking(true);
 
-        // Save user message to Firestore
         if (uid) await saveChatMessage(uid, { role: 'user', text: input });
 
-        // Build history for AI (skip initial greeting)
+        // Build history for AI (skip initial greeting, skip system messages)
         const history = currentMessages
             .slice(1, -1)
+            .filter(m => m.type === 'user' || m.type === 'ai')
             .map(m => ({ role: m.type === 'user' ? 'user' : 'model', text: m.text }));
 
         try {
             const askShadow = httpsCallable(functions, 'askShadowCoS');
             const result = await askShadow({ query: input, history });
-            const aiResponse = result.data.data;
-            const aiText = aiResponse || "Analysis incomplete. Try clarifying intent.";
+            const rawText = result.data.data || "Analysis incomplete. Try clarifying intent.";
 
-            setMessages(prev => [...prev, { id: Date.now() + 1, type: 'ai', text: aiText }]);
+            // Parse action proposals
+            const actions = parseActions(rawText);
+            const displayText = stripActions(rawText);
 
-            // UX-05: Save AI response to Firestore
-            if (uid) await saveChatMessage(uid, { role: 'model', text: aiText });
+            const aiMsg = {
+                id: Date.now() + 1,
+                type: 'ai',
+                text: displayText,
+                actions: actions.map(a => ({ ...a, dismissed: false, executed: false })),
+            };
+            setMessages(prev => [...prev, aiMsg]);
+
+            if (uid) await saveChatMessage(uid, { role: 'model', text: displayText });
 
         } catch (error) {
             console.error("AI Error:", error);
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
                 type: 'ai',
-                text: "Neural link unstable. Retry or check connection."
+                text: "Neural link unstable. Retry or check connection.",
+                actions: [],
             }]);
         } finally {
             setIsThinking(false);
         }
     };
+
+    // Context summary for display in header
+    const contextSummary = [
+        events.length > 0 && `${events.length} dossier`,
+    ].filter(Boolean).join(' · ');
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:justify-end sm:p-8 pointer-events-none">
@@ -165,10 +341,10 @@ export const NeuralInterface = ({ onClose }) => {
                 initial={{ opacity: 0, y: 50, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 50, scale: 0.95 }}
-                className="w-full sm:w-[500px] h-[80vh] sm:h-[620px] bg-zinc-950 border border-zinc-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto relative"
+                className="w-full sm:w-[520px] h-[85vh] sm:h-[680px] bg-zinc-950 border border-zinc-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto relative"
             >
                 {/* Header */}
-                <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+                <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
                             <BrainCircuit className="w-5 h-5 text-indigo-400" />
@@ -182,6 +358,7 @@ export const NeuralInterface = ({ onClose }) => {
                                 </span>
                                 <span className="text-[10px] text-zinc-400 font-mono">
                                     NEURAL UPLINK ACTIVE
+                                    {contextSummary && <span className="text-indigo-500 ml-1">· {contextSummary}</span>}
                                     {historyLoaded && messages.length > 1 && (
                                         <span className="text-indigo-500 ml-1">· MEMORIA ATTIVA</span>
                                     )}
@@ -190,7 +367,6 @@ export const NeuralInterface = ({ onClose }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-1">
-                        {/* Clear history button */}
                         {uid && messages.length > 1 && (
                             <button
                                 onClick={handleClearHistory}
@@ -207,8 +383,8 @@ export const NeuralInterface = ({ onClose }) => {
                 </div>
 
                 {/* Chat Area */}
-                <div className="flex-grow bg-black/50 p-6 overflow-y-auto space-y-6 scrollbar-thin scrollbar-thumb-zinc-800" ref={scrollRef}>
-                    {/* UX-05: Memory banner when history loaded */}
+                <div className="flex-grow bg-black/50 p-5 overflow-y-auto space-y-5 scrollbar-thin scrollbar-thumb-zinc-800" ref={scrollRef}>
+                    {/* Memory banner */}
                     {historyLoaded && messages.length > 2 && (
                         <div className="flex justify-center">
                             <span className="text-[9px] font-mono text-indigo-500/60 border border-indigo-500/20 px-2 py-0.5 rounded-full">
@@ -218,21 +394,50 @@ export const NeuralInterface = ({ onClose }) => {
                     )}
 
                     {messages.map((msg) => (
-                        <div key={msg.id} className={`flex ${msg.type === 'user' ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[85%] p-4 rounded-xl text-sm leading-relaxed ${msg.type === 'user'
-                                    ? "bg-zinc-800/80 text-white rounded-tr-sm"
-                                    : "bg-indigo-900/10 border border-indigo-500/10 text-zinc-300 rounded-tl-sm"
-                                }`}>
-                                {msg.type === 'ai' ? (
-                                    <ReactMarkdown className="prose prose-invert prose-sm max-w-none prose-p:text-zinc-300 prose-strong:text-white prose-headings:text-zinc-200">
+                        <div key={msg.id}>
+                            {/* System confirmation messages */}
+                            {msg.type === 'system' ? (
+                                <div className="flex justify-center">
+                                    <span className="text-[10px] font-mono text-emerald-500/80 border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 rounded-lg">
                                         {msg.text}
-                                    </ReactMarkdown>
-                                ) : (
-                                    msg.text
-                                )}
-                            </div>
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className={`flex ${msg.type === 'user' ? "justify-end" : "justify-start"}`}>
+                                    <div className={`max-w-[88%] p-4 rounded-xl text-sm leading-relaxed ${msg.type === 'user'
+                                            ? "bg-zinc-800/80 text-white rounded-tr-sm"
+                                            : "bg-indigo-900/10 border border-indigo-500/10 text-zinc-300 rounded-tl-sm"
+                                        }`}>
+                                        {msg.type === 'ai' ? (
+                                            <ReactMarkdown className="prose prose-invert prose-sm max-w-none prose-p:text-zinc-300 prose-strong:text-white prose-headings:text-zinc-200">
+                                                {msg.text}
+                                            </ReactMarkdown>
+                                        ) : (
+                                            msg.text
+                                        )}
+
+                                        {/* Action cards */}
+                                        <AnimatePresence>
+                                            {(msg.actions || []).map((action, idx) => {
+                                                if (action.dismissed || action.executed) return null;
+                                                const key = `${msg.id}_${idx}`;
+                                                return (
+                                                    <ActionCard
+                                                        key={idx}
+                                                        action={action}
+                                                        executing={executingAction === key}
+                                                        onApprove={() => approveAction(msg.id, idx, action)}
+                                                        onIgnore={() => dismissAction(msg.id, idx)}
+                                                    />
+                                                );
+                                            })}
+                                        </AnimatePresence>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ))}
+
                     {isThinking && (
                         <div className="flex justify-start">
                             <div className="bg-indigo-900/10 border border-indigo-500/10 p-4 rounded-xl rounded-tl-sm flex items-center gap-2">
@@ -244,7 +449,7 @@ export const NeuralInterface = ({ onClose }) => {
                 </div>
 
                 {/* Master Prompts */}
-                <div className="px-4 pt-3 pb-1 bg-zinc-900/50 border-t border-zinc-800 flex flex-wrap gap-2">
+                <div className="px-4 pt-3 pb-1 bg-zinc-900/50 border-t border-zinc-800 flex flex-wrap gap-2 flex-shrink-0">
                     {MASTER_PROMPTS.map((mp) => (
                         <button
                             key={mp.label}
@@ -260,7 +465,7 @@ export const NeuralInterface = ({ onClose }) => {
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 pt-2 bg-zinc-900/50">
+                <div className="p-4 pt-2 bg-zinc-900/50 flex-shrink-0">
                     <div className="relative flex items-center">
                         <input
                             type="text"

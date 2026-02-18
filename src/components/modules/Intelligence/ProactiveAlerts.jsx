@@ -4,7 +4,7 @@ import { AlertTriangle, X, Zap } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy, limit, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
 
-export const ProactiveAlerts = () => {
+export const ProactiveAlerts = ({ onAlertsChange }) => {
     const [alerts, setAlerts] = useState([]);
     const [dismissed, setDismissed] = useState(new Set());
 
@@ -102,6 +102,11 @@ export const ProactiveAlerts = () => {
     }, []);
 
     const visibleAlerts = alerts.filter(a => !dismissed.has(a.id));
+
+    // Notify parent of alert count changes
+    useEffect(() => {
+        if (onAlertsChange) onAlertsChange(visibleAlerts.length);
+    }, [visibleAlerts.length, onAlertsChange]);
 
     if (visibleAlerts.length === 0) return null;
 

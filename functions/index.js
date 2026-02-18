@@ -6,36 +6,144 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 admin.initializeApp();
 
-// Helper: fetch context from Firestore
+// ── CONTEXT FETCHER ───────────────────────────────────────────────────────────
+// Fetches a rich snapshot of the entire app state for Shadow CoS
 async function fetchContext() {
+    const db = admin.firestore();
+
+    // OKRs
     let okrs = [];
     try {
-        const okrsSnap = await admin.firestore().collection('okrs').orderBy('createdAt', 'desc').get();
-        okrs = okrsSnap.docs.map(d => ({ title: d.data().title, status: d.data().status, progress: d.data().progress }));
-    } catch (e) {
-        logger.warn("Failed to fetch OKRs:", e.message);
-    }
+        const snap = await db.collection('okrs').orderBy('createdAt', 'desc').get();
+        okrs = snap.docs.map(d => ({
+            title: d.data().title,
+            status: d.data().status,
+            progress: d.data().progress,
+            keyResults: (d.data().keyResults || []).map(kr => ({ title: kr.title, completed: kr.completed })),
+        }));
+    } catch (e) { logger.warn("Failed to fetch OKRs:", e.message); }
 
+    // Risk signals
     let signals = [];
     try {
-        const signalsSnap = await admin.firestore().collection('signals').orderBy('createdAt', 'desc').limit(5).get();
-        signals = signalsSnap.docs.map(d => ({ text: d.data().text, level: d.data().level }));
-    } catch (e) {
-        logger.warn("Failed to fetch Signals:", e.message);
-    }
+        const snap = await db.collection('signals').orderBy('createdAt', 'desc').limit(8).get();
+        signals = snap.docs.map(d => ({ text: d.data().text, level: d.data().level }));
+    } catch (e) { logger.warn("Failed to fetch Signals:", e.message); }
 
+    // Daily pulse
     let pulse = [];
     try {
         const today = new Date().toISOString().split('T')[0];
-        const pulseSnap = await admin.firestore().collection('daily_pulse').doc(today).get();
-        pulse = pulseSnap.exists ? (pulseSnap.data().focus_items || []) : [];
-    } catch (e) {
-        logger.warn("Failed to fetch Pulse:", e.message);
-    }
+        const snap = await db.collection('daily_pulse').doc(today).get();
+        pulse = snap.exists ? (snap.data().focus_items || []) : [];
+    } catch (e) { logger.warn("Failed to fetch Pulse:", e.message); }
 
-    return { okrs, signals, pulse };
+    // Active dossier (events)
+    let events = [];
+    try {
+        const snap = await db.collection('events')
+            .where('status', '!=', 'archived')
+            .orderBy('status')
+            .orderBy('createdAt', 'desc')
+            .get();
+        events = snap.docs.map(d => ({
+            id: d.id,
+            title: d.data().title,
+            description: d.data().description || '',
+            status: d.data().status,
+            teamSize: (d.data().teamMembers || []).length,
+            createdAt: d.data().createdAt?.toDate?.()?.toLocaleDateString('it-IT') || '—',
+        }));
+    } catch (e) { logger.warn("Failed to fetch Events:", e.message); }
+
+    // Recent decisions
+    let decisions = [];
+    try {
+        const snap = await db.collection('decisions').orderBy('savedAt', 'desc').limit(5).get();
+        decisions = snap.docs.map(d => ({
+            decision: d.data().decision,
+            verdict: d.data().verdict,
+            decisionMaker: d.data().decisionMaker,
+            analyzedAt: d.data().analyzedAt,
+        }));
+    } catch (e) { logger.warn("Failed to fetch Decisions:", e.message); }
+
+    // Recent intelligence reports
+    let reports = [];
+    try {
+        const snap = await db.collection('reports').orderBy('savedAt', 'desc').limit(5).get();
+        reports = snap.docs.map(d => ({
+            topic: d.data().topic,
+            reportType: d.data().reportType,
+            docNumber: d.data().docNumber,
+        }));
+    } catch (e) { logger.warn("Failed to fetch Reports:", e.message); }
+
+    // Team members
+    let team = [];
+    try {
+        const snap = await db.collection('users').get();
+        team = snap.docs.map(d => ({
+            name: d.data().displayName || d.data().email || 'Utente',
+            role: d.data().role || 'MEMBER',
+            rank_score: d.data().rank_score || 0,
+        }));
+    } catch (e) { logger.warn("Failed to fetch Team:", e.message); }
+
+    return { okrs, signals, pulse, events, decisions, reports, team };
 }
 
+// ── BUILD SYSTEM INSTRUCTION ──────────────────────────────────────────────────
+function buildSystemInstruction(ctx) {
+    const { okrs, signals, pulse, events, decisions, reports, team } = ctx;
+
+    return `Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS — un assistente strategico intelligente, diretto e umano.
+
+REGOLE DI COMPORTAMENTO:
+- Rispondi SEMPRE nella stessa lingua dell'utente (italiano se scrive in italiano, inglese se scrive in inglese).
+- Sii conciso e diretto. Niente intro verbose o disclaimer.
+- Se il messaggio è un saluto o conversazionale (es. "ciao", "come stai"), rispondi in modo naturale e breve, poi offri il tuo aiuto strategico.
+- Quando hai dati di contesto rilevanti, usali per dare insight proattivi.
+- Il tuo stile è da CoS di alto livello: assertivo, preciso, orientato all'azione.
+- Ricorda il contesto della conversazione precedente e costruisci su di esso.
+
+CAPACITÀ DI AZIONE (usa con giudizio):
+Puoi proporre azioni concrete all'utente. Quando ritieni che un'azione sia utile, includila ALLA FINE della tua risposta usando ESATTAMENTE questo formato (una riga, nessun testo aggiuntivo attorno):
+[ACTION:{"type":"CREATE_SIGNAL","params":{"text":"testo del segnale","level":"high|medium|low"}}]
+[ACTION:{"type":"RUN_REPORT","params":{"topic":"argomento","reportType":"strategic|competitive|market"}}]
+[ACTION:{"type":"CREATE_OKR","params":{"title":"titolo OKR","description":"descrizione"}}]
+
+REGOLE PER LE AZIONI:
+- Proponi un'azione SOLO se l'utente lo chiede esplicitamente o se è chiaramente utile nel contesto.
+- Non proporre più di 1 azione per risposta.
+- L'azione viene mostrata all'utente come card di approvazione — lui decide se eseguirla.
+- Non inventare dati per le azioni: usa solo informazioni reali dal contesto o dalla conversazione.
+
+CONTESTO OPERATIVO COMPLETO:
+
+📁 DOSSIER ATTIVI (${events.length}):
+${events.length > 0 ? events.map(e => `• "${e.title}" [${e.status}] — ${e.description ? e.description.substring(0, 80) : 'nessuna descrizione'} — Team: ${e.teamSize} persone, aperto il ${e.createdAt}`).join('\n') : 'Nessun dossier attivo.'}
+
+🎯 OKR STRATEGICI (${okrs.length}):
+${okrs.length > 0 ? JSON.stringify(okrs) : 'Nessun OKR attivo.'}
+
+⚠️ SEGNALI DI RISCHIO (${signals.length}):
+${signals.length > 0 ? signals.map(s => `• [${s.level.toUpperCase()}] ${s.text}`).join('\n') : 'Nessun segnale rilevato.'}
+
+📋 FOCUS DEL GIORNO:
+${pulse.length > 0 ? JSON.stringify(pulse) : 'Nessun focus impostato oggi.'}
+
+🧠 ULTIME DECISIONI (${decisions.length}):
+${decisions.length > 0 ? decisions.map(d => `• "${d.decision}" — Verdict: ${d.verdict || 'N/A'} (${d.decisionMaker || 'Admin'})`).join('\n') : 'Nessuna decisione registrata.'}
+
+📊 REPORT INTELLIGENCE RECENTI (${reports.length}):
+${reports.length > 0 ? reports.map(r => `• [${r.reportType}] "${r.topic}" — ${r.docNumber || ''}`).join('\n') : 'Nessun report generato.'}
+
+👥 TEAM (${team.length} membri):
+${team.length > 0 ? team.map(m => `• ${m.name} [${m.role}] — Score: ${m.rank_score}`).join('\n') : 'Nessun membro registrato.'}`;
+}
+
+// ── ASK SHADOW CoS ────────────────────────────────────────────────────────────
 exports.askShadowCoS = onCall({
     cors: true,
     secrets: ["GOOGLE_API_KEY"],
@@ -54,24 +162,11 @@ exports.askShadowCoS = onCall({
         if (!query) throw new Error("Missing query in request data");
         logger.info("User Query:", query);
 
-        logger.info("Fetching Firestore context...");
-        const { okrs, signals, pulse } = await fetchContext();
-        logger.info(`Context: ${okrs.length} OKRs, ${signals.length} Signals, ${pulse.length} Pulse items`);
+        logger.info("Fetching full app context...");
+        const ctx = await fetchContext();
+        logger.info(`Context: ${ctx.okrs.length} OKRs, ${ctx.signals.length} Signals, ${ctx.events.length} Events, ${ctx.decisions.length} Decisions, ${ctx.reports.length} Reports, ${ctx.team.length} Team`);
 
-        const systemInstruction = `Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS — un assistente strategico intelligente, diretto e umano.
-
-REGOLE DI COMPORTAMENTO:
-- Rispondi SEMPRE nella stessa lingua dell'utente (italiano se scrive in italiano, inglese se scrive in inglese).
-- Sii conciso e diretto. Niente intro verbose o disclaimer.
-- Se il messaggio è un saluto o conversazionale (es. "ciao", "come stai"), rispondi in modo naturale e breve, poi offri il tuo aiuto strategico.
-- Quando hai dati di contesto rilevanti, usali per dare insight proattivi.
-- Il tuo stile è da CoS di alto livello: assertivo, preciso, orientato all'azione.
-- Ricorda il contesto della conversazione precedente e costruisci su di esso.
-
-CONTESTO OPERATIVO CORRENTE:
-- OKR Strategici: ${okrs.length > 0 ? JSON.stringify(okrs) : 'Nessun OKR attivo'}
-- Segnali di Rischio: ${signals.length > 0 ? JSON.stringify(signals) : 'Nessun segnale rilevato'}
-- Focus del Giorno: ${pulse.length > 0 ? JSON.stringify(pulse) : 'Nessun focus impostato oggi'}`;
+        const systemInstruction = buildSystemInstruction(ctx);
 
         logger.info("Calling Gemini API (multi-turn)...");
         const genAI = new GoogleGenerativeAI(apiKey);
@@ -103,6 +198,7 @@ CONTESTO OPERATIVO CORRENTE:
     }
 });
 
+// ── GENERATE DAILY BRIEFING ───────────────────────────────────────────────────
 exports.generateDailyBriefing = onCall({
     cors: true,
     secrets: ["GOOGLE_API_KEY"],
@@ -116,8 +212,9 @@ exports.generateDailyBriefing = onCall({
         const apiKey = process.env.GOOGLE_API_KEY;
         if (!apiKey) throw new Error("GOOGLE_API_KEY not found in process.env");
 
-        const { okrs, signals, pulse } = await fetchContext();
-        logger.info(`Context: ${okrs.length} OKRs, ${signals.length} Signals, ${pulse.length} Pulse items`);
+        const ctx = await fetchContext();
+        const { okrs, signals, pulse, events } = ctx;
+        logger.info(`Context: ${okrs.length} OKRs, ${signals.length} Signals, ${pulse.length} Pulse items, ${events.length} Events`);
 
         const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -127,13 +224,14 @@ Sei "Shadow CoS", il Chief of Staff digitale di Quinta OS.
 Genera il BRIEFING GIORNALIERO operativo per oggi, ${today}.
 
 DATI DISPONIBILI:
+- Dossier Attivi: ${events.length > 0 ? events.map(e => `"${e.title}" [${e.status}]`).join(', ') : 'Nessuno'}
 - OKR Strategici: ${okrs.length > 0 ? JSON.stringify(okrs) : 'Nessun OKR registrato'}
 - Segnali di Rischio recenti: ${signals.length > 0 ? JSON.stringify(signals) : 'Nessun segnale'}
 - Focus odierno: ${pulse.length > 0 ? JSON.stringify(pulse) : 'Nessun focus impostato'}
 
 STRUTTURA DEL BRIEFING (usa esattamente questo formato markdown):
 ## Situazione Strategica
-[2-3 frasi sullo stato complessivo basate sugli OKR]
+[2-3 frasi sullo stato complessivo basate sugli OKR e dossier]
 
 ## Alert Prioritari
 [Elenco puntato dei rischi o disallineamenti da gestire oggi. Se non ci sono dati, scrivi "Nessun alert critico."]
@@ -161,6 +259,7 @@ TONO: assertivo, diretto, da CoS di alto livello. Niente frasi generiche.
     }
 });
 
+// ── RESEARCH & REPORT ─────────────────────────────────────────────────────────
 exports.researchAndReport = onCall({
     cors: true,
     secrets: ["GOOGLE_API_KEY"],
@@ -302,6 +401,7 @@ CONTESTO OPERATIVO:
     }
 });
 
+// ── ANALYZE DECISION ──────────────────────────────────────────────────────────
 exports.analyzeDecision = onCall({
     cors: true,
     secrets: ["GOOGLE_API_KEY"],
@@ -387,7 +487,6 @@ TONO: assertivo, diretto, da Chief of Staff. Nessun giudizio morale, solo analis
 });
 
 // ── COMPUTE RANK SCORES (scheduled daily at 22:00 UTC = 23:00 CET) ────────────
-// Score formula: +20 per completed KR, +15 per decision logged, +10 per signal reported, +5 per pulse item completed (last 7 days)
 const computeScoresLogic = async () => {
     const db = admin.firestore();
     const [usersSnap, decisionsSnap, signalsSnap, okrsSnap, pulseSnap] = await Promise.all([
