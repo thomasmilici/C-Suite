@@ -9,7 +9,6 @@ lerna-debug.log*
 firebase-debug.log*
 
 # Environment
-.env
 .env.local
 .env.*
 
@@ -19,6 +18,10 @@ node_modules
 # Build
 dist
 dist-ssr
+
+# Environment
+.env
+.firebase/
 
 # Local
 *.local
