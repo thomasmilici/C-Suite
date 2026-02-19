@@ -27,10 +27,11 @@ export const ProjectDashboard = ({ user }) => {
 
   const [event, setEvent] = useState(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
+
   const [notFound, setNotFound] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [showNeural, setShowNeural] = useState(false);
+  // const [showNeural, setShowNeural] = useState(false); // Moved to AppShell
   const [showArchive, setShowArchive] = useState(false);
   const [showSignalModal, setShowSignalModal] = useState(false);
   const [showOKRModal, setShowOKRModal] = useState(false);
@@ -162,17 +163,14 @@ export const ProjectDashboard = ({ user }) => {
 
         </div>
       </main>
-      <button onClick={() => setShowNeural(true)} className="fixed bottom-5 right-4 sm:bottom-8 sm:right-8 w-12 h-12 sm:w-14 sm:h-14 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 hover:border-white/40 text-white rounded-full shadow-[0_0_30px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.5)] hover:shadow-[0_0_40px_rgba(255,255,255,0.18)] flex items-center justify-center z-50 transition-all duration-300 hover:scale-110 active:scale-95">
-        <Sparkles className="w-5 h-5" />
-      </button>
-      {showNeural && <NeuralInterface onClose={() => setShowNeural(false)} />}
+
       {showSignalModal && createPortal(<SignalInput onClose={() => setShowSignalModal(false)} />, document.body)}
       {showOKRModal && createPortal(<OKRManager onClose={() => setShowOKRModal(false)} existingOKR={selectedOKR} />, document.body)}
       {showArchive && createPortal(
         <ReportsArchiveModal onClose={() => setShowArchive(false)} adminName={user?.displayName} onOpenReport={() => { }} />,
         document.body
       )}
-      <AppCredits />
+
     </div>
   );
 };

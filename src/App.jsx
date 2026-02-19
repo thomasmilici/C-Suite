@@ -13,7 +13,7 @@ import { WeeklyPage } from './pages/WeeklyPage';
 import { StrategicThemesPage } from './pages/StrategicThemesPage';
 import { StakeholderPage } from './pages/StakeholderPage';
 import { ToolboxPage } from './pages/ToolboxPage';
-import { BottomNav } from './components/ui/BottomNav';
+import { AppShell } from './components/layout/AppShell';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const [user, setUser] = useState(auth.currentUser);
@@ -73,7 +73,9 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard user={user} />
+              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                <Dashboard user={user} />
+              </AppShell>
             </ProtectedRoute>
           }
         />
@@ -82,7 +84,9 @@ function App() {
           path="/admin"
           element={
             <ProtectedRoute requiredRole="ADMIN">
-              <Admin />
+              <AppShell user={user} isAdmin={true}>
+                <Admin />
+              </AppShell>
             </ProtectedRoute>
           }
         />
@@ -91,7 +95,9 @@ function App() {
           path="/progetto/:id"
           element={
             <ProtectedRoute>
-              <ProjectDashboard user={user} />
+              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                <ProjectDashboard user={user} />
+              </AppShell>
             </ProtectedRoute>
           }
         />
@@ -100,7 +106,9 @@ function App() {
           path="/steering/daily/:date"
           element={
             <ProtectedRoute>
-              <DailyPage user={user} />
+              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                <DailyPage user={user} />
+              </AppShell>
             </ProtectedRoute>
           }
         />
@@ -109,7 +117,9 @@ function App() {
           path="/steering/weekly/:weekId"
           element={
             <ProtectedRoute>
-              <WeeklyPage user={user} />
+              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                <WeeklyPage user={user} />
+              </AppShell>
             </ProtectedRoute>
           }
         />
@@ -118,7 +128,9 @@ function App() {
           path="/themes"
           element={
             <ProtectedRoute>
-              <StrategicThemesPage user={user} />
+              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                <StrategicThemesPage user={user} />
+              </AppShell>
             </ProtectedRoute>
           }
         />
@@ -127,7 +139,9 @@ function App() {
           path="/stakeholder"
           element={
             <ProtectedRoute>
-              <StakeholderPage user={user} />
+              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                <StakeholderPage user={user} />
+              </AppShell>
             </ProtectedRoute>
           }
         />
@@ -136,16 +150,15 @@ function App() {
           path="/toolbox"
           element={
             <ProtectedRoute>
-              <ToolboxPage user={user} />
+              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                <ToolboxPage user={user} />
+              </AppShell>
             </ProtectedRoute>
           }
         />
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-
-      {/* Mobile Bottom Navigation - Visible only on mobile/tablet */}
-      {user && <BottomNav />}
     </BrowserRouter>
   );
 }
