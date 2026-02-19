@@ -125,5 +125,27 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Strategic Themes ──────────────────────────────────────────────────────
+    // Write: Admin only (strategic direction is owner-level).
+    // Read: all authenticated users.
+    match /strategic_themes/{themeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Stakeholders ──────────────────────────────────────────────────────────
+    // Write: COS or Admin (relationship management is COS responsibility).
+    match /stakeholders/{stakeholderId} {
+      allow read: if isAuthenticated();
+      allow write: if isCOSOrAdmin();
+    }
+
+    // ── Meetings ──────────────────────────────────────────────────────────────
+    // Write: COS or Admin.
+    match /meetings/{meetingId} {
+      allow read: if isAuthenticated();
+      allow write: if isCOSOrAdmin();
+    }
+
   }
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthService } from '../services/authService';
-import { LogOut, Shield, Sparkles, Archive, CalendarDays, LayoutList } from 'lucide-react';
+import { LogOut, Shield, Sparkles, Archive, CalendarDays, LayoutList, Layers, Users, Wrench } from 'lucide-react';
 import { todayId } from '../services/dailyPlanService';
 import { currentWeekId, formatWeekId } from '../services/weeklyPlanService';
 import { AppCredits } from '../components/ui/AppCredits';
@@ -175,26 +175,51 @@ export const Dashboard = ({ user }) => {
                 </div>
             </header>
 
-            {/* ── Steering Quick Access ───────────────────────────────── */}
-            <div className="max-w-screen-2xl mx-auto mb-4 flex items-center gap-2 flex-wrap">
-                <Link
-                    to={`/steering/daily/${todayId()}`}
-                    className="flex items-center gap-2 px-3 py-2 bg-indigo-950/30 border border-indigo-800/40 rounded-xl
-                        text-indigo-300 hover:bg-indigo-950/60 hover:border-indigo-600/50 transition-all text-xs font-mono group"
-                >
-                    <CalendarDays className="w-3.5 h-3.5 text-indigo-500 group-hover:text-indigo-300 transition-colors" />
-                    <span>Daily Steering</span>
-                    <span className="text-[9px] text-indigo-700 hidden sm:inline">· oggi</span>
-                </Link>
-                <Link
-                    to={`/steering/weekly/${currentWeekId()}`}
-                    className="flex items-center gap-2 px-3 py-2 bg-purple-950/20 border border-purple-800/30 rounded-xl
-                        text-purple-300 hover:bg-purple-950/50 hover:border-purple-600/40 transition-all text-xs font-mono group"
-                >
-                    <LayoutList className="w-3.5 h-3.5 text-purple-500 group-hover:text-purple-300 transition-colors" />
-                    <span>Weekly Overview</span>
-                    <span className="text-[9px] text-purple-700 hidden sm:inline">· {formatWeekId(currentWeekId())}</span>
-                </Link>
+            {/* ── Portfolio Cockpit Nav ─────────────────────────────────── */}
+            <div className="max-w-screen-2xl mx-auto mb-5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[9px] text-zinc-700 uppercase tracking-widest mr-1 hidden sm:block">WORKSPACES</span>
+
+                    <Link to={`/steering/daily/${todayId()}`}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-indigo-950/30 border border-indigo-800/40 rounded-xl
+                            text-indigo-300 hover:bg-indigo-950/60 hover:border-indigo-600/50 transition-all text-xs font-mono group">
+                        <CalendarDays className="w-3.5 h-3.5 text-indigo-500 group-hover:text-indigo-300 transition-colors" />
+                        <span className="hidden sm:inline">Daily Steering</span>
+                        <span className="sm:hidden">Daily</span>
+                    </Link>
+
+                    <Link to={`/steering/weekly/${currentWeekId()}`}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-purple-950/20 border border-purple-800/30 rounded-xl
+                            text-purple-300 hover:bg-purple-950/50 hover:border-purple-600/40 transition-all text-xs font-mono group">
+                        <LayoutList className="w-3.5 h-3.5 text-purple-500 group-hover:text-purple-300 transition-colors" />
+                        <span className="hidden sm:inline">Weekly Overview</span>
+                        <span className="sm:hidden">Weekly</span>
+                        <span className="text-[9px] text-purple-800 hidden lg:inline ml-0.5">· {formatWeekId(currentWeekId())}</span>
+                    </Link>
+
+                    <Link to="/themes"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-teal-950/20 border border-teal-800/30 rounded-xl
+                            text-teal-300 hover:bg-teal-950/50 hover:border-teal-600/40 transition-all text-xs font-mono group">
+                        <Layers className="w-3.5 h-3.5 text-teal-500 group-hover:text-teal-300 transition-colors" />
+                        <span className="hidden sm:inline">Temi Strategici</span>
+                        <span className="sm:hidden">Temi</span>
+                    </Link>
+
+                    <Link to="/stakeholder"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-amber-950/20 border border-amber-800/30 rounded-xl
+                            text-amber-300 hover:bg-amber-950/50 hover:border-amber-600/40 transition-all text-xs font-mono group">
+                        <Users className="w-3.5 h-3.5 text-amber-500 group-hover:text-amber-300 transition-colors" />
+                        <span className="hidden sm:inline">Stakeholder Hub</span>
+                        <span className="sm:hidden">Stakeholder</span>
+                    </Link>
+
+                    <Link to="/toolbox"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-zinc-900/50 border border-zinc-700/50 rounded-xl
+                            text-zinc-400 hover:bg-zinc-900 hover:border-zinc-600 transition-all text-xs font-mono group">
+                        <Wrench className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
+                        <span>Toolbox</span>
+                    </Link>
+                </div>
             </div>
 
             {/* Main Content */}

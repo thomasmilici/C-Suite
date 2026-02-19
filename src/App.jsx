@@ -10,6 +10,9 @@ import { Join } from './pages/Join';
 import { ProjectDashboard } from './pages/ProjectDashboard';
 import { DailyPage } from './pages/DailyPage';
 import { WeeklyPage } from './pages/WeeklyPage';
+import { StrategicThemesPage } from './pages/StrategicThemesPage';
+import { StakeholderPage } from './pages/StakeholderPage';
+import { ToolboxPage } from './pages/ToolboxPage';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const [user, setUser] = useState(auth.currentUser);
@@ -106,6 +109,33 @@ function App() {
           element={
             <ProtectedRoute>
               <WeeklyPage user={user} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/themes"
+          element={
+            <ProtectedRoute>
+              <StrategicThemesPage user={user} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/stakeholder"
+          element={
+            <ProtectedRoute>
+              <StakeholderPage user={user} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/toolbox"
+          element={
+            <ProtectedRoute>
+              <ToolboxPage user={user} />
             </ProtectedRoute>
           }
         />
