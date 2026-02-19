@@ -8,6 +8,8 @@ import { Login } from './pages/Login';
 import { Admin } from './pages/Admin';
 import { Join } from './pages/Join';
 import { ProjectDashboard } from './pages/ProjectDashboard';
+import { DailyPage } from './pages/DailyPage';
+import { WeeklyPage } from './pages/WeeklyPage';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const [user, setUser] = useState(auth.currentUser);
@@ -86,6 +88,24 @@ function App() {
           element={
             <ProtectedRoute>
               <ProjectDashboard user={user} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/steering/daily/:date"
+          element={
+            <ProtectedRoute>
+              <DailyPage user={user} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/steering/weekly/:weekId"
+          element={
+            <ProtectedRoute>
+              <WeeklyPage user={user} />
             </ProtectedRoute>
           }
         />

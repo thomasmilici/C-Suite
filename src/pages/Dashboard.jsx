@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { AuthService } from '../services/authService';
-import { LogOut, Shield, Sparkles, Archive } from 'lucide-react';
+import { LogOut, Shield, Sparkles, Archive, CalendarDays, LayoutList } from 'lucide-react';
+import { todayId } from '../services/dailyPlanService';
+import { currentWeekId, formatWeekId } from '../services/weeklyPlanService';
 import { AppCredits } from '../components/ui/AppCredits';
 import { TileCompass } from '../components/tiles/TileCompass';
 import { TilePulse } from '../components/tiles/TilePulse';
@@ -172,6 +174,28 @@ export const Dashboard = ({ user }) => {
                     </button>
                 </div>
             </header>
+
+            {/* ── Steering Quick Access ───────────────────────────────── */}
+            <div className="max-w-screen-2xl mx-auto mb-4 flex items-center gap-2 flex-wrap">
+                <Link
+                    to={`/steering/daily/${todayId()}`}
+                    className="flex items-center gap-2 px-3 py-2 bg-indigo-950/30 border border-indigo-800/40 rounded-xl
+                        text-indigo-300 hover:bg-indigo-950/60 hover:border-indigo-600/50 transition-all text-xs font-mono group"
+                >
+                    <CalendarDays className="w-3.5 h-3.5 text-indigo-500 group-hover:text-indigo-300 transition-colors" />
+                    <span>Daily Steering</span>
+                    <span className="text-[9px] text-indigo-700 hidden sm:inline">· oggi</span>
+                </Link>
+                <Link
+                    to={`/steering/weekly/${currentWeekId()}`}
+                    className="flex items-center gap-2 px-3 py-2 bg-purple-950/20 border border-purple-800/30 rounded-xl
+                        text-purple-300 hover:bg-purple-950/50 hover:border-purple-600/40 transition-all text-xs font-mono group"
+                >
+                    <LayoutList className="w-3.5 h-3.5 text-purple-500 group-hover:text-purple-300 transition-colors" />
+                    <span>Weekly Overview</span>
+                    <span className="text-[9px] text-purple-700 hidden sm:inline">· {formatWeekId(currentWeekId())}</span>
+                </Link>
+            </div>
 
             {/* Main Content */}
             <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
