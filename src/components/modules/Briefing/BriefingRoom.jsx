@@ -127,36 +127,36 @@ export const BriefingRoom = ({ isAdmin, eventId, event }) => {
     <div className="h-full flex flex-col gap-0 overflow-hidden">
       {/* Event Health Bar — shown only when event context available */}
       {event && (
-        <div className="px-7 pt-4 pb-0">
+        <div className="px-4 sm:px-7 pt-4 pb-0">
           <EventHealthBar event={event} />
         </div>
       )}
 
-      <div className="flex-1 flex gap-6 px-7 pb-7 pt-4 min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row gap-0 px-4 sm:px-7 pb-4 sm:pb-7 pt-4 min-h-0 overflow-hidden">
         {/* Left: AI Briefing */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex items-center justify-between mb-5">
-            <div>
+          <div className="flex items-center justify-between mb-3 sm:mb-5 gap-2">
+            <div className="min-w-0">
               <h3 className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                <FileText className="w-3.5 h-3.5 text-indigo-400" /> Daily Briefing
+                <FileText className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" /> Daily Briefing
               </h3>
-              <p className="text-[10px] font-mono text-zinc-700 mt-0.5">{today}</p>
+              <p className="text-[10px] font-mono text-zinc-700 mt-0.5 truncate">{today}</p>
             </div>
             {isAdmin && (
               <button
                 onClick={handleGenerate}
                 disabled={loadingBriefing}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/15 rounded-lg transition-all disabled:opacity-50"
+                className="flex-shrink-0 flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/15 rounded-lg transition-all disabled:opacity-50"
               >
                 {loadingBriefing ? (
-                  <><RefreshCw className="w-3 h-3 animate-spin" /> Generando...</>
+                  <><RefreshCw className="w-3 h-3 animate-spin" /><span className="hidden sm:inline"> Generando...</span></>
                 ) : (
-                  <><Zap className="w-3 h-3" /> Genera Briefing</>
+                  <><Zap className="w-3 h-3" /><span className="hidden sm:inline"> Genera Briefing</span><span className="sm:hidden">Genera</span></>
                 )}
               </button>
             )}
           </div>
-          <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 text-xs text-zinc-300 font-mono">
+          <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 text-xs text-zinc-300 font-mono max-h-48 md:max-h-none">
             {loadingBriefing && (
               <p className="text-zinc-600 animate-pulse">GENERATING BRIEFING...</p>
             )}
@@ -167,7 +167,7 @@ export const BriefingRoom = ({ isAdmin, eventId, event }) => {
               <ReactMarkdown className="prose prose-invert prose-sm max-w-none">{briefing}</ReactMarkdown>
             )}
             {!loadingBriefing && !briefingError && !briefing && (
-              <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+              <div className="flex flex-col items-center justify-center gap-3 py-6 sm:py-8 text-center">
                 <FileText className="w-6 h-6 text-zinc-700" />
                 <p className="text-zinc-600">Nessun briefing oggi</p>
                 <p className="text-[9px] text-zinc-700">L'AI analizzerà OKR, segnali e decisioni recenti</p>
@@ -184,11 +184,12 @@ export const BriefingRoom = ({ isAdmin, eventId, event }) => {
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="w-px bg-white/[0.05] self-stretch" />
+        {/* Divider — vertical on desktop, horizontal on mobile */}
+        <div className="hidden md:block w-px bg-white/[0.05] self-stretch" />
+        <div className="block md:hidden h-px bg-white/[0.05] my-2" />
 
         {/* Right: Decision Log + Timeline */}
-        <div className="w-64 flex-shrink-0 flex flex-col gap-4">
+        <div className="md:w-64 flex-shrink-0 flex flex-col gap-4">
           {/* Decision Log */}
           <div className="flex flex-col flex-1 min-h-0">
             <div className="flex items-center justify-between mb-4">
@@ -204,7 +205,7 @@ export const BriefingRoom = ({ isAdmin, eventId, event }) => {
                 </button>
               )}
             </div>
-            <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 space-y-2">
+            <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 space-y-2 max-h-40 md:max-h-none">
               {decisions.length === 0 && (
                 <div className="text-center py-6">
                   <p className="text-[10px] font-mono text-zinc-700">Nessuna decisione</p>
@@ -224,9 +225,8 @@ export const BriefingRoom = ({ isAdmin, eventId, event }) => {
                   className="flex items-start justify-between gap-2 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl group hover:border-white/10 transition-all"
                 >
                   <div className="flex-1 min-w-0">
-                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
-                      outcomeStyle[decision.outcome || 'pending']
-                    }`}>
+                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${outcomeStyle[decision.outcome || 'pending']
+                      }`}>
                       {decision.outcome || 'pending'}
                     </span>
                     {isAdmin && (
