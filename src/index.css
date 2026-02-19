@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --color-black: #000000;
+  --color-black: #050508;
   --color-technical: #E0E0E0;
 
   --font-sans: "Inter", sans-serif;
@@ -21,15 +21,49 @@
   --animate-shimmer: shimmer 2s linear infinite;
 }
 
+/* ── DESIGN TOKENS ────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --surface-1: rgba(255, 255, 255, 0.03);
+  /* Base tile background */
+  --surface-2: rgba(255, 255, 255, 0.05);
+  /* Hover/Active state */
+  --surface-3: #0F0F12;
+  /* Solid dark fallback */
+
+  /* Borders */
+  --border-1: rgba(255, 255, 255, 0.08);
+  --border-2: rgba(255, 255, 255, 0.15);
+  /* Hover/Active border */
+  --border-top: rgba(255, 255, 255, 0.12);
+  /* Glass top highlight */
+
+  /* Text */
+  --text-1: #F4F4F5;
+  /* Primary (zinc-100) */
+  --text-2: #A1A1AA;
+  /* Secondary (zinc-400) */
+  --text-3: #52525B;
+  /* Muted/Labels (zinc-600) */
+
+  /* Accents (Institutional) */
+  --accent-indigo: #6366f1;
+  --accent-emerald: #10b981;
+  --accent-red: #f43f5e;
+  --accent-amber: #f59e0b;
+}
+
 @layer base {
 
   html,
   body {
     background-color: var(--color-black);
-    color: var(--color-technical);
+    color: var(--text-2);
+    /* Default to secondary for less eye strain */
     font-family: var(--font-sans);
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    -webkit-font-smoothing: antialiased;
   }
 
   h1,
@@ -39,6 +73,28 @@
   h5,
   h6 {
     font-family: var(--font-mono);
+    color: var(--text-1);
+    letter-spacing: -0.02em;
+  }
+
+  /* Global formatting for standard elements */
+  strong {
+    color: var(--text-1);
+    font-weight: 600;
+  }
+
+  /* BUG-08 / UX-07: Global focus states for keyboard accessibility */
+  *:focus-visible {
+    outline: 2px solid var(--accent-indigo);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  input:focus,
+  textarea:focus,
+  button:focus {
+    outline: none;
+    /* handled by focus-visible */
   }
 }
 
@@ -47,131 +103,107 @@
     text-wrap: balance;
   }
 
-  /* ── GLASSMORPHISM TILE ───────────────────────────────────────────────────
-   * Sfondo: semi-trasparente bianco su dark (più visibile rispetto a white/[0.03])
-   * Bordo: leggero bianco + highlight superiore (effetto riflesso vetro)
-   * Blur: backdrop-filter per effetto glass reale
-   * Shadow: profonda + inset highlight 1px in cima (riflesso luce)
-   */
+  /* ── GLASSMORPHISM TILE (REFINED) ───────────────────────────────────────── */
   .glass-tile {
-    /* Background più chiaro di prima — si vede davvero */
-    background: linear-gradient(135deg,
-        rgba(255, 255, 255, 0.07) 0%,
-        rgba(255, 255, 255, 0.04) 50%,
-        rgba(255, 255, 255, 0.06) 100%);
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    /* Background: slightly more visible on dark */
+    background: linear-gradient(145deg,
+        rgba(20, 20, 23, 0.6) 0%,
+        rgba(20, 20, 23, 0.4) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 
-    /* Bordo vetro: sottile bianco, con riflesso superiore */
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    border-top-color: rgba(255, 255, 255, 0.18);
-    /* highlight top edge */
+    /* Border: Subtle white with top highlight */
+    border: 1px solid var(--border-1);
+    border-top-color: var(--border-top);
 
-    /* Shadow: profondità + inner glow in cima */
+    /* Shadow: Deep + Top inner glow */
     box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.45),
-      0 2px 8px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.10),
-      /* riflesso luce superiore */
-      inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-    /* ombra inferiore interna */
+      0 4px 24px -1px rgba(0, 0, 0, 0.2),
+      /* Soft shadow */
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    /* Top highlight */
 
-    transition: all 0.3s ease;
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     position: relative;
+    isolation: isolate;
   }
 
-  /* Pseudo-elemento per shimmer highlight in cima */
-  .glass-tile::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 10%;
-    right: 10%;
-    height: 1px;
-    background: linear-gradient(to right,
-        transparent,
-        rgba(255, 255, 255, 0.25),
-        transparent);
-    pointer-events: none;
-    z-index: 1;
-    border-radius: 999px;
-  }
-
-  /* Hover: più luminoso, bordo più evidente */
-  .glass-tile:hover {
-    background: linear-gradient(135deg,
-        rgba(255, 255, 255, 0.10) 0%,
-        rgba(255, 255, 255, 0.06) 50%,
-        rgba(255, 255, 255, 0.09) 100%);
-    border-color: rgba(255, 255, 255, 0.16);
-    border-top-color: rgba(255, 255, 255, 0.28);
-    box-shadow:
-      0 12px 48px rgba(0, 0, 0, 0.5),
-      0 4px 12px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.15),
-      0 0 0 1px rgba(255, 255, 255, 0.04);
+  /* Hover state for interactive tiles */
+  .glass-tile.actionable:hover {
+    background: linear-gradient(145deg,
+        rgba(30, 30, 35, 0.7) 0%,
+        rgba(30, 30, 35, 0.5) 100%);
+    border-color: var(--border-2);
     transform: translateY(-1px);
+    box-shadow:
+      0 10px 30px -5px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
-  /* ── END GLASSMORPHISM ──────────────────────────────────────────────────── */
+  .glass-tile.dense {
+    background: rgba(10, 10, 12, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
 
-  /* UX-02/03: Tile typography scale — use these classes for consistent hierarchy */
+  /* ── TYPOGRAPHY UTILITIES ───────────────────────────────────────────────── */
+  .text-primary {
+    color: var(--text-1);
+  }
+
+  .text-secondary {
+    color: var(--text-2);
+  }
+
+  .text-muted {
+    color: var(--text-3);
+  }
+
   .tile-title {
-    font-size: clamp(0.625rem, 1vw, 0.75rem);
-    /* 10–12px */
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #a1a1aa;
-    /* zinc-400 */
-  }
-
-  .tile-metric {
-    font-size: clamp(1.25rem, 2.5vw, 1.75rem);
-    /* 20–28px */
-    font-family: var(--font-mono);
-    font-weight: 700;
-    color: #ffffff;
-  }
-
-  .tile-label {
-    font-size: clamp(0.5625rem, 0.8vw, 0.625rem);
-    /* 9–10px */
+    font-size: 0.75rem;
+    /* 12px fixed/predictable */
     font-family: var(--font-mono);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #52525b;
-    /* zinc-600 */
+    color: var(--text-3);
+    /* Muted label */
+    font-weight: 500;
   }
 
-  /* BUG-07: Touch target — 44px min for mobile CTAs and nav buttons */
+  .tile-metric {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--text-1);
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .tile-label {
+    font-size: 0.625rem;
+    /* 10px */
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-3);
+  }
+
+  /* ── ACCESSIBILITY & UX ─────────────────────────────────────────────────── */
   .touch-target {
     min-height: 44px;
     min-width: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-}
-
-@layer base {
-
-  /* BUG-08 / UX-07: Global focus states for keyboard accessibility */
-  *:focus-visible {
-    outline: 2px solid #6366f1;
-    outline-offset: 2px;
-    border-radius: 4px;
+    cursor: pointer;
   }
 
-  /* BUG-08: Remove outline:none overrides that break keyboard nav */
-  input:focus,
-  textarea:focus,
-  button:focus {
-    outline: none;
-    /* handled by focus-visible above */
+  /* Mobile scroll improvements */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
-  /* BUG-04: Base text contrast — secondary text minimum zinc-400 (#a1a1aa) */
-  /* This ensures headings/labels not explicitly colored meet WCAG AA */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

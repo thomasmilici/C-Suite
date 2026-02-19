@@ -13,6 +13,7 @@ import { WeeklyPage } from './pages/WeeklyPage';
 import { StrategicThemesPage } from './pages/StrategicThemesPage';
 import { StakeholderPage } from './pages/StakeholderPage';
 import { ToolboxPage } from './pages/ToolboxPage';
+import { BottomNav } from './components/ui/BottomNav';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const [user, setUser] = useState(auth.currentUser);
@@ -142,6 +143,9 @@ function App() {
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+
+      {/* Mobile Bottom Navigation - Visible only on mobile/tablet */}
+      {user && <BottomNav />}
     </BrowserRouter>
   );
 }

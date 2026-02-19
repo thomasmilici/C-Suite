@@ -15,8 +15,11 @@ import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterf
 import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
 import { OKRManager } from '../components/modals/OKRManager';
 import { SignalInput } from '../components/modals/SignalInput';
-import { LogOut, Shield, ArrowLeft, Sparkles, Archive, Folder } from 'lucide-react';
+import { LogOut, Shield, ArrowLeft, Sparkles, Archive, Folder, Activity, Users, Clock } from 'lucide-react';
 import { AppCredits } from '../components/ui/AppCredits';
+import { GlassTile } from '../components/ui/GlassTile';
+import { ContextHeader } from '../components/ui/ContextHeader';
+import { StatusPill } from '../components/ui/StatusPill';
 
 export const ProjectDashboard = ({ user }) => {
   const { id: eventId } = useParams();
@@ -85,67 +88,78 @@ export const ProjectDashboard = ({ user }) => {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(99,102,241,0.07),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_80%,rgba(20,184,166,0.05),transparent_60%)]" />
       </div>
-      <header className="max-w-screen-2xl mx-auto mb-4 sm:mb-6 flex justify-between items-center border-b border-white/5 pb-3 sm:pb-4 sticky top-0 z-20 bg-[#040508]/80 backdrop-blur-xl">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <button onClick={() => navigate('/dashboard')} className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] flex items-center justify-center text-zinc-400 hover:text-white transition-colors flex-shrink-0" title="Torna alla Dashboard">
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div className="min-w-0">
-            <h1 className="text-base sm:text-xl font-mono font-bold tracking-tighter text-white leading-none truncate max-w-[140px] sm:max-w-xs md:max-w-none">{event?.title}</h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse flex-shrink-0" />
-              <p className="text-[9px] sm:text-[10px] text-zinc-500 font-mono uppercase tracking-wider truncate">Dossier • {event?.status === 'active' ? 'Attivo' : event?.status}</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 text-xs font-mono flex-shrink-0">
-          <button onClick={() => setShowArchive(true)} className="touch-target flex items-center gap-1.5 text-zinc-400 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 px-2 sm:px-3 py-1.5 rounded-lg transition-all backdrop-blur-sm">
-            <Archive className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-            <span className="hidden sm:inline">Archivio</span>
-          </button>
-          {isAdmin && (
-            <button onClick={() => navigate('/admin')} className="touch-target text-red-400 hover:text-red-300 flex items-center gap-1 sm:gap-1.5 border border-red-900/50 bg-red-900/10 px-2 sm:px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
-              <Shield className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-              <span className="hidden sm:inline">ADMIN</span>
-            </button>
-          )}
-          <div className="text-zinc-500 hidden md:block">OP: <span className="text-white uppercase">{user?.displayName || 'Unknown'}</span></div>
-          <button onClick={handleLogout} className="touch-target text-zinc-400 hover:text-white transition-colors flex items-center gap-2">
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
-      {event?.description && (
-        <div className="max-w-screen-2xl mx-auto mb-4">
-          <p className="text-xs text-zinc-500 font-mono px-1">{event.description}</p>
-        </div>
-      )}
+
+
       <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-          {/* ROW 1 */}
-          <div className="glass-tile rounded-2xl min-h-[280px]">
-            <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} eventId={eventId} />
-          </div>
-          <div className="glass-tile rounded-2xl min-h-[280px]">
-            <TilePulse eventId={eventId} />
-          </div>
-          <div className="glass-tile rounded-2xl min-h-[280px]">
-            <TileTeam isAdmin={isAdmin} event={event} />
-          </div>
-          {/* ROW 2 */}
-          <div className="glass-tile md:col-span-2 rounded-2xl min-h-[320px]">
-            <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} eventId={eventId} />
-          </div>
-          <div className="glass-tile rounded-2xl min-h-[320px] relative overflow-hidden">
-            <TileIntelligence adminName={user?.displayName} eventId={eventId} />
-          </div>
-          {/* ROW 3 */}
-          <div className="glass-tile md:col-span-2 rounded-2xl min-h-[340px]">
+
+        {/* Dossier Header & Context */}
+        <div className="px-3 sm:px-0 mb-6">
+          <ContextHeader
+            context="DOSSIER"
+            title={event?.title}
+            backTo="/dashboard"
+            subtitle={
+              <div className="flex items-center gap-3">
+                <StatusPill tone={event?.status === 'active' ? 'success' : 'neutral'}>
+                  {event?.status === 'active' ? 'Attivo' : event?.status}
+                </StatusPill>
+                <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono uppercase tracking-wider">
+                  <Clock className="w-3 h-3" />
+                  <span>Aggiornato: {new Date().toLocaleDateString('it-IT')}</span>
+                </div>
+              </div>
+            }
+          />
+
+          {/* Dossier Summary Strip */}
+          {event?.description && (
+            <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md">
+              <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                Mission Brief
+              </h4>
+              <p className="text-sm text-zinc-300 leading-relaxed font-sans">{event.description}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile-First Grid: 1 col (mobile) -> 2 col (md) -> 3 col (lg) -> 4 col (2xl) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-6">
+
+          {/* 1. Briefing Room (Daily Actions) - Priority 1 */}
+          <GlassTile className="md:col-span-2 lg:col-span-2 min-h-[340px]" padding="p-0">
             <BriefingRoom isAdmin={isAdmin} eventId={eventId} event={event} />
-          </div>
-          <div className="glass-tile rounded-2xl min-h-[340px]">
+          </GlassTile>
+
+          {/* 2. Risk Radar (Strategic Risks) - Priority 2 */}
+          <GlassTile className="md:col-span-2 lg:col-span-1 min-h-[320px]" padding="p-0">
+            <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} eventId={eventId} />
+          </GlassTile>
+
+          {/* 3. Decision Log (Record) - Priority 3 */}
+          <GlassTile className="min-h-[340px]" padding="p-0">
             <TileDecisionLog isAdmin={isAdmin} adminName={user?.displayName} eventId={eventId} />
-          </div>
+          </GlassTile>
+
+          {/* 4. Compass (OKRs) */}
+          <GlassTile className="min-h-[280px]">
+            <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} eventId={eventId} />
+          </GlassTile>
+
+          {/* 5. Team Status */}
+          <GlassTile className="min-h-[280px]">
+            <TileTeam isAdmin={isAdmin} event={event} />
+          </GlassTile>
+
+          {/* 6. System Pulse */}
+          <GlassTile className="min-h-[280px]">
+            <TilePulse eventId={eventId} />
+          </GlassTile>
+
+          {/* 7. Intelligence Reports - Full width on mobile/tablet */}
+          <GlassTile className="md:col-span-2 lg:col-span-1 2xl:col-span-1 min-h-[320px] relative overflow-hidden" padding="p-0">
+            <TileIntelligence adminName={user?.displayName} eventId={eventId} />
+          </GlassTile>
+
         </div>
       </main>
       <button onClick={() => setShowNeural(true)} className="fixed bottom-5 right-4 sm:bottom-8 sm:right-8 w-12 h-12 sm:w-14 sm:h-14 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 hover:border-white/40 text-white rounded-full shadow-[0_0_30px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.5)] hover:shadow-[0_0_40px_rgba(255,255,255,0.18)] flex items-center justify-center z-50 transition-all duration-300 hover:scale-110 active:scale-95">

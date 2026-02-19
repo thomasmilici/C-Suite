@@ -12,6 +12,8 @@ import { TileTeam } from '../components/tiles/TileTeam';
 import { TileRadar } from '../components/tiles/TileRadar';
 import { TileIntelligence, ReportsArchiveModal } from '../components/tiles/TileIntelligence';
 import { TileDecisionLog } from '../components/tiles/TileDecisionLog';
+import { GlassTile } from '../components/ui/GlassTile';
+import { ContextHeader } from '../components/ui/ContextHeader';
 import { NeuralInterface } from '../components/modules/Intelligence/NeuralInterface';
 import { ProactiveAlerts } from '../components/modules/Intelligence/ProactiveAlerts';
 import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
@@ -225,47 +227,60 @@ export const Dashboard = ({ user }) => {
             {/* Main Content */}
             <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
 
-                {/* Proactive Alerts */}
+                {/* Portfolio Context Header */}
+                <div className="px-3 sm:px-0">
+                    <ContextHeader
+                        context="PORTFOLIO"
+                        title="Cockpit Operativo"
+                        subtitle={<span className="text-sm text-zinc-400 font-mono">Panoramica strategica e operativa</span>}
+                    />
+                </div>
+
+                {/* Proactive Alerts - High Priority */}
                 <ProactiveAlerts onAlertsChange={(count) => setAlertCount(count)} />
 
-                {/* Events / Projects List */}
-                <div className="mb-6">
+                {/* Active Dossiers (Projects) */}
+                <div className="mb-8">
                     <EventsList isAdmin={isAdmin} currentUser={user} />
                 </div>
 
-                {/* Bento Grid — 3 colonne */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+                {/* Mobile-First Grid: 1 col (mobile) -> 2 col (md) -> 3 col (lg) -> 4 col (2xl) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-6">
 
-                    {/* ROW 1: Compass (1col) | Pulse (1col) | Team (1col) */}
-                    <div className="glass-tile rounded-2xl min-h-[280px]">
-                        <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} />
-                    </div>
-
-                    <div className="glass-tile rounded-2xl min-h-[280px]">
-                        <TilePulse />
-                    </div>
-
-                    <div className="glass-tile rounded-2xl min-h-[280px]">
-                        <TileTeam isAdmin={isAdmin} />
-                    </div>
-
-                    {/* ROW 2: Radar (2col) | Intelligence Reports (1col) */}
-                    <div className="glass-tile md:col-span-2 rounded-2xl min-h-[320px]">
-                        <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
-                    </div>
-
-                    <div className="glass-tile rounded-2xl min-h-[320px] relative overflow-hidden">
-                        <TileIntelligence adminName={user?.displayName} />
-                    </div>
-
-                    {/* ROW 3: Briefing Room (2col) | Decision Log (1col) */}
-                    <div className="glass-tile md:col-span-2 rounded-2xl min-h-[340px]">
+                    {/* 1. Daily Briefing (Global) - Priority on Mobile */}
+                    <GlassTile className="md:col-span-2 lg:col-span-2 min-h-[340px]" padding="p-0">
                         <BriefingRoom isAdmin={isAdmin} />
-                    </div>
+                    </GlassTile>
 
-                    <div className="glass-tile rounded-2xl min-h-[340px]">
+                    {/* 2. Decision Log - Quick Actions */}
+                    <GlassTile className="min-h-[340px]" padding="p-0">
                         <TileDecisionLog isAdmin={isAdmin} adminName={user?.displayName} />
-                    </div>
+                    </GlassTile>
+
+                    {/* 3. Risk Radar - Strategic Overview */}
+                    <GlassTile className="md:col-span-2 lg:col-span-1 min-h-[320px]" padding="p-0">
+                        <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
+                    </GlassTile>
+
+                    {/* 4. Pulse Compass - OKRs */}
+                    <GlassTile className="min-h-[280px]">
+                        <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} />
+                    </GlassTile>
+
+                    {/* 5. Team Status */}
+                    <GlassTile className="min-h-[280px]">
+                        <TileTeam isAdmin={isAdmin} />
+                    </GlassTile>
+
+                    {/* 6. System Pulse (Health) */}
+                    <GlassTile className="min-h-[280px]">
+                        <TilePulse />
+                    </GlassTile>
+
+                    {/* 7. Intelligence Reports - Full Width on Mobile, compact on Desktop */}
+                    <GlassTile className="md:col-span-2 lg:col-span-1 2xl:col-span-1 min-h-[320px] relative overflow-hidden" padding="p-0">
+                        <TileIntelligence adminName={user?.displayName} />
+                    </GlassTile>
 
                 </div>
             </main>
