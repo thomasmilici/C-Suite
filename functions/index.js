@@ -120,6 +120,43 @@ const TOOL_SCHEMAS = {
         verdict: { type: "string", required: false, enum: ["ALLINEATA", "NEUTRALE", "A RISCHIO"] },
         eventId: { type: "string", required: false },
     },
+    // ── PR-08 Steering Tools ───────────────────────────────────────────────────
+    updateDailyFocus: {
+        items: { type: "array", required: true }, // array of {text, priority?}
+        date: { type: "string", required: false }, // YYYY-MM-DD, defaults today
+        reflection_start: { type: "string", required: false, maxLength: 500 },
+    },
+    addWeeklyOutcome: {
+        weekId: { type: "string", required: false }, // YYYY-WNN, defaults current week
+        outcome: { type: "string", required: true, maxLength: 300 },
+    },
+    addWeeklyStakeholderMove: {
+        weekId: { type: "string", required: false },
+        stakeholder: { type: "string", required: true, maxLength: 100 },
+        why_now: { type: "string", required: false, maxLength: 300 },
+        concrete_move: { type: "string", required: false, maxLength: 300 },
+    },
+    createStrategicTheme: {
+        title: { type: "string", required: true, maxLength: 200 },
+        description: { type: "string", required: false, maxLength: 1000 },
+        horizon: { type: "string", required: false, maxLength: 20 },
+        owner: { type: "string", required: false, maxLength: 100 },
+    },
+    addStakeholder: {
+        name: { type: "string", required: true, maxLength: 100 },
+        role: { type: "string", required: false, maxLength: 100 },
+        organization: { type: "string", required: false, maxLength: 100 },
+        influence: { type: "string", required: false, enum: ["High", "Medium", "Low"] },
+        alignment: { type: "string", required: false, enum: ["Ally", "Neutral", "Critical", "Unknown"] },
+        notes: { type: "string", required: false, maxLength: 500 },
+    },
+    addMeeting: {
+        title: { type: "string", required: true, maxLength: 200 },
+        date: { type: "string", required: false, maxLength: 20 },
+        time: { type: "string", required: false, maxLength: 10 },
+        objective: { type: "string", required: false, maxLength: 300 },
+        status: { type: "string", required: false, enum: ["scheduled", "completed", "cancelled"] },
+    },
 };
 
 // ── AI ACTION POLICY ─────────────────────────────────────────────────────────
@@ -129,12 +166,21 @@ const AI_ACTION_POLICY = {
     createOKR: { minRole: "ADMIN", collection: "okrs" },
     updateDailyPulse: { minRole: "COS", collection: "daily_plans" },
     logDecision: { minRole: "COS", collection: "decisions" },
+    // PR-08 steering tools
+    updateDailyFocus: { minRole: "COS", collection: "daily_plans" },
+    addWeeklyOutcome: { minRole: "COS", collection: "weekly_plans" },
+    addWeeklyStakeholderMove: { minRole: "COS", collection: "weekly_plans" },
+    createStrategicTheme: { minRole: "ADMIN", collection: "strategic_themes" },
+    addStakeholder: { minRole: "COS", collection: "stakeholders" },
+    addMeeting: { minRole: "COS", collection: "meetings" },
 };
 
 // ── CONTEXT FETCHER ───────────────────────────────────────────────────────────
 async function fetchContext() {
     const db = admin.firestore();
     let okrs = [], signals = [], pulse = [], events = [], decisions = [], reports = [], team = [];
+    let todayPlan = null, currentWeekPlan = null, activeThemes = [];
+
     try {
         const snap = await db.collection("okrs").orderBy("createdAt", "desc").get();
         okrs = snap.docs.map(d => ({ title: d.data().title, status: d.data().status, progress: d.data().progress, keyResults: (d.data().keyResults || []).map(kr => ({ title: kr.title, completed: kr.completed })) }));
@@ -164,7 +210,47 @@ async function fetchContext() {
         const snap = await db.collection("users").get();
         team = snap.docs.map(d => ({ name: d.data().displayName || d.data().email || "Utente", role: d.data().role || "STAFF", rank_score: d.data().rank_score || 0 }));
     } catch (e) { logger.warn("Failed to fetch Team:", e.message); }
-    return { okrs, signals, pulse, events, decisions, reports, team };
+
+    // ── PR-08: Steering context ───────────────────────────────────────────────
+    try {
+        const today = new Date().toISOString().split("T")[0];
+        const snap = await db.collection("daily_plans").doc(today).get();
+        if (snap.exists) {
+            const d = snap.data();
+            todayPlan = {
+                date: today,
+                status: d.status || "open",
+                focus: (d.focus_items || []).slice(0, 3).map(f => ({ text: f.text, locked: f.locked, done: f.done })),
+                decisions: (d.decisions || []).slice(0, 3).map(d2 => ({ title: d2.title, owner: d2.owner })),
+                risks: (d.risks_issues || []).slice(0, 3).map(r => ({ description: r.description, impact: r.impact })),
+            };
+        }
+    } catch (e) { logger.warn("Failed to fetch todayPlan:", e.message); }
+
+    try {
+        // ISO week id: YYYY-WNN
+        const now = new Date();
+        const jan4 = new Date(now.getFullYear(), 0, 4);
+        const weekNum = Math.ceil(((now - jan4) / 86400000 + jan4.getDay() + 1) / 7);
+        const weekId = `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+        const snap = await db.collection("weekly_plans").doc(weekId).get();
+        if (snap.exists) {
+            const d = snap.data();
+            currentWeekPlan = {
+                weekId,
+                status: d.status || "open",
+                outcomes: (d.outcomes || []).slice(0, 3),
+                narrative_key_message: d.narrative?.key_message || null,
+            };
+        }
+    } catch (e) { logger.warn("Failed to fetch currentWeekPlan:", e.message); }
+
+    try {
+        const snap = await db.collection("strategic_themes").where("status", "==", "active").get();
+        activeThemes = snap.docs.map(d => ({ id: d.id, title: d.data().title, horizon: d.data().horizon, owner: d.data().owner }));
+    } catch (e) { logger.warn("Failed to fetch strategic themes:", e.message); }
+
+    return { okrs, signals, pulse, events, decisions, reports, team, todayPlan, currentWeekPlan, activeThemes };
 }
 
 // ── GEMINI TOOLS SCHEMA ───────────────────────────────────────────────────────
@@ -223,6 +309,95 @@ const SHADOW_COS_TOOLS = [
                         eventId: { type: "STRING", description: "ID del dossier correlato (opzionale)" },
                     },
                     required: ["decision"],
+                },
+            },
+        ],
+    },
+    {
+        functionDeclarations: [
+            // ── PR-08 Steering Tools ─────────────────────────────────────────
+            {
+                name: "updateDailyFocus",
+                description: "Aggiorna i focus items del Daily Steering workspace di oggi (daily_plans). Usalo quando l'utente vuole impostare o aggiungere le sue priorità di regia per la giornata.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        items: { type: "ARRAY", description: "Lista di focus items da aggiungere alDaily Steering. Ogni elemento è un oggetto con 'text' (stringa).", items: { type: "OBJECT" } },
+                        date: { type: "STRING", description: "Data in formato YYYY-MM-DD. Default: oggi." },
+                        reflection_start: { type: "STRING", description: "Nota di inizio giornata / intenzione (opzionale, max 500 chars)" },
+                    },
+                    required: ["items"],
+                },
+            },
+            {
+                name: "addWeeklyOutcome",
+                description: "Aggiunge un outcome strategico al Weekly Steering workspace della settimana corrente (weekly_plans). Max 3 outcomes per settimana.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        outcome: { type: "STRING", description: "Descrizione dell'outcome settimanale (cosa deve essere vero a fine settimana per considerarla un successo)" },
+                        weekId: { type: "STRING", description: "ID settimana in formato YYYY-WNN. Default: settimana corrente." },
+                    },
+                    required: ["outcome"],
+                },
+            },
+            {
+                name: "addWeeklyStakeholderMove",
+                description: "Registra una mossa stakeholder nel Weekly Steering workspace della settimana corrente.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        stakeholder: { type: "STRING", description: "Nome o ruolo dello stakeholder" },
+                        why_now: { type: "STRING", description: "Perché questa mossa è urgente questa settimana" },
+                        concrete_move: { type: "STRING", description: "Azione concreta da fare (es. 1:1 martedì, email di allineamento...)" },
+                        weekId: { type: "STRING", description: "ID settimana YYYY-WNN. Default: corrente." },
+                    },
+                    required: ["stakeholder"],
+                },
+            },
+            {
+                name: "createStrategicTheme",
+                description: "Crea un nuovo tema strategico di lungo periodo (strategic_themes). Richiede ruolo ADMIN.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        title: { type: "STRING", description: "Nome del tema strategico (max 200 chars)" },
+                        description: { type: "STRING", description: "Descrizione e obiettivo strategico (opzionale)" },
+                        horizon: { type: "STRING", description: "Anno o periodo (es. 2025, 2026, H2 2025)" },
+                        owner: { type: "STRING", description: "Sponsor C-level (es. CEO, CFO)" },
+                    },
+                    required: ["title"],
+                },
+            },
+            {
+                name: "addStakeholder",
+                description: "Crea un nuovo stakeholder nel registro stakeholder. Usalo quando l'utente vuole catalogare un nuovo interlocutore strategico.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        name: { type: "STRING", description: "Nome completo o alias dello stakeholder" },
+                        role: { type: "STRING", description: "Ruolo / funzione" },
+                        organization: { type: "STRING", description: "Azienda o divisione" },
+                        influence: { type: "STRING", enum: ["High", "Medium", "Low"], description: "Livello di influenza" },
+                        alignment: { type: "STRING", enum: ["Ally", "Neutral", "Critical", "Unknown"], description: "Allineamento strategico" },
+                        notes: { type: "STRING", description: "Note relazione / contesto (max 500 chars)" },
+                    },
+                    required: ["name"],
+                },
+            },
+            {
+                name: "addMeeting",
+                description: "Registra un meeting nel Meeting Log. Usalo quando l'utente pianifica o ha appena completato un incontro strategico.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        title: { type: "STRING", description: "Titolo o nome del meeting" },
+                        date: { type: "STRING", description: "Data in formato YYYY-MM-DD" },
+                        time: { type: "STRING", description: "Orario in formato HH:MM" },
+                        objective: { type: "STRING", description: "Scopo strategico dell'incontro" },
+                        status: { type: "STRING", enum: ["scheduled", "completed", "cancelled"], description: "Stato del meeting" },
+                    },
+                    required: ["title"],
                 },
             },
         ],
@@ -321,6 +496,150 @@ async function executeToolSecure(name, args, { uid, email, role, aiRunId, sessio
             const ref = await db.collection("decisions").add(payload);
             newDocId = ref.id;
             diff = `verdict:${payload.verdict}, decision:"${payload.decision.slice(0, 80)}"`;
+        }
+
+        // ── PR-08 Steering Tools ──────────────────────────────────────────────
+
+        if (name === "updateDailyFocus") {
+            const dateId = args.date || new Date().toISOString().split("T")[0];
+            const ref = db.collection("daily_plans").doc(dateId);
+            const snap = await ref.get();
+            const now = admin.firestore.FieldValue.serverTimestamp();
+            const newItems = (args.items || []).map(item => ({
+                id: `ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                text: typeof item === "string" ? item : (item.text || ""),
+                priority: item.priority || "medium",
+                locked: false,
+                done: false,
+                addedBy: "shadow_cos",
+                aiRunId,
+            }));
+            if (snap.exists) {
+                const existing = snap.data().focus_items || [];
+                const patch = { focus_items: [...existing, ...newItems], updatedAt: now, updatedBy: uid };
+                if (args.reflection_start) patch.reflection_start = args.reflection_start;
+                await ref.update(patch);
+            } else {
+                await ref.set({ focus_items: newItems, status: "open", reflection_start: args.reflection_start || "", createdAt: now, updatedBy: uid, createdBy: uid, source: "shadow_cos" });
+            }
+            newDocId = dateId;
+            diff = `date:${dateId}, items:${newItems.length}`;
+        }
+
+        if (name === "addWeeklyOutcome") {
+            // Compute ISO week id if not provided
+            let weekId = args.weekId;
+            if (!weekId) {
+                const now2 = new Date();
+                const jan4 = new Date(now2.getFullYear(), 0, 4);
+                const wn = Math.ceil(((now2 - jan4) / 86400000 + jan4.getDay() + 1) / 7);
+                weekId = `${now2.getFullYear()}-W${String(wn).padStart(2, "0")}`;
+            }
+            const ref = db.collection("weekly_plans").doc(weekId);
+            const snap = await ref.get();
+            const ts = admin.firestore.FieldValue.serverTimestamp();
+            const existing = snap.exists ? (snap.data().outcomes || []) : [];
+            if (existing.length >= 3) throw new Error("Max 3 outcomes per week already reached.");
+            const updated = [...existing, args.outcome];
+            if (snap.exists) {
+                await ref.update({ outcomes: updated, updatedAt: ts, updatedBy: uid });
+            } else {
+                await ref.set({ outcomes: updated, status: "open", createdAt: ts, updatedBy: uid, createdBy: uid });
+            }
+            newDocId = weekId;
+            diff = `weekId:${weekId}, outcome:"${args.outcome.slice(0, 60)}"`;
+        }
+
+        if (name === "addWeeklyStakeholderMove") {
+            let weekId = args.weekId;
+            if (!weekId) {
+                const now2 = new Date();
+                const jan4 = new Date(now2.getFullYear(), 0, 4);
+                const wn = Math.ceil(((now2 - jan4) / 86400000 + jan4.getDay() + 1) / 7);
+                weekId = `${now2.getFullYear()}-W${String(wn).padStart(2, "0")}`;
+            }
+            const ref = db.collection("weekly_plans").doc(weekId);
+            const snap = await ref.get();
+            const ts = admin.firestore.FieldValue.serverTimestamp();
+            const move = {
+                id: `ai_${Date.now()}`,
+                stakeholder: args.stakeholder,
+                why_now: args.why_now || "",
+                concrete_move: args.concrete_move || "",
+                addedBy: "shadow_cos",
+                aiRunId,
+            };
+            const existing = snap.exists ? (snap.data().stakeholder_moves || []) : [];
+            if (snap.exists) {
+                await ref.update({ stakeholder_moves: [...existing, move], updatedAt: ts, updatedBy: uid });
+            } else {
+                await ref.set({ stakeholder_moves: [move], status: "open", createdAt: ts, updatedBy: uid, createdBy: uid });
+            }
+            newDocId = weekId;
+            diff = `weekId:${weekId}, stakeholder:${move.stakeholder}`;
+        }
+
+        if (name === "createStrategicTheme") {
+            const payload = {
+                title: args.title,
+                description: args.description || "",
+                horizon: args.horizon || String(new Date().getFullYear()),
+                owner: args.owner || "",
+                status: "active",
+                color: "#6366f1",
+                event_ids: [],
+                okr_ids: [],
+                createdBy: uid,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                source: "shadow_cos",
+                aiRunId,
+            };
+            const ref = await db.collection("strategic_themes").add(payload);
+            newDocId = ref.id;
+            diff = `title:"${payload.title.slice(0, 80)}", horizon:${payload.horizon}`;
+        }
+
+        if (name === "addStakeholder") {
+            const payload = {
+                name: args.name,
+                role: args.role || "",
+                organization: args.organization || "",
+                influence: args.influence || "Medium",
+                alignment: args.alignment || "Unknown",
+                notes: args.notes || "",
+                event_ids: [],
+                createdBy: uid,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                source: "shadow_cos",
+                aiRunId,
+            };
+            const ref = await db.collection("stakeholders").add(payload);
+            newDocId = ref.id;
+            diff = `name:"${payload.name}", alignment:${payload.alignment}, influence:${payload.influence}`;
+        }
+
+        if (name === "addMeeting") {
+            const payload = {
+                title: args.title,
+                date: args.date || "",
+                time: args.time || "",
+                objective: args.objective || "",
+                status: args.status || "scheduled",
+                participants: [],
+                agenda: "",
+                notes: "",
+                outcome: "",
+                createdBy: uid,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                source: "shadow_cos",
+                aiRunId,
+            };
+            const ref = await db.collection("meetings").add(payload);
+            newDocId = ref.id;
+            diff = `title:"${payload.title.slice(0, 80)}", date:${payload.date}, status:${payload.status}`;
         }
 
         // 5. Audit log — SUCCESS
