@@ -593,7 +593,7 @@ export const TileIntelligence = ({ adminName, eventId }) => {
                 )}
             </AnimatePresence>
 
-            <div className="h-full flex flex-col p-6 relative">
+            <div className="h-full flex flex-col p-4 sm:p-6 relative">
                 <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
                 {/* Header */}
@@ -640,11 +640,11 @@ export const TileIntelligence = ({ adminName, eventId }) => {
                             title={preset.description}
                             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-indigo-500/[0.07] hover:border-indigo-500/20 transition-all group disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
-                            <div className="flex items-center gap-2.5">
-                                <preset.Icon className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-                                <div className="text-left">
+                            <div className="flex items-center gap-2">
+                                <preset.Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 flex-shrink-0" />
+                                <div className="text-left min-w-0">
                                     <p className="text-xs font-mono text-zinc-200 group-hover:text-white transition-colors">{preset.label}</p>
-                                    <p className="text-[10px] text-zinc-500">{preset.description}</p>
+                                    <p className="text-[10px] text-zinc-500 hidden sm:block">{preset.description}</p>
                                 </div>
                             </div>
                             <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-indigo-400 transition-colors" />

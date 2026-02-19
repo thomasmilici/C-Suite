@@ -117,7 +117,7 @@ export const Dashboard = ({ user }) => {
     };
 
     return (
-        <div className="min-h-screen bg-[#050508] p-4 md:p-6 font-sans selection:bg-zinc-800 relative text-gray-200">
+        <div className="min-h-screen bg-[#050508] p-3 sm:p-4 md:p-6 font-sans selection:bg-zinc-800 relative text-gray-200 overflow-x-hidden">
             {/* Background Decor */}
             <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(99,102,241,0.07)_0%,transparent_60%)]" />
@@ -126,41 +126,42 @@ export const Dashboard = ({ user }) => {
             </div>
 
             {/* Header */}
-            <header className="max-w-screen-2xl mx-auto mb-6 flex justify-between items-center border-b border-white/5 pb-4 sticky top-0 z-20 bg-[#050508]/70 backdrop-blur-xl">
-                <div className="flex items-center gap-3">
+            <header className="max-w-screen-2xl mx-auto mb-4 sm:mb-6 flex justify-between items-center border-b border-white/5 pb-3 sm:pb-4 sticky top-0 z-20 bg-[#050508]/80 backdrop-blur-xl">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <img
                         src="/logo.png"
                         alt="C-Suite OS"
-                        className="w-9 h-9 rounded-xl object-contain flex-shrink-0"
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-contain flex-shrink-0"
                     />
-                    <div>
-                        <h1 className="text-xl font-mono font-bold tracking-tighter text-white leading-none">
+                    <div className="min-w-0">
+                        <h1 className="text-base sm:text-xl font-mono font-bold tracking-tighter text-white leading-none">
                             C-Suite <span className="text-zinc-600">OS</span>
                         </h1>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                            <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse flex-shrink-0"></div>
+                            <p className="text-[9px] sm:text-[10px] text-zinc-500 font-mono uppercase tracking-wider truncate">
                                 Execution Layer • Active
                             </p>
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 text-xs font-mono">
-                    {/* Termometro salute strategica — solo admin */}
+                <div className="flex items-center gap-1.5 sm:gap-3 text-xs font-mono flex-shrink-0">
+                    {/* Health gauge — solo admin, solo md+ */}
                     {isAdmin && healthScore !== null && (
                         <HealthGauge score={healthScore} />
                     )}
-                    {/* Archivio Reports — visibile a tutti */}
+                    {/* Archivio Reports — icona su mobile, testo su sm+ */}
                     <button
                         onClick={() => setShowArchive(true)}
-                        className="hidden sm:flex touch-target items-center gap-1.5 text-zinc-400 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 px-3 py-1.5 rounded-lg transition-all backdrop-blur-sm"
+                        className="touch-target flex items-center gap-1.5 text-zinc-400 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 px-2 sm:px-3 py-1.5 rounded-lg transition-all backdrop-blur-sm"
                     >
-                        <Archive className="w-3 h-3" />
-                        <span>Archivio</span>
+                        <Archive className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+                        <span className="hidden sm:inline">Archivio</span>
                     </button>
                     {isAdmin && (
-                        <button onClick={() => navigate('/admin')} className="touch-target text-red-400 hover:text-red-300 flex items-center gap-1.5 border border-red-900/50 bg-red-900/10 px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
-                            <Shield className="w-3 h-3" /> ADMIN
+                        <button onClick={() => navigate('/admin')} className="touch-target text-red-400 hover:text-red-300 flex items-center gap-1 sm:gap-1.5 border border-red-900/50 bg-red-900/10 px-2 sm:px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
+                            <Shield className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+                            <span className="hidden sm:inline">ADMIN</span>
                         </button>
                     )}
                     <div className="text-zinc-500 hidden md:block">
@@ -184,7 +185,7 @@ export const Dashboard = ({ user }) => {
                 </div>
 
                 {/* Bento Grid — 3 colonne */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
 
                     {/* ROW 1: Compass (1col) | Pulse (1col) | Team (1col) */}
                     <div className="glass-tile rounded-2xl min-h-[280px]">
@@ -223,7 +224,7 @@ export const Dashboard = ({ user }) => {
             {/* Shadow CoS AI FAB */}
             <button
                 onClick={() => { setShowNeural(true); setAlertCount(0); }}
-                className="fixed bottom-8 right-8 w-14 h-14
+                className="fixed bottom-5 right-4 sm:bottom-8 sm:right-8 w-12 h-12 sm:w-14 sm:h-14
                     bg-white/10 hover:bg-white/20 backdrop-blur-xl
                     border border-white/20 hover:border-white/40
                     text-white rounded-full

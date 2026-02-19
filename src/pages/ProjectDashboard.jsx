@@ -80,31 +80,33 @@ export const ProjectDashboard = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#040508] p-4 md:p-6 font-sans selection:bg-zinc-300 relative text-gray-200">
+    <div className="min-h-screen bg-[#040508] p-3 sm:p-4 md:p-6 font-sans selection:bg-zinc-300 relative text-gray-200 overflow-x-hidden">
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-10">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(99,102,241,0.07),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_80%,rgba(20,184,166,0.05),transparent_60%)]" />
       </div>
-      <header className="max-w-screen-2xl mx-auto mb-6 flex justify-between items-center border-b border-white/5 pb-4 sticky top-0 z-20 bg-[#040508]/70 backdrop-blur-xl">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="w-9 h-9 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] flex items-center justify-center text-zinc-400 hover:text-white transition-colors flex-shrink-0" title="Torna alla Dashboard">
+      <header className="max-w-screen-2xl mx-auto mb-4 sm:mb-6 flex justify-between items-center border-b border-white/5 pb-3 sm:pb-4 sticky top-0 z-20 bg-[#040508]/80 backdrop-blur-xl">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <button onClick={() => navigate('/dashboard')} className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] flex items-center justify-center text-zinc-400 hover:text-white transition-colors flex-shrink-0" title="Torna alla Dashboard">
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div>
-            <h1 className="text-xl font-mono font-bold tracking-tighter text-white leading-none truncate max-w-[220px] md:max-w-none">{event?.title}</h1>
-            <div className="flex items-center gap-2 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">Dossier • {event?.status === 'active' ? 'Attivo' : event?.status}</p>
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-xl font-mono font-bold tracking-tighter text-white leading-none truncate max-w-[140px] sm:max-w-xs md:max-w-none">{event?.title}</h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse flex-shrink-0" />
+              <p className="text-[9px] sm:text-[10px] text-zinc-500 font-mono uppercase tracking-wider truncate">Dossier • {event?.status === 'active' ? 'Attivo' : event?.status}</p>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-xs font-mono">
-          <button onClick={() => setShowArchive(true)} className="hidden sm:flex touch-target items-center gap-1.5 text-zinc-400 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 px-3 py-1.5 rounded-lg transition-all backdrop-blur-sm">
-            <Archive className="w-3 h-3" /><span>Archivio</span>
+        <div className="flex items-center gap-1.5 sm:gap-3 text-xs font-mono flex-shrink-0">
+          <button onClick={() => setShowArchive(true)} className="touch-target flex items-center gap-1.5 text-zinc-400 hover:text-indigo-300 border border-white/[0.07] hover:border-indigo-500/30 bg-white/[0.02] hover:bg-indigo-500/5 px-2 sm:px-3 py-1.5 rounded-lg transition-all backdrop-blur-sm">
+            <Archive className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+            <span className="hidden sm:inline">Archivio</span>
           </button>
           {isAdmin && (
-            <button onClick={() => navigate('/admin')} className="touch-target text-red-400 hover:text-red-300 flex items-center gap-1.5 border border-red-900/50 bg-red-900/10 px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
-              <Shield className="w-3 h-3" /> ADMIN
+            <button onClick={() => navigate('/admin')} className="touch-target text-red-400 hover:text-red-300 flex items-center gap-1 sm:gap-1.5 border border-red-900/50 bg-red-900/10 px-2 sm:px-3 py-1.5 rounded-lg transition-colors backdrop-blur-sm">
+              <Shield className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+              <span className="hidden sm:inline">ADMIN</span>
             </button>
           )}
           <div className="text-zinc-500 hidden md:block">OP: <span className="text-white uppercase">{user?.displayName || 'Unknown'}</span></div>
@@ -119,7 +121,7 @@ export const ProjectDashboard = ({ user }) => {
         </div>
       )}
       <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
           {/* ROW 1 */}
           <div className="glass-tile rounded-2xl min-h-[280px]">
             <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} eventId={eventId} />
@@ -146,14 +148,14 @@ export const ProjectDashboard = ({ user }) => {
           </div>
         </div>
       </main>
-      <button onClick={() => setShowNeural(true)} className="fixed bottom-8 right-8 w-14 h-14 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 hover:border-white/40 text-white rounded-full shadow-[0_0_30px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.5)] hover:shadow-[0_0_40px_rgba(255,255,255,0.18)] flex items-center justify-center z-50 transition-all duration-300 hover:scale-110 active:scale-95">
+      <button onClick={() => setShowNeural(true)} className="fixed bottom-5 right-4 sm:bottom-8 sm:right-8 w-12 h-12 sm:w-14 sm:h-14 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 hover:border-white/40 text-white rounded-full shadow-[0_0_30px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.5)] hover:shadow-[0_0_40px_rgba(255,255,255,0.18)] flex items-center justify-center z-50 transition-all duration-300 hover:scale-110 active:scale-95">
         <Sparkles className="w-5 h-5" />
       </button>
       {showNeural && <NeuralInterface onClose={() => setShowNeural(false)} />}
       {showSignalModal && createPortal(<SignalInput onClose={() => setShowSignalModal(false)} />, document.body)}
       {showOKRModal && createPortal(<OKRManager onClose={() => setShowOKRModal(false)} existingOKR={selectedOKR} />, document.body)}
       {showArchive && createPortal(
-        <ReportsArchiveModal onClose={() => setShowArchive(false)} adminName={user?.displayName} onOpenReport={() => {}} />,
+        <ReportsArchiveModal onClose={() => setShowArchive(false)} adminName={user?.displayName} onOpenReport={() => { }} />,
         document.body
       )}
       <AppCredits />

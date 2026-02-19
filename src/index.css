@@ -3,26 +3,41 @@
 @theme {
   --color-black: #000000;
   --color-technical: #E0E0E0;
-    
+
   --font-sans: "Inter", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
-  
+
   /* Custom animations */
   @keyframes shimmer {
-    from { background-position: 0 0; }
-    to { background-position: -200% 0; }
+    from {
+      background-position: 0 0;
+    }
+
+    to {
+      background-position: -200% 0;
+    }
   }
+
   --animate-shimmer: shimmer 2s linear infinite;
 }
 
 @layer base {
+
+  html,
   body {
     background-color: var(--color-black);
     color: var(--color-technical);
     font-family: var(--font-sans);
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-mono);
   }
 }
@@ -40,25 +55,26 @@
    */
   .glass-tile {
     /* Background più chiaro di prima — si vede davvero */
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.07) 0%,
-      rgba(255, 255, 255, 0.04) 50%,
-      rgba(255, 255, 255, 0.06) 100%
-    );
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.07) 0%,
+        rgba(255, 255, 255, 0.04) 50%,
+        rgba(255, 255, 255, 0.06) 100%);
     backdrop-filter: blur(16px) saturate(180%);
     -webkit-backdrop-filter: blur(16px) saturate(180%);
 
     /* Bordo vetro: sottile bianco, con riflesso superiore */
     border: 1px solid rgba(255, 255, 255, 0.10);
-    border-top-color: rgba(255, 255, 255, 0.18); /* highlight top edge */
+    border-top-color: rgba(255, 255, 255, 0.18);
+    /* highlight top edge */
 
     /* Shadow: profondità + inner glow in cima */
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.45),
       0 2px 8px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.10),  /* riflesso luce superiore */
-      inset 0 -1px 0 rgba(0, 0, 0, 0.15);       /* ombra inferiore interna */
+      inset 0 1px 0 rgba(255, 255, 255, 0.10),
+      /* riflesso luce superiore */
+      inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+    /* ombra inferiore interna */
 
     transition: all 0.3s ease;
     position: relative;
@@ -72,12 +88,10 @@
     left: 10%;
     right: 10%;
     height: 1px;
-    background: linear-gradient(
-      to right,
-      transparent,
-      rgba(255, 255, 255, 0.25),
-      transparent
-    );
+    background: linear-gradient(to right,
+        transparent,
+        rgba(255, 255, 255, 0.25),
+        transparent);
     pointer-events: none;
     z-index: 1;
     border-radius: 999px;
@@ -85,12 +99,10 @@
 
   /* Hover: più luminoso, bordo più evidente */
   .glass-tile:hover {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.10) 0%,
-      rgba(255, 255, 255, 0.06) 50%,
-      rgba(255, 255, 255, 0.09) 100%
-    );
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.10) 0%,
+        rgba(255, 255, 255, 0.06) 50%,
+        rgba(255, 255, 255, 0.09) 100%);
     border-color: rgba(255, 255, 255, 0.16);
     border-top-color: rgba(255, 255, 255, 0.28);
     box-shadow:
@@ -101,30 +113,36 @@
       0 0 0 1px rgba(255, 255, 255, 0.04);
     transform: translateY(-1px);
   }
+
   /* ── END GLASSMORPHISM ──────────────────────────────────────────────────── */
 
   /* UX-02/03: Tile typography scale — use these classes for consistent hierarchy */
   .tile-title {
-    font-size: clamp(0.625rem, 1vw, 0.75rem); /* 10–12px */
+    font-size: clamp(0.625rem, 1vw, 0.75rem);
+    /* 10–12px */
     font-family: var(--font-mono);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #a1a1aa; /* zinc-400 */
+    color: #a1a1aa;
+    /* zinc-400 */
   }
 
   .tile-metric {
-    font-size: clamp(1.25rem, 2.5vw, 1.75rem); /* 20–28px */
+    font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+    /* 20–28px */
     font-family: var(--font-mono);
     font-weight: 700;
     color: #ffffff;
   }
 
   .tile-label {
-    font-size: clamp(0.5625rem, 0.8vw, 0.625rem); /* 9–10px */
+    font-size: clamp(0.5625rem, 0.8vw, 0.625rem);
+    /* 9–10px */
     font-family: var(--font-mono);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #52525b; /* zinc-600 */
+    color: #52525b;
+    /* zinc-600 */
   }
 
   /* BUG-07: Touch target — 44px min for mobile CTAs and nav buttons */
@@ -138,6 +156,7 @@
 }
 
 @layer base {
+
   /* BUG-08 / UX-07: Global focus states for keyboard accessibility */
   *:focus-visible {
     outline: 2px solid #6366f1;
@@ -149,7 +168,8 @@
   input:focus,
   textarea:focus,
   button:focus {
-    outline: none; /* handled by focus-visible above */
+    outline: none;
+    /* handled by focus-visible above */
   }
 
   /* BUG-04: Base text contrast — secondary text minimum zinc-400 (#a1a1aa) */
