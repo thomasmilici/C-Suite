@@ -925,7 +925,10 @@ CONTESTO OPERATIVO:
 
         const prompt = reportTemplates[reportType] || reportTemplates.strategic;
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash", systemInstruction, tools: [{ googleSearch: {} }] });
+        // NOTE: @google/generative-ai v0.24.x does NOT map camelCase → snake_case for tool names.
+        // The Gemini 2.0 REST API expects "google_search" (snake_case). Passing it directly
+        // bypasses the broken mapping and restores web grounding correctly.
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash", systemInstruction, tools: [{ google_search: {} }] });
 
         logger.info("Calling Gemini with Google Search grounding...");
         const result = await model.generateContent(prompt);
