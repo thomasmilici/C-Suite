@@ -1,85 +1,106 @@
 /**
  * useLiveSession — Gemini Multimodal Live API hook.
  *
- * Manages a real-time bidirectional audio session with Gemini via
- * the Firebase AI Logic SDK (firebase/ai). Replaces browser STT/TTS.
+ * Dual-Model Bridge Architecture:
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  LA VOCE  — gemini-2.5-flash-native-audio-preview-12-2025      │
+ * │  Real-time WebSocket audio. Fast, conversational.              │
+ * │  Per domande semplici risponde direttamente.                   │
+ * │  Per domande complesse → chiama delegaRagionamentoStrategico() │
+ * └────────────────────────┬────────────────────────────────────────┘
+ *                          │ function call
+ *                          ▼
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  IL CERVELLO — gemini-3-pro-preview (Cloud Function)           │
+ * │  Deep reasoning, Google Search, full Firestore context,        │
+ * │  HITL tools. Returns a terse voice-ready synthesis.            │
+ * └─────────────────────────────────────────────────────────────────┘
  *
- * Architecture:
- * - model.connect()            → LiveSession (WebSocket)
- * - startAudioConversation()   → handles mic (AudioWorklet 16kHz) + playback (24kHz PCM)
- * - Fan-out proxy              → intercepts serverMessages before the audio runner
- *                                consumes them, so transcripts can be extracted
- *
- * Exports:
- *   { isConnected, isListening, isSpeaking, transcript, volume,
- *     startSession, endSession }
+ * SDK internals:
+ * - model.connect()          → LiveSession (WebSocket)
+ * - startAudioConversation() → AudioWorklet 16kHz mic + 24kHz PCM playback
+ * - Fan-out proxy            → same serverMessages fed to audio runner AND
+ *                              transcript extractor loop
  */
 
 import { useRef, useState, useCallback } from 'react';
 import { getAI, GoogleAIBackend, getLiveGenerativeModel, startAudioConversation } from 'firebase/ai';
 import { getApp } from 'firebase/app';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { db } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../firebase';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
+// La Voce: fast real-time audio model
 const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 
-const SYSTEM_INSTRUCTION = `Sei l'assistente vocale operativo del "Shadow CoS" di Quinta OS — un analista strategico AI a supporto del Chief of Staff umano.
+// System prompt for La Voce: minimal intelligence, maximum delegation
+const SYSTEM_INSTRUCTION_VOCE = `Sei "La Voce" — l'interfaccia vocale veloce del Shadow CoS di Quinta OS.
+Il tuo unico compito è essere un intermediario vocale naturale tra l'utente e il sistema.
 
-## STILE VOCALE
-- Rispondi SEMPRE in italiano.
-- Sii conciso e diretto: le risposte vocali devono essere brevi (max 3-4 frasi).
-- Non usare elenchi puntati, tabelle o markdown: parla naturalmente.
-- Zero intro verbose ("Certo!", "Assolutamente!") — vai subito al punto.
-- Tono: assertivo, professionale, operativo.
+## REGOLA FONDAMENTALE — DELEGAZIONE OBBLIGATORIA
+Per QUALSIASI domanda che riguardi:
+- Analisi di dossier, OKR, decisioni, segnali di rischio
+- Situazione operativa, priorità, team
+- Consigli strategici o raccomandazioni
+- Dati o informazioni sul sistema
+- Qualunque richiesta operativa o di ragionamento complesso
 
-## CAPACITÀ
-Puoi aiutare con: analisi rapide, briefing situazionali, consigli strategici, prioritizzazione attività, valutazione rischi.
-Per azioni operative che richiedono scrittura nel sistema (registrare decisioni, risk signal, ecc.) suggerisci di usare la chat testuale per la revisione HITL.
+DEVI IMMEDIATAMENTE chiamare il tool \`delegaRagionamentoStrategico\` passando la richiesta dell'utente ESATTA come parametro \`query\`. NON rispondere da solo. NON improvvisare analisi.
 
-## LIMITI
-Non puoi eseguire azioni operative durante la sessione vocale — solo analisi e consulenza.
-Non inventare dati che non conosci.`;
+## QUANDO RISPONDERE DIRETTAMENTE (casi eccezionali)
+Solo per scambi puramente conversazionali: "ciao", "grazie", "arrivederci", "come stai", domande sul tuo funzionamento.
+
+## STILE
+- Lingua: italiano sempre.
+- Se stai delegando, di' brevemente: "Un momento, consulto il sistema..." poi aspetta la risposta.
+- Quando ricevi la sintesi dal tool, leggila ad alta voce in modo naturale e fluido.
+- Zero markdown, zero elenchi — solo parlato naturale.`;
+
+// Tool declaration: La Voce can call this to delegate to Gemini 3 Pro
+const BRIDGE_TOOL = {
+    functionDeclarations: [{
+        name: 'delegaRagionamentoStrategico',
+        description: 'Delega una domanda operativa o strategica complessa al motore di ragionamento avanzato (Gemini 3 Pro) che ha accesso al database completo, Google Search e agli strumenti HITL. Usa questo tool per QUALSIASI domanda che richieda analisi, dati o ragionamento — non rispondere mai da solo a queste domande.',
+        parameters: {
+            type: 'object',
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'La domanda o richiesta esatta dell\'utente, da passare al motore di ragionamento avanzato.',
+                },
+            },
+            required: ['query'],
+        },
+    }],
+};
 
 // ── Fan-out proxy for serverMessages ─────────────────────────────────────────
 // The audio runner from startAudioConversation() exclusively consumes the
-// session's serverMessages async generator. To also extract transcripts, we
-// replace serverMessages with a broadcasting proxy that feeds two queues:
-// one for the audio runner, one for our transcript loop.
+// session's serverMessages async generator. We proxy it to broadcast to two
+// independent consumers: the audio runner + our transcript/tool-call observer.
 
 function createFanoutProxy(originalGenerator) {
-    // Two independent queues + resolvers for blocking reads
     const queues = [[], []];
     const resolvers = [null, null];
-
     let done = false;
 
-    // Pump the original generator in the background
     (async () => {
         try {
             for await (const value of originalGenerator) {
                 for (let i = 0; i < 2; i++) {
                     queues[i].push({ value, done: false });
-                    if (resolvers[i]) {
-                        const res = resolvers[i];
-                        resolvers[i] = null;
-                        res();
-                    }
+                    if (resolvers[i]) { const r = resolvers[i]; resolvers[i] = null; r(); }
                 }
             }
         } catch (_) {
-            // Generator closed or errored — signal done to both consumers
+            // generator closed
         } finally {
             done = true;
             for (let i = 0; i < 2; i++) {
                 queues[i].push({ value: undefined, done: true });
-                if (resolvers[i]) {
-                    const res = resolvers[i];
-                    resolvers[i] = null;
-                    res();
-                }
+                if (resolvers[i]) { const r = resolvers[i]; resolvers[i] = null; r(); }
             }
         }
     })();
@@ -89,36 +110,31 @@ function createFanoutProxy(originalGenerator) {
             [Symbol.asyncIterator]() { return this; },
             async next() {
                 while (queues[idx].length === 0 && !done) {
-                    await new Promise(res => { resolvers[idx] = res; });
+                    await new Promise(r => { resolvers[idx] = r; });
                 }
-                if (queues[idx].length > 0) {
-                    return queues[idx].shift();
-                }
-                return { value: undefined, done: true };
-            }
+                return queues[idx].length > 0 ? queues[idx].shift() : { value: undefined, done: true };
+            },
         };
     }
 
     return [makeConsumer(0), makeConsumer(1)];
 }
 
-// ── Volume analyzer via AnalyserNode ─────────────────────────────────────────
+// ── Volume analyzer ───────────────────────────────────────────────────────────
 
 function createVolumeAnalyzer(audioContext, sourceNode, onVolume) {
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     sourceNode.connect(analyser);
-
     let rafId = null;
     const tick = () => {
         analyser.getByteFrequencyData(dataArray);
         const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-        onVolume(avg / 255); // normalize 0–1
+        onVolume(avg / 255);
         rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
-
     return () => {
         if (rafId) cancelAnimationFrame(rafId);
         analyser.disconnect();
@@ -133,94 +149,72 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
     const [transcript, setTranscript] = useState('');
     const [volume, setVolume] = useState(0);
 
-    const sessionRef = useRef(null);       // LiveSession
-    const controllerRef = useRef(null);    // { stop } from startAudioConversation
-    const stopVolumeRef = useRef(null);    // cleanup volume analyzer
+    const sessionRef = useRef(null);
+    const controllerRef = useRef(null);
+    const stopVolumeRef = useRef(null);
+
+    // Bridge call to Il Cervello (Gemini 3 Pro via Cloud Function)
+    const callBridge = useCallback(async (query, contextId = null) => {
+        try {
+            const bridge = httpsCallable(functions, 'delegaRagionamentoStrategico');
+            const result = await bridge({ query, contextId });
+            return result.data?.sintesi || 'Analisi non disponibile.';
+        } catch (e) {
+            console.error('[useLiveSession] Bridge call failed:', e);
+            return 'Il motore di ragionamento è temporaneamente non disponibile.';
+        }
+    }, []);
 
     // ── startSession ──────────────────────────────────────────────────────────
-    const startSession = useCallback(async () => {
+    const startSession = useCallback(async (contextId = null) => {
         try {
-            // 1. Initialize firebase/ai with Google AI backend
             const app = getApp();
             const ai = getAI(app, { backend: new GoogleAIBackend() });
 
-            // 2. Build the Live model
+            // Build La Voce model with Bridge tool declaration
             const model = getLiveGenerativeModel(ai, {
                 model: LIVE_MODEL,
-                systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+                systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION_VOCE }] },
+                tools: [BRIDGE_TOOL],
                 generationConfig: {
                     responseModalities: ['AUDIO'],
-                    // Enable transcription of both input (user speech) and output (model speech)
-                    // These are extracted from generationConfig into the setup message by the SDK
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
                 },
             });
 
-            // 3. Connect (opens WebSocket, sends setup message)
             const session = await model.connect();
             sessionRef.current = session;
 
-            // 4. Fan-out serverMessages so both the audio runner and our
-            //    transcript loop can consume messages independently
-            const [audioConsumer, transcriptConsumer] = createFanoutProxy(session.serverMessages);
-            // Replace the session's serverMessages with the audio consumer;
-            // startAudioConversation will read from this one.
+            // Fan-out: audio runner gets consumer[0], our loop gets consumer[1]
+            const [audioConsumer, observerConsumer] = createFanoutProxy(session.serverMessages);
             session.serverMessages = audioConsumer;
 
-            // 5. Start transcript extraction loop (reads from transcriptConsumer)
-            //    Runs in background — no await
+            // Observer loop: extracts transcripts from observerConsumer
+            // (audio runner ignores text parts; we capture them here)
             (async () => {
                 try {
-                    for await (const message of transcriptConsumer) {
+                    for await (const message of observerConsumer) {
                         if (!message || typeof message !== 'object') continue;
-
-                        // serverContent carries both audio (for the runner) and text (transcripts)
                         if ('serverContent' in message) {
                             const sc = message.serverContent;
-
-                            // inputTranscription = user speech text
-                            if (sc?.inputTranscription?.text) {
-                                const text = sc.inputTranscription.text;
-                                setTranscript(text);
-                            }
-
-                            // outputTranscription = model speech text (AI response in text form)
+                            if (sc?.inputTranscription?.text) setTranscript(sc.inputTranscription.text);
                             if (sc?.outputTranscription?.text) {
-                                const text = sc.outputTranscription.text;
-                                setTranscript(text);
-                                onTextMessage?.(text);
+                                setTranscript(sc.outputTranscription.text);
+                                onTextMessage?.(sc.outputTranscription.text);
                             }
-
-                            // Detect model speaking / done
-                            if (sc?.modelTurn?.parts?.length > 0) {
-                                setIsSpeaking(true);
-                            }
-                            if (sc?.turnComplete) {
-                                setIsSpeaking(false);
-                            }
+                            if (sc?.modelTurn?.parts?.length > 0) setIsSpeaking(true);
+                            if (sc?.turnComplete) setIsSpeaking(false);
                         }
                     }
-                } catch (_) {
-                    // transcript loop ended — session closed
-                }
+                } catch (_) {}
             })();
 
-            // 6. Start audio conversation (mic + playback, AudioWorklet)
-            //    Must be called from a user gesture context.
-            //    We capture the AudioContext created internally by intercepting
-            //    getUserMedia to attach our AnalyserNode for volume.
-            //
-            //    Monkey-patch getUserMedia temporarily to intercept the MediaStream
+            // Temporarily intercept getUserMedia to attach our volume analyzer
             const origGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
             navigator.mediaDevices.getUserMedia = async (constraints) => {
                 const stream = await origGetUserMedia(constraints);
-                // Restore immediately
                 navigator.mediaDevices.getUserMedia = origGetUserMedia;
-
-                // We'll attach the analyser after startAudioConversation has
-                // created its AudioContext — but we don't have access to it.
-                // Instead, create a SEPARATE AudioContext just for volume analysis.
                 try {
                     const volCtx = new AudioContext();
                     const volSource = volCtx.createMediaStreamSource(stream);
@@ -230,40 +224,40 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
                         volSource.disconnect();
                         void volCtx.close();
                     };
-                } catch (_) {
-                    // volume analysis is optional — ignore errors
-                }
-
+                } catch (_) {}
                 return stream;
             };
 
+            // Start audio conversation with Bridge function calling handler
             const controller = await startAudioConversation(session, {
                 functionCallingHandler: async (functionCalls) => {
-                    // During Live mode, tool calls create pending_ai_actions in Firestore
-                    // so HITL still works (user reviews in AiPendingActionTile)
-                    const auth = getAuth();
-                    const uid = auth.currentUser?.uid;
-                    if (!uid || !functionCalls?.length) return {};
-
+                    if (!functionCalls?.length) return {};
                     const call = functionCalls[0];
-                    try {
-                        await addDoc(collection(db, 'pending_ai_actions'), {
-                            functionName: call.name,
-                            args: call.args || {},
-                            uid,
-                            source: 'live_voice',
-                            status: 'pending',
-                            createdAt: serverTimestamp(),
-                        });
-                    } catch (e) {
-                        console.warn('[useLiveSession] Failed to create pending action:', e);
+
+                    if (call.name === 'delegaRagionamentoStrategico') {
+                        const query = call.args?.query || '';
+                        console.log(`[useLiveSession] Bridge: delegating to Gemini 3 Pro — "${query.slice(0, 80)}"`);
+
+                        // Call Il Cervello via Cloud Function
+                        const sintesi = await callBridge(query, contextId);
+
+                        // Also surface the synthesis as a text message in the drawer
+                        onTextMessage?.(sintesi);
+
+                        // Return the synthesis to La Voce so it reads it aloud
+                        return {
+                            id: call.id,
+                            name: call.name,
+                            response: { sintesi },
+                        };
                     }
 
-                    // Return empty response to keep the session going
+                    // Unknown tool — return empty response to avoid stalling session
+                    console.warn(`[useLiveSession] Unknown tool call: ${call.name}`);
                     return {
                         id: call.id,
                         name: call.name,
-                        response: { output: 'Action queued for human review.' },
+                        response: { output: 'Tool non riconosciuto.' },
                     };
                 },
             });
@@ -273,52 +267,35 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
             setTranscript('');
 
         } catch (e) {
-            // Mic permission denied (DOMException) or SDK error (AIError)
-            const msg = e?.message || 'Errore sessione Live';
             if (e?.name === 'NotAllowedError') {
                 onError?.('Permesso microfono negato. Concedi l\'accesso nelle impostazioni del browser.');
             } else if (e?.name === 'NotFoundError') {
                 onError?.('Nessun microfono trovato. Connetti un dispositivo audio.');
             } else {
-                onError?.(`Errore Live: ${msg}`);
+                onError?.(`Errore Live: ${e?.message || 'Connessione fallita'}`);
             }
             console.error('[useLiveSession] startSession error:', e);
-            // Cleanup partial state
             _cleanup();
         }
-    }, [onTextMessage, onError]);
+    }, [onTextMessage, onError, callBridge]);
 
     // ── endSession ────────────────────────────────────────────────────────────
     const endSession = useCallback(() => {
         _cleanup();
     }, []);
 
-    // ── internal cleanup ──────────────────────────────────────────────────────
     function _cleanup() {
-        // Stop audio conversation (stops mic + playback + AudioWorklet)
         try { controllerRef.current?.stop?.(); } catch (_) {}
         controllerRef.current = null;
-
-        // Stop volume analyzer
         try { stopVolumeRef.current?.(); } catch (_) {}
         stopVolumeRef.current = null;
-
-        // Close WebSocket session
         try { sessionRef.current?.close?.(); } catch (_) {}
         sessionRef.current = null;
-
         setIsConnected(false);
         setIsSpeaking(false);
         setVolume(0);
         setTranscript('');
     }
 
-    return {
-        isConnected,
-        isSpeaking,
-        transcript,
-        volume,
-        startSession,
-        endSession,
-    };
+    return { isConnected, isSpeaking, transcript, volume, startSession, endSession };
 }

@@ -887,7 +887,7 @@ ${archiveReports.map((r, i) => {
 
         // Only inject tools for roles that can act
         const tools = hasMinRole(role, "COS") ? SHADOW_COS_TOOLS : [];
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash", systemInstruction, tools });
+        const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview", systemInstruction, tools });
 
         const chatHistory = history.map(h => ({ role: h.role, parts: [{ text: h.text }] }));
         const chat = model.startChat({ history: chatHistory });
@@ -1337,6 +1337,123 @@ TONO: assertivo, diretto, da Chief of Staff. Nessun giudizio morale, solo analis
         logger.error("ANALYZE DECISION FAILURE:", { error: error.message, stack: error.stack });
         await writeAuditLog({ uid, email, role, action: "ANALYZE_DECISION", aiRunId, sessionId, result: "error", errorMessage: error.message });
         return { data: null, debug: error.message };
+    }
+});
+
+// ── DELEGA RAGIONAMENTO STRATEGICO (Dual-Model Bridge) ───────────────────────
+// Called by the Gemini Live "Voce" model (gemini-2.5-flash) when it receives a
+// complex strategic query it cannot answer on its own. This function invokes
+// the full askShadowCoS logic running on Gemini 3 Pro ("Il Cervello"), which
+// has access to all Firestore context, Google Search, and HITL tools.
+// The Live model receives the synthesized response and reads it aloud.
+exports.delegaRagionamentoStrategico = onCall({
+    cors: true,
+    secrets: ["GOOGLE_API_KEY"],
+    invoker: "public",
+}, async (request) => {
+
+    logger.info("--- DELEGA RAGIONAMENTO STRATEGICO (Bridge) ---");
+
+    if (!request.auth) {
+        await writeAuditLog({ action: "BRIDGE_CALL", result: "denied", errorMessage: "Unauthenticated" });
+        return { sintesi: "Accesso negato: autenticazione richiesta." };
+    }
+
+    const uid = request.auth.uid;
+    const email = request.auth.token?.email || null;
+    const role = await getUserRole(uid);
+    const { query, contextId = null } = request.data;
+    const aiRunId = `bridge_${Date.now()}_${uid.slice(0, 6)}`;
+
+    if (!query) {
+        return { sintesi: "Query mancante." };
+    }
+
+    if (!hasMinRole(role, "STAFF")) {
+        return { sintesi: "Accesso negato: ruolo insufficiente." };
+    }
+
+    logger.info(`Bridge invoked by: ${email} (${role}) | query: "${query.slice(0, 100)}"`);
+    await writeAuditLog({ uid, email, role, action: "BRIDGE_CALL", aiRunId, inputSummary: query.slice(0, 200), result: "success" });
+
+    try {
+        const apiKey = process.env.GOOGLE_API_KEY;
+        if (!apiKey) throw new Error("GOOGLE_API_KEY not found in process.env");
+
+        const [ctx, archiveReports] = await Promise.all([
+            fetchContext(),
+            fetchArchiveContext(contextId, 5),
+        ]);
+        const { okrs, signals, pulse, events, decisions, reports, team } = ctx;
+
+        // Same context isolation logic as askShadowCoS
+        const isScoped = !!contextId;
+        const scopedEvents    = isScoped ? events.filter(e => e.id === contextId) : events;
+        const scopedSignals   = isScoped ? signals.filter(s => s.eventId === contextId) : signals;
+        const scopedDecisions = isScoped ? decisions.filter(d => d.eventId === contextId) : decisions;
+        const scopedReports   = isScoped ? reports.filter(r => r.eventId === contextId) : reports;
+        const contextLabel = isScoped
+            ? `DOSSIER: "${scopedEvents[0]?.title || contextId}"`
+            : "PORTFOLIO GLOBALE";
+
+        // Bridge-specific system instruction: output MUST be terse, spoken-language friendly.
+        // Gemini 3 Pro does the deep reasoning; its output is synthesized for voice delivery.
+        const systemInstruction = `Sei il cervello strategico del "Shadow CoS" di Quinta OS (Gemini 3 Pro).
+Stai rispondendo a una richiesta proveniente dall'interfaccia vocale.
+
+## VINCOLO CRITICO: OUTPUT PER VOCE
+La tua risposta verrà letta ad alta voce dall'assistente vocale all'utente.
+- Massimo 4-5 frasi. Sii DENSO e DIRETTO.
+- ZERO markdown, ZERO elenchi puntati, ZERO tabelle — solo prosa fluida.
+- Concludi sempre con UNA raccomandazione operativa concreta.
+- Lingua: italiano.
+
+## CAPACITÀ
+Hai accesso a Google Search e a tutto il contesto operativo. Usali per rispondere con precisione.
+
+## CONTESTO OPERATIVO — ${contextLabel}
+📁 DOSSIER (${scopedEvents.length}): ${scopedEvents.length > 0 ? scopedEvents.map(e => `"${e.title}" [${e.status}]`).join(", ") : "Nessuno"}
+🎯 OKR (${okrs.length}): ${okrs.length > 0 ? okrs.map(o => `"${o.title}" ${o.progress}%`).join(", ") : "Nessuno"}
+⚠️ SEGNALI (${scopedSignals.length}): ${scopedSignals.length > 0 ? scopedSignals.map(s => `[${s.level}] ${s.text}`).join(" | ") : "Nessuno"}
+📋 PULSE: ${pulse.length > 0 ? pulse.map(p => p.text || p).join(", ") : "Nessun focus oggi"}
+🧠 DECISIONI (${scopedDecisions.length}): ${scopedDecisions.length > 0 ? scopedDecisions.map(d => `"${d.decision}"`).join(", ") : "Nessuna"}
+👥 TEAM (${team.length}): ${team.length > 0 ? team.map(m => `${m.name} [${m.role}]`).join(", ") : "Nessuno"}
+
+## ARCHIVIO INTELLIGENCE
+${archiveReports.length > 0
+    ? archiveReports.map((r, i) => {
+        const excerpt = (r.content || '').slice(0, 600).replace(/\n+/g, ' ');
+        return `[REPORT ${i + 1}] "${r.title}": ${excerpt}`;
+    }).join('\n\n')
+    : 'Nessun report archiviato.'}`;
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        // "Il Cervello" — deep reasoning with web search
+        const model = genAI.getGenerativeModel({
+            model: "gemini-3-pro-preview",
+            systemInstruction,
+            tools: [{ google_search: {} }],
+        });
+
+        const result = await model.generateContent(query);
+        const rawText = result.response.text() || "Analisi non disponibile.";
+
+        // Strip any residual markdown for clean voice delivery
+        const sintesi = rawText
+            .replace(/#{1,6}\s/g, '')
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            .replace(/\*(.*?)\*/g, '$1')
+            .replace(/`/g, '')
+            .replace(/\n{2,}/g, ' ')
+            .trim();
+
+        logger.info(`[Bridge] Gemini 3 Pro response. Length: ${sintesi.length}`);
+        return { sintesi };
+
+    } catch (error) {
+        logger.error("[Bridge] FAILURE:", { error: error.message });
+        await writeAuditLog({ uid, email, role, action: "BRIDGE_CALL", aiRunId, result: "error", errorMessage: error.message });
+        return { sintesi: "Analisi strategica temporaneamente non disponibile. Riprova tra un momento." };
     }
 });
 
