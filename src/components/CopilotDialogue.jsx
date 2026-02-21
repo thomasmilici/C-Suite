@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, BrainCircuit, Sparkles, Trash2 } from 'lucide-react';
+import { X, BrainCircuit, Sparkles, Trash2, PhoneOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { AudioWaveform } from './ui/AudioWaveform';
 
 /**
  * CopilotDialogue — Slide-in panel for Shadow CoS conversational output.
@@ -10,14 +11,30 @@ import ReactMarkdown from 'react-markdown';
  * Mobile:  bottom sheet (h-[70vh]), slides up from bottom.
  *
  * Props:
- *   messages   — array of { id, type: 'user'|'ai'|'system', text }
- *   isOpen     — boolean
- *   isThinking — boolean
- *   onClose    — fn
- *   onClear    — fn
+ *   messages    — array of { id, type: 'user'|'ai'|'system', text }
+ *   isOpen      — boolean
+ *   isThinking  — boolean
+ *   onClose     — fn
+ *   onClear     — fn
+ *   isLiveActive — boolean (Gemini Live session running)
+ *   transcript  — string (live transcript from useLiveSession)
+ *   volume      — number 0–1 (mic volume for waveform)
+ *   isSpeaking  — boolean (Gemini is producing audio)
+ *   onEndLive   — fn (stop the Live session)
  */
 
-export const CopilotDialogue = ({ messages = [], isOpen, isThinking, onClose, onClear }) => {
+export const CopilotDialogue = ({
+    messages = [],
+    isOpen,
+    isThinking,
+    onClose,
+    onClear,
+    isLiveActive = false,
+    transcript = '',
+    volume = 0,
+    isSpeaking = false,
+    onEndLive,
+}) => {
     const scrollRef = useRef(null);
 
     // Auto-scroll to bottom on new messages
@@ -25,7 +42,7 @@ export const CopilotDialogue = ({ messages = [], isOpen, isThinking, onClose, on
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages, isThinking]);
+    }, [messages, isThinking, transcript]);
 
     return (
         <AnimatePresence>
@@ -44,8 +61,6 @@ export const CopilotDialogue = ({ messages = [], isOpen, isThinking, onClose, on
                     {/* Panel */}
                     <motion.div
                         key="panel"
-                        // Desktop: slide from right
-                        // Mobile: slide from bottom (handled via className)
                         initial={{ x: '100%', opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: '100%', opacity: 0 }}
@@ -81,7 +96,7 @@ export const CopilotDialogue = ({ messages = [], isOpen, isThinking, onClose, on
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
-                                {messages.length > 1 && (
+                                {messages.length > 1 && !isLiveActive && (
                                     <button
                                         onClick={onClear}
                                         title="Cancella conversazione"
@@ -99,6 +114,34 @@ export const CopilotDialogue = ({ messages = [], isOpen, isThinking, onClose, on
                             </div>
                         </div>
 
+                        {/* Live Session Banner — shown when Live mode is active */}
+                        {isLiveActive && (
+                            <div className="flex-shrink-0 border-b border-red-500/20 bg-red-500/5 px-4 py-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                                        <span className="text-[10px] font-mono text-red-400 uppercase tracking-widest">
+                                            Live Session
+                                        </span>
+                                        <AudioWaveform volume={volume} isSpeaking={isSpeaking} />
+                                    </div>
+                                    <button
+                                        onClick={onEndLive}
+                                        title="Termina sessione Live"
+                                        className="flex items-center gap-1 text-zinc-600 hover:text-red-400 text-[10px] font-mono transition-colors"
+                                    >
+                                        <PhoneOff className="w-3 h-3" />
+                                        Fine
+                                    </button>
+                                </div>
+                                {transcript && (
+                                    <p className="text-[11px] text-zinc-500 italic mt-1 font-mono truncate">
+                                        {transcript}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
                         {/* Messages */}
                         <div
                             ref={scrollRef}
@@ -108,7 +151,10 @@ export const CopilotDialogue = ({ messages = [], isOpen, isThinking, onClose, on
                                 <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
                                     <Sparkles className="w-6 h-6 text-zinc-700" />
                                     <p className="text-xs text-zinc-600 font-mono">
-                                        Fai una domanda nella barra in alto
+                                        {isLiveActive
+                                            ? 'Parla liberamente — la trascrizione apparirà qui'
+                                            : 'Fai una domanda nella barra in alto'
+                                        }
                                     </p>
                                 </div>
                             )}
@@ -143,8 +189,8 @@ export const CopilotDialogue = ({ messages = [], isOpen, isThinking, onClose, on
                                 </div>
                             ))}
 
-                            {/* Thinking indicator */}
-                            {isThinking && (
+                            {/* Thinking indicator — text mode only, hidden during Live */}
+                            {isThinking && !isLiveActive && (
                                 <div className="flex justify-start">
                                     <div className="bg-indigo-900/10 border border-indigo-500/10 px-3.5 py-2.5 rounded-xl rounded-tl-sm flex items-center gap-2">
                                         <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-spin" />

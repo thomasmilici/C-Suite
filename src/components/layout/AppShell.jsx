@@ -6,8 +6,9 @@ import { AiFab } from '../ui/AiFab';
 import { NeuralInterface } from '../modules/Intelligence/NeuralInterface';
 import { BottomNav } from '../ui/BottomNav';
 import { AppCredits } from '../ui/AppCredits';
-import { CommandBar, speakText, stopSpeaking } from '../CommandBar';
+import { CommandBar } from '../CommandBar';
 import { CopilotDialogue } from '../CopilotDialogue';
+import { useLiveSession } from '../../hooks/useLiveSession';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
 import { getAuth } from 'firebase/auth';
@@ -42,8 +43,8 @@ export const AppShell = ({ children, user, isAdmin }) => {
     const [showLegacyAi, setShowLegacyAi] = useState(false);
     const [showCopilot, setShowCopilot] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
-    const [ttsEnabled, setTtsEnabled] = useState(false);
     const [messages, setMessages] = useState([]);
+    const [isLiveActive, setIsLiveActive] = useState(false);
     const location = useLocation();
 
     const showWorkspaceNav = !location.pathname.includes('/login') &&
@@ -53,6 +54,37 @@ export const AppShell = ({ children, user, isAdmin }) => {
     const contextMatch = location.pathname.match(/\/progetto\/([^/]+)/);
     const contextId = contextMatch ? contextMatch[1] : null;
 
+    // ── Live Session ──────────────────────────────────────────────────────────
+    const { isConnected, isSpeaking, transcript, volume, startSession, endSession } =
+        useLiveSession({
+            onTextMessage: useCallback((text) => {
+                // Append AI voice transcript as a message in the drawer
+                const aiMsg = { id: Date.now(), type: 'ai', text };
+                setMessages(prev => [...prev, aiMsg]);
+                setShowCopilot(true);
+            }, []),
+            onError: useCallback((msg) => {
+                // Show error as system message and close Live mode
+                const errMsg = { id: Date.now(), type: 'system', text: `⚠️ ${msg}` };
+                setMessages(prev => [...prev, errMsg]);
+                setIsLiveActive(false);
+            }, []),
+        });
+
+    const handleLiveToggle = useCallback(async () => {
+        if (isLiveActive) {
+            endSession();
+            setIsLiveActive(false);
+        } else {
+            // Open copilot drawer so user sees Live banner
+            setShowCopilot(true);
+            setIsLiveActive(true);
+            // startSession must be called from a user gesture (button click)
+            await startSession();
+        }
+    }, [isLiveActive, startSession, endSession]);
+
+    // ── Text Send (unchanged — askShadowCoS Cloud Function flow) ─────────────
     const handleSend = useCallback(async (text, ctxId) => {
         const auth = getAuth();
         const uid = auth.currentUser?.uid;
@@ -62,7 +94,6 @@ export const AppShell = ({ children, user, isAdmin }) => {
         setMessages(prev => [...prev, userMsg]);
         setShowCopilot(true);
         setIsThinking(true);
-        stopSpeaking();
 
         // Build history for API
         const storedHistory = uid ? await loadHistory(uid) : [];
@@ -78,24 +109,16 @@ export const AppShell = ({ children, user, isAdmin }) => {
             setMessages(prev => [...prev, aiMsg]);
 
             if (uid) await saveMessage(uid, { role: 'model', text: rawText });
-
-            // TTS: read response aloud if enabled
-            if (ttsEnabled) {
-                // Strip markdown for speech
-                const plain = rawText.replace(/#{1,6}\s/g, '').replace(/[*_`]/g, '');
-                speakText(plain, { lang: 'it-IT' });
-            }
         } catch (e) {
             const errMsg = { id: Date.now() + 1, type: 'ai', text: 'Neural link instabile. Riprova.' };
             setMessages(prev => [...prev, errMsg]);
         } finally {
             setIsThinking(false);
         }
-    }, [ttsEnabled, contextId]);
+    }, [contextId]);
 
     const handleClear = useCallback(() => {
         setMessages([]);
-        stopSpeaking();
     }, []);
 
     return (
@@ -109,8 +132,8 @@ export const AppShell = ({ children, user, isAdmin }) => {
                     <CommandBar
                         onSend={handleSend}
                         isProcessing={isThinking}
-                        ttsEnabled={ttsEnabled}
-                        onTtsToggle={() => { setTtsEnabled(v => !v); stopSpeaking(); }}
+                        isLiveActive={isLiveActive}
+                        onLiveToggle={handleLiveToggle}
                     />
                 }
             />
@@ -128,8 +151,16 @@ export const AppShell = ({ children, user, isAdmin }) => {
                 messages={messages}
                 isOpen={showCopilot}
                 isThinking={isThinking}
-                onClose={() => { setShowCopilot(false); stopSpeaking(); }}
+                onClose={() => setShowCopilot(false)}
                 onClear={handleClear}
+                isLiveActive={isLiveActive}
+                transcript={transcript}
+                volume={volume}
+                isSpeaking={isSpeaking}
+                onEndLive={() => {
+                    endSession();
+                    setIsLiveActive(false);
+                }}
             />
 
             {/* Legacy AI FAB (desktop) — opens NeuralInterface modal for advanced use */}
