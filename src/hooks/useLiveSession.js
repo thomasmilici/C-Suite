@@ -24,7 +24,7 @@ import { db } from '../firebase';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const LIVE_MODEL = 'gemini-live-2.0-flash-preview';
+const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 
 const SYSTEM_INSTRUCTION = `Sei l'assistente vocale operativo del "Shadow CoS" di Quinta OS — un analista strategico AI a supporto del Chief of Staff umano.
 
