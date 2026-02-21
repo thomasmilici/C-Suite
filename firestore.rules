@@ -93,6 +93,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── AI Insights (Human-in-the-Loop triage) ─────────────────────────────
+    // COS and Admin can read and write. Used for AI-generated intuitions
+    // that require human validation before being promoted to signals/decisions.
+    match /ai_insights/{insightId} {
+      allow read: if isCOSOrAdmin();
+      allow write: if isCOSOrAdmin();
+    }
+
     // ── Audit Logs ───────────────────────────────────────────────────────────
     // CLIENT CANNOT WRITE. Only Admin SDK (Cloud Functions) can write via bypass.
     // Admin can read for security review and analytics.
@@ -123,14 +131,6 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if isAuthenticated(); // consumeInvite incrementa useCount
       allow delete: if isAdmin();
-    }
-
-    // ── Strategic Themes ──────────────────────────────────────────────────────
-    // Write: Admin only (strategic direction is owner-level).
-    // Read: all authenticated users.
-    match /strategic_themes/{themeId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
     }
 
     // ── Stakeholders ──────────────────────────────────────────────────────────
