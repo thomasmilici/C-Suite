@@ -18,6 +18,7 @@ import { SignalInput } from '../components/modals/SignalInput';
 import { LogOut, Shield, ArrowLeft, Sparkles, Archive, Folder, Activity, Users, Clock } from 'lucide-react';
 import { AppCredits } from '../components/ui/AppCredits';
 import { GlassTile } from '../components/ui/GlassTile';
+import { AiPendingActionTile } from '../components/AiPendingActionTile';
 import { ContextHeader } from '../components/ui/ContextHeader';
 import { StatusPill } from '../components/ui/StatusPill';
 
@@ -125,6 +126,9 @@ export const ProjectDashboard = ({ user }) => {
 
         {/* Mobile-First Grid: 1 col (mobile) -> 2 col (md) -> 3 col (lg) -> 4 col (2xl) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-6">
+
+          {/* HITL: AI Pending Actions — scoped to this dossier */}
+          <AiPendingActionTile contextId={eventId} />
 
           {/* 1. Briefing Room (Daily Actions) - Priority 1 */}
           <GlassTile className="md:col-span-2 lg:col-span-2 min-h-[340px]" padding="p-0">

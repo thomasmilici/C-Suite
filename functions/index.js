@@ -175,6 +175,32 @@ const AI_ACTION_POLICY = {
     addMeeting: { minRole: "COS", collection: "meetings" },
 };
 
+// ── INTELLIGENCE ARCHIVE FETCHER (RAG) ───────────────────────────────────────
+// Retrieves recent reports from intelligence_archives to inject as RAG context.
+// Returns the most recent N reports, optionally scoped to a dossier.
+async function fetchArchiveContext(contextId = null, limit = 5) {
+    try {
+        const db = admin.firestore();
+        let q = db.collection("intelligence_archives").orderBy("timestamp", "desc").limit(limit);
+        // If inside a dossier, prefer dossier-scoped reports
+        // We fetch both global + scoped and merge, prioritising scoped ones
+        const snap = await q.get();
+        const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        if (contextId) {
+            // Put scoped reports first, then global ones
+            const scoped = all.filter(r => r.relatedDossierId === contextId);
+            const global = all.filter(r => !r.relatedDossierId);
+            return [...scoped, ...global].slice(0, limit);
+        }
+
+        return all;
+    } catch (err) {
+        logger.warn("[RAG] Failed to fetch intelligence_archives:", err.message);
+        return [];
+    }
+}
+
 // ── CONTEXT FETCHER ───────────────────────────────────────────────────────────
 async function fetchContext() {
     const db = admin.firestore();
@@ -404,8 +430,65 @@ const SHADOW_COS_TOOLS = [
     },
 ];
 
+// ── HITL: CREATE PENDING ACTION ───────────────────────────────────────────────
+// Instead of writing directly to production collections, AI proposals are stored
+// in `pending_ai_actions` with status "pending". The human approves or rejects
+// via the AiPendingActionTile frontend component.
+//
+// On "approved": the client calls the `executeApprovedAction` Cloud Function
+// which re-validates RBAC and actually writes to the target collection.
+// This guarantees EVERY write, even approved ones, passes RBAC + audit log.
+async function createPendingAction({ name, args, uid, email, role, aiRunId, sessionId, contextId = null }) {
+    const db = admin.firestore();
+
+    // Human-readable summaries per tool
+    const SUMMARIES = {
+        createRiskSignal: (a) => `Crea segnale [${(a.level || "?").toUpperCase()}]: "${(a.text || "").slice(0, 80)}"`,
+        createOKR:        (a) => `Crea OKR: "${(a.title || "").slice(0, 80)}"`,
+        updateDailyPulse: (a) => `Aggiorna Daily Pulse con ${(a.items || []).length} item`,
+        logDecision:      (a) => `Registra decisione: "${(a.decision || "").slice(0, 80)}"`,
+        updateDailyFocus: (a) => `Aggiorna Focus giornaliero con ${(a.items || []).length} item`,
+        addWeeklyOutcome: (a) => `Aggiunge outcome settimanale: "${(a.outcome || "").slice(0, 80)}"`,
+        addWeeklyStakeholderMove: (a) => `Mossa stakeholder: "${(a.stakeholder || "")}" — ${(a.concrete_move || "").slice(0, 60)}`,
+        createStrategicTheme: (a) => `Crea tema strategico: "${(a.title || "").slice(0, 80)}"`,
+        addStakeholder:   (a) => `Aggiungi stakeholder: "${(a.name || "")}" [${a.influence || "?"}/${a.alignment || "?"}]`,
+        addMeeting:       (a) => `Registra meeting: "${(a.title || "").slice(0, 80)}" — ${a.date || "data da definire"}`,
+    };
+
+    const summary = SUMMARIES[name] ? SUMMARIES[name](args) : `Esegui: ${name}`;
+
+    const ref = await db.collection("pending_ai_actions").add({
+        proposedAction: name,
+        payload: { toolName: name, args },
+        contextId: contextId || null,
+        status: "pending",
+        summary,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: uid,
+        createdByEmail: email || null,
+        aiRunId,
+        sessionId: sessionId || null,
+    });
+
+    await writeAuditLog({
+        uid, email, role,
+        action: `${name.toUpperCase()}_PENDING`,
+        aiRunId, sessionId,
+        toolName: name,
+        inputSummary: JSON.stringify(args).slice(0, 300),
+        targetDocRef: `pending_ai_actions/${ref.id}`,
+        diff: summary,
+        result: "dry_run",
+    });
+
+    logger.info(`[HITL] Pending action created: ${ref.id} | tool: ${name} | user: ${uid}`);
+    return { pendingId: ref.id, summary };
+}
+
 // ── SECURE TOOL EXECUTOR ──────────────────────────────────────────────────────
 // Every execution path writes to audit_logs. No exceptions.
+// NOTE: This function is now called ONLY by executeApprovedAction (after human approval).
+// The agentic loop in askShadowCoS routes through createPendingAction (HITL) instead.
 async function executeToolSecure(name, args, { uid, email, role, aiRunId, sessionId }) {
     const db = admin.firestore();
     const policy = AI_ACTION_POLICY[name];
@@ -691,7 +774,9 @@ exports.askShadowCoS = onCall({
     const uid = request.auth.uid;
     const email = request.auth.token?.email || null;
     const role = await getUserRole(uid);
-    const { query, history = [], sessionId = null } = request.data;
+    // contextId: optional dossier/event ID sent by the client when inside a Dossier view.
+    // When present, AI context is scoped to that dossier only (context isolation).
+    const { query, history = [], sessionId = null, contextId = null } = request.data;
     const aiRunId = `run_${Date.now()}_${uid.slice(0, 6)}`;
 
     logger.info(`Invoked by: ${email} (${role}) | sessionId: ${sessionId} | aiRunId: ${aiRunId}`);
@@ -714,57 +799,89 @@ exports.askShadowCoS = onCall({
         const apiKey = process.env.GOOGLE_API_KEY;
         if (!apiKey) throw new Error("GOOGLE_API_KEY not found in process.env");
 
-        const ctx = await fetchContext();
+        const [ctx, archiveReports] = await Promise.all([
+            fetchContext(),
+            fetchArchiveContext(contextId, 5),
+        ]);
         const { okrs, signals, pulse, events, decisions, reports, team } = ctx;
 
+        // ── Context isolation: filter data by dossier when contextId is set ──────
+        // When the user is inside a specific Dossier view, we show ONLY that dossier's
+        // data. This prevents cross-contamination between dossiers.
+        const isScoped = !!contextId;
+        const scopedEvents   = isScoped ? events.filter(e => e.id === contextId) : events;
+        const scopedSignals  = isScoped ? signals.filter(s => s.eventId === contextId) : signals;
+        const scopedDecisions = isScoped ? decisions.filter(d => d.eventId === contextId) : decisions;
+        const scopedReports  = isScoped ? reports.filter(r => r.eventId === contextId) : reports;
+        // OKRs, Pulse, Team are always global (not scoped to single dossiers)
+        const contextLabel = isScoped
+            ? `DOSSIER: "${scopedEvents[0]?.title || contextId}" (vista contestuale — dati filtrati per questo dossier)`
+            : "PORTFOLIO GLOBALE (tutti i dossier)";
+
         const systemInstruction = `Sei l'assistente operativo diretto del "Shadow CoS" di Quinta OS — un analista strategico AI che lavora a supporto del Chief of Staff umano, non al suo posto.
-Il tuo ruolo è amplificare la capacità decisionale del CoS: sintetizzi dati, esegui azioni operative, ricerchi informazioni esterne e offri analisi precise su richiesta.
+Il tuo ruolo è amplificare la capacità decisionale del CoS: sintetizzi dati, proponi azioni operative, ricerchi informazioni esterne e offri analisi precise su richiesta.
 
 ## STILE E TONO
 - Rispondi SEMPRE nella stessa lingua dell'utente (italiano o inglese).
-- Sii diretto, assertivo, orientato all'azione. Zero intro verbose, zero disclaimer inutili.
+- Sii diretto, assertivo, orientato all'azione. Zero intro verbose, zero disclaimer.
 - Non presentarti come CoS: sei il suo strumento più potente, non il suo sostituto.
 
 ## STRUMENTI A TUA DISPOSIZIONE
-Hai accesso a DUE categorie di strumenti. Scegli in autonomia quale usare (o combinali) in base alla richiesta:
+Hai DUE categorie di strumenti. Scegli in autonomia quale usare (o combinali):
 
 ### 1. RICERCA WEB (Google Search — nativo)
-Hai accesso diretto a Google Search per recuperare informazioni aggiornate dal web.
-USALO AUTOMATICAMENTE quando la richiesta riguarda:
-- Notizie recenti, trend di mercato, dati economici o settoriali
-- Analisi competitive o informazioni su aziende/persone esterne
-- Normative, ricerche accademiche, documentazione tecnica
-- Qualsiasi dato che potrebbe essere cambiato dopo il tuo training
-NON dichiarare mai di non poter navigare sul web: puoi farlo e DEVI farlo quando necessario.
+Hai accesso diretto a Google Search per dati aggiornati dal web.
+USALO AUTOMATICAMENTE per: notizie recenti, trend di mercato, analisi competitor, normative, documentazione tecnica, qualunque dato che potrebbe essere cambiato dopo il tuo training.
+NON dichiarare mai di non poter navigare: puoi farlo e DEVI farlo quando necessario.
 
-### 2. FUNZIONI OPERATIVE INTERNE (API Quinta OS)
-Usale quando l'utente vuole scrivere dati nel sistema operativo interno.
+### 2. AZIONI OPERATIVE INTERNE (Human-in-the-Loop)
+IMPORTANTE: quando usi una funzione operativa, NON scrivi direttamente nel database.
+La tua proposta viene inviata al CoS per approvazione. Lui vede un riepilogo e decide se eseguire o scartare.
+Dopo aver chiamato una funzione, comunica all'utente: "Ho proposto l'azione per la tua approvazione."
+
 RUOLO UTENTE CORRENTE: ${role}
-FUNZIONI DISPONIBILI PER QUESTO RUOLO:
-${hasMinRole(role, "COS") ? `- createRiskSignal: registra un segnale di rischio nel Risk Radar
-- updateDailyPulse: imposta le priorità operative del giorno
-- logDecision: registra una decisione nel Decision Log
-- updateDailyFocus: aggiorna i focus items del Daily Steering
-- addWeeklyOutcome: aggiunge un outcome al Weekly Steering
-- addWeeklyStakeholderMove: registra una mossa stakeholder settimanale
-- addStakeholder: crea un nuovo stakeholder nel registro
-- addMeeting: registra un meeting nel Meeting Log` : "- Nessuna funzione di scrittura disponibile per il tuo ruolo."}
-${hasMinRole(role, "ADMIN") ? "- createOKR: crea un nuovo obiettivo strategico\n- createStrategicTheme: crea un tema strategico di lungo periodo" : ""}
+FUNZIONI DISPONIBILI:
+${hasMinRole(role, "COS") ? `- createRiskSignal: propone un segnale di rischio nel Risk Radar
+- updateDailyPulse: propone aggiornamento al Daily Pulse
+- logDecision: propone registrazione di una decisione nel Decision Log
+- updateDailyFocus: propone aggiornamento focus items Daily Steering
+- addWeeklyOutcome: propone un outcome al Weekly Steering
+- addWeeklyStakeholderMove: propone una mossa stakeholder settimanale
+- addStakeholder: propone un nuovo stakeholder nel registro
+- addMeeting: propone un meeting nel Meeting Log` : "- Nessuna funzione operativa disponibile per il tuo ruolo."}
+${hasMinRole(role, "ADMIN") ? "- createOKR: propone un nuovo obiettivo strategico\n- createStrategicTheme: propone un tema strategico di lungo periodo" : ""}
+
+## LIMITI DI CAPACITÀ (IMPORTANTE)
+Se l'utente chiede un'azione che NON rientra nelle funzioni elencate sopra, rispondi esplicitamente:
+"Non posso eseguire questa azione. Le azioni che posso proporre sono: [elenca le funzioni disponibili per il ruolo corrente]. Posso aiutarti con una di queste, o con un'analisi via ricerca web?"
+NON inventare funzionalità inesistenti. NON promettere azioni che non puoi eseguire.
 
 ## LOGICA DI SCELTA STRUMENTO
-- Richiesta di analisi/ricerca esterna → usa Google Search
-- Richiesta di azione/scrittura interna → usa la funzione operativa appropriata
-- Richiesta mista (es. "ricerca X e poi crea un segnale") → usa entrambi in sequenza
-- Dopo ogni azione interna eseguita, conferma brevemente cosa hai scritto e dove.
+- Analisi/ricerca esterna → usa Google Search
+- Scrittura operativa interna → usa la funzione operativa (va in approvazione HITL)
+- Richiesta mista → usa entrambi in sequenza
+- Domanda sul contesto attuale → analizza i dati del contesto sotto e rispondi direttamente
 
-## CONTESTO OPERATIVO INTERNO
-📁 DOSSIER (${events.length}): ${events.length > 0 ? events.map(e => `"${e.title}" [${e.status}]`).join(", ") : "Nessuno"}
+## CONTESTO OPERATIVO — ${contextLabel}
+📁 DOSSIER (${scopedEvents.length}): ${scopedEvents.length > 0 ? scopedEvents.map(e => `"${e.title}" [${e.status}]`).join(", ") : "Nessuno"}
 🎯 OKR (${okrs.length}): ${okrs.length > 0 ? okrs.map(o => `"${o.title}" ${o.progress}%`).join(", ") : "Nessuno"}
-⚠️ SEGNALI (${signals.length}): ${signals.length > 0 ? signals.map(s => `[${s.level}] ${s.text}`).join(" | ") : "Nessuno"}
+⚠️ SEGNALI (${scopedSignals.length}): ${scopedSignals.length > 0 ? scopedSignals.map(s => `[${s.level}] ${s.text}`).join(" | ") : "Nessuno"}
 📋 PULSE: ${pulse.length > 0 ? pulse.map(p => p.text || p).join(", ") : "Nessun focus oggi"}
-🧠 DECISIONI (${decisions.length}): ${decisions.length > 0 ? decisions.map(d => `"${d.decision}"`).join(", ") : "Nessuna"}
-📊 REPORT (${reports.length}): ${reports.length > 0 ? reports.map(r => `"${r.topic}"`).join(", ") : "Nessuno"}
-👥 TEAM (${team.length}): ${team.length > 0 ? team.map(m => `${m.name} [${m.role}]`).join(", ") : "Nessuno"}`;
+🧠 DECISIONI (${scopedDecisions.length}): ${scopedDecisions.length > 0 ? scopedDecisions.map(d => `"${d.decision}"`).join(", ") : "Nessuna"}
+📊 REPORT (${scopedReports.length}): ${scopedReports.length > 0 ? scopedReports.map(r => `"${r.topic}"`).join(", ") : "Nessuno"}
+👥 TEAM (${team.length}): ${team.length > 0 ? team.map(m => `${m.name} [${m.role}]`).join(", ") : "Nessuno"}
+
+## [ARCHIVIO INTELLIGENCE DISPONIBILE]
+${archiveReports.length > 0
+    ? `Hai accesso a ${archiveReports.length} report di ricerca già eseguiti. DEVI consultarli quando proponi azioni strategiche o correttive. Non proporre soluzioni che contraddicono queste ricerche già effettuate. Giustifica sempre le tue decisioni citando i report pertinenti.
+
+${archiveReports.map((r, i) => {
+    // Inject first 800 chars of content to stay within token limits
+    const excerpt = (r.content || '').slice(0, 800).replace(/\n+/g, ' ');
+    const scoped = r.relatedDossierId === contextId ? ' [DOSSIER CORRENTE]' : '';
+    return `[REPORT ${i + 1}${scoped}] "${r.title}" (${r.reportType || 'strategico'})\n${excerpt}${r.content?.length > 800 ? '...' : ''}`;
+}).join('\n\n')}`
+    : 'Nessun report archiviato disponibile. Puoi usare Google Search per ricerche live o attendere che vengano generati report tramite Intelligence Reports.'}`;
 
         const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -775,7 +892,9 @@ ${hasMinRole(role, "ADMIN") ? "- createOKR: crea un nuovo obiettivo strategico\n
         const chatHistory = history.map(h => ({ role: h.role, parts: [{ text: h.text }] }));
         const chat = model.startChat({ history: chatHistory });
 
-        // ── AGENTIC EXECUTION LOOP ───────────────────────────────────────────
+        // ── AGENTIC EXECUTION LOOP (HITL) ───────────────────────────────────
+        // Tool calls do NOT execute directly. They create `pending_ai_actions`
+        // records for Human-in-the-Loop approval via AiPendingActionTile.
         let currentResult = await chat.sendMessage(query);
         let loopCount = 0;
         const MAX_LOOPS = 5;
@@ -791,16 +910,35 @@ ${hasMinRole(role, "ADMIN") ? "- createOKR: crea un nuovo obiettivo strategico\n
                 return { data: text };
             }
 
-            logger.info(`[LOOP ${loopCount}] Processing ${functionCalls.length} function call(s)`);
+            logger.info(`[LOOP ${loopCount}] Processing ${functionCalls.length} HITL function call(s)`);
             const functionResponseParts = [];
 
             for (const call of functionCalls) {
                 let toolResult;
                 try {
-                    toolResult = await executeToolSecure(call.name, call.args, { uid, email, role, aiRunId, sessionId });
-                    logger.info(`[TOOL SUCCESS] ${call.name}:`, toolResult);
+                    // HITL: validate RBAC first, then park in pending_ai_actions
+                    const policy = AI_ACTION_POLICY[call.name];
+                    if (!policy) throw new Error(`Tool '${call.name}' not in allowlist`);
+                    if (!hasMinRole(role, policy.minRole)) throw new Error(`Role '${role}' insufficient for '${call.name}'`);
+                    const schema = TOOL_SCHEMAS[call.name];
+                    if (schema) validate(call.name, call.args, schema);
+
+                    const pending = await createPendingAction({
+                        name: call.name,
+                        args: call.args,
+                        uid, email, role, aiRunId, sessionId,
+                        contextId: contextId || call.args?.eventId || null,
+                    });
+                    toolResult = {
+                        success: true,
+                        status: "pending_approval",
+                        pendingId: pending.pendingId,
+                        message: `Proposta inviata per approvazione: "${pending.summary}"`,
+                    };
+                    logger.info(`[HITL] Tool '${call.name}' parked as pending: ${pending.pendingId}`);
                 } catch (toolError) {
-                    logger.error(`[TOOL DENIED/ERROR] ${call.name}:`, toolError.message);
+                    logger.error(`[TOOL DENIED] ${call.name}:`, toolError.message);
+                    await writeAuditLog({ uid, email, role, action: `${call.name.toUpperCase()}_DENIED`, aiRunId, sessionId, toolName: call.name, inputSummary: JSON.stringify(call.args).slice(0, 200), result: "denied", errorMessage: toolError.message });
                     toolResult = { success: false, error: toolError.message };
                 }
                 functionResponseParts.push({ functionResponse: { name: call.name, response: toolResult } });
@@ -818,6 +956,120 @@ ${hasMinRole(role, "ADMIN") ? "- createOKR: crea un nuovo obiettivo strategico\n
         await writeAuditLog({ uid, email, role, action: "SHADOW_COS_CALL", aiRunId, sessionId, result: "error", errorMessage: error.message });
         return { data: "Shadow CoS Offline. Neural Link Severed.", debug: error.message };
     }
+});
+
+// ── EXECUTE APPROVED ACTION (HITL — Human approves pending_ai_actions) ───────
+// Called by the frontend AiPendingActionTile when the user clicks "✅ Esegui".
+// Re-validates RBAC server-side before executing — never trusts the client.
+exports.executeApprovedAction = onCall({
+    cors: true,
+    invoker: "public",
+}, async (request) => {
+
+    logger.info("--- EXECUTE APPROVED ACTION ---");
+
+    if (!request.auth) {
+        await writeAuditLog({ action: "EXECUTE_APPROVED_ACTION", result: "denied", errorMessage: "Unauthenticated" });
+        return { data: null, error: "Unauthenticated" };
+    }
+
+    const uid = request.auth.uid;
+    const email = request.auth.token?.email || null;
+    const role = await getUserRole(uid);
+    const { pendingId } = request.data;
+    const aiRunId = `exec_${Date.now()}_${uid.slice(0, 6)}`;
+
+    if (!pendingId) {
+        return { data: null, error: "Missing pendingId" };
+    }
+
+    if (!hasMinRole(role, "COS")) {
+        await writeAuditLog({ uid, email, role, action: "EXECUTE_APPROVED_ACTION", aiRunId, result: "denied", errorMessage: "Role insufficient" });
+        return { data: null, error: "Accesso negato: ruolo insufficiente." };
+    }
+
+    const db = admin.firestore();
+
+    try {
+        // 1. Fetch the pending action — verify it exists and is still pending
+        const ref = db.collection("pending_ai_actions").doc(pendingId);
+        const snap = await ref.get();
+
+        if (!snap.exists) {
+            return { data: null, error: "Pending action not found" };
+        }
+
+        const pending = snap.data();
+
+        if (pending.status !== "pending") {
+            return { data: null, error: `Action already ${pending.status}` };
+        }
+
+        const { toolName, args } = pending.payload;
+
+        // 2. Re-validate RBAC server-side (never trust the client)
+        const policy = AI_ACTION_POLICY[toolName];
+        if (!policy) throw new Error(`Tool '${toolName}' not in allowlist`);
+        if (!hasMinRole(role, policy.minRole)) throw new Error(`Role '${role}' insufficient for '${toolName}'`);
+        const schema = TOOL_SCHEMAS[toolName];
+        if (schema) validate(toolName, args, schema);
+
+        // 3. Execute the actual tool
+        const result = await executeToolSecure(toolName, args, { uid, email, role, aiRunId, sessionId: null });
+
+        // 4. Mark as approved
+        await ref.update({
+            status: "approved",
+            resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+            resolvedBy: uid,
+            executionResult: result,
+        });
+
+        logger.info(`[HITL APPROVED] ${toolName} executed. PendingId: ${pendingId}, NewDocId: ${result.id}`);
+        return { data: { success: true, message: result.message, id: result.id } };
+
+    } catch (error) {
+        logger.error("EXECUTE APPROVED ACTION FAILURE:", error.message);
+        // Mark as failed (keep status pending so user can retry or discard)
+        await writeAuditLog({ uid, email, role, action: "EXECUTE_APPROVED_ACTION", aiRunId, result: "error", errorMessage: error.message });
+        return { data: null, error: error.message };
+    }
+});
+
+// ── REJECT PENDING ACTION (HITL — Human discards) ─────────────────────────────
+// Called by the frontend when the user clicks "❌ Scarta".
+exports.rejectPendingAction = onCall({
+    cors: true,
+    invoker: "public",
+}, async (request) => {
+
+    if (!request.auth) return { data: null, error: "Unauthenticated" };
+
+    const uid = request.auth.uid;
+    const email = request.auth.token?.email || null;
+    const role = await getUserRole(uid);
+    const { pendingId } = request.data;
+
+    if (!hasMinRole(role, "COS")) return { data: null, error: "Accesso negato." };
+    if (!pendingId) return { data: null, error: "Missing pendingId" };
+
+    const db = admin.firestore();
+    const ref = db.collection("pending_ai_actions").doc(pendingId);
+    const snap = await ref.get();
+
+    if (!snap.exists || snap.data().status !== "pending") {
+        return { data: null, error: "Action not found or already resolved" };
+    }
+
+    await ref.update({
+        status: "rejected",
+        resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+        resolvedBy: uid,
+    });
+
+    await writeAuditLog({ uid, email, role, action: "REJECT_PENDING_ACTION", result: "success", targetDocRef: `pending_ai_actions/${pendingId}` });
+    logger.info(`[HITL REJECTED] PendingId: ${pendingId} by ${uid}`);
+    return { data: { success: true } };
 });
 
 // ── GENERATE DAILY BRIEFING ───────────────────────────────────────────────────
@@ -908,7 +1160,8 @@ exports.researchAndReport = onCall({
     const uid = request.auth.uid;
     const email = request.auth.token?.email || null;
     const role = await getUserRole(uid);
-    const { topic, reportType = "strategic", sessionId = null } = request.data;
+    // relatedDossierId: optional — if research is triggered from inside a Dossier view
+    const { topic, reportType = "strategic", sessionId = null, relatedDossierId = null } = request.data;
     const aiRunId = `report_${Date.now()}_${uid.slice(0, 6)}`;
 
     if (!topic) {
@@ -970,10 +1223,27 @@ Usa questo contesto per collegare le implicazioni del report agli obiettivi real
         const firstHeadingIdx = text.search(/^#{1,3}\s/m);
         if (firstHeadingIdx > 0) cleanContent = text.slice(firstHeadingIdx).trim();
 
+        // ── Persist to intelligence_archives (long-term memory) ──────────────
+        const db = admin.firestore();
+        const archiveRef = await db.collection("intelligence_archives").add({
+            title: topic,
+            content: cleanContent,
+            sourceUrls: sources.map(s => s.uri),
+            sources, // full {title, uri} array for display
+            reportType,
+            relatedDossierId: relatedDossierId || null,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            createdBy: uid,
+            createdByEmail: email || null,
+            aiRunId,
+        });
+
+        logger.info(`[ARCHIVE] Report saved to intelligence_archives/${archiveRef.id}`);
+
         await writeAuditLog({ uid, email, role, action: "RESEARCH_REPORT", aiRunId, sessionId, inputSummary: `topic:"${topic}", type:${reportType}`, result: "success" });
         logger.info(`Report generated. Length: ${cleanContent.length}, Sources: ${sources.length}`);
 
-        return { data: { content: cleanContent, sources, topic, reportType, generatedAt: new Date().toISOString() } };
+        return { data: { content: cleanContent, sources, topic, reportType, generatedAt: new Date().toISOString(), archiveId: archiveRef.id } };
 
     } catch (error) {
         logger.error("RESEARCH FAILURE:", { error: error.message, stack: error.stack });

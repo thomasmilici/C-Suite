@@ -101,6 +101,52 @@ service cloud.firestore {
       allow write: if isCOSOrAdmin();
     }
 
+    // ── Intelligence Archives (Long-term Research Memory) ────────────────────
+    // Stores completed web research reports for long-term retrieval and RAG.
+    // Read/write: COS and ADMIN only. Client can create (after research completes).
+    //
+    // Document structure:
+    //   title:            string   — report topic/title
+    //   content:          string   — full Markdown text of the report
+    //   sourceUrls:       string[] — URLs cited in the report
+    //   timestamp:        timestamp
+    //   relatedDossierId: string?  — dossier context if research was scoped
+    //   createdBy:        string   — UID of the user who triggered the research
+    //   reportType:       string   — "strategic" | "competitive" | "market"
+    match /intelligence_archives/{archiveId} {
+      allow read: if isCOSOrAdmin();
+      allow create: if isCOSOrAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Pending AI Actions (HITL — Human-in-the-Loop) ───────────────────────
+    // AI proposes actions but does NOT write directly to production collections.
+    // Instead it creates a record here with status "pending".
+    // The human CoS/Admin approves (→ executes) or rejects (→ discards).
+    //
+    // Document structure:
+    //   id:             auto-generated
+    //   proposedAction: string  — human-readable description of what the AI wants to do
+    //   payload:        object  — structured params for the action (tool name + args)
+    //   contextId:      string? — optional dossier/event ID this action relates to
+    //   status:         "pending" | "approved" | "rejected"
+    //   summary:        string  — short 1-line label shown in the HITL tile
+    //   createdAt:      timestamp
+    //   resolvedAt:     timestamp? — set when approved or rejected
+    //   resolvedBy:     string?   — UID of user who resolved
+    //
+    // Security: only COS and ADMIN can see and interact with AI proposals.
+    // Cloud Functions (Admin SDK) write the initial "pending" record.
+    // Client can update status to "approved" or "rejected" (resolution only).
+    match /pending_ai_actions/{actionId} {
+      allow read: if isCOSOrAdmin();
+      allow create: if false;                  // Only Cloud Functions (Admin SDK) create
+      allow update: if isCOSOrAdmin()          // Client can only resolve (approve/reject)
+        && request.resource.data.status in ["approved", "rejected"]
+        && resource.data.status == "pending";  // Can only transition from pending
+      allow delete: if isAdmin();              // Admin can purge old records
+    }
+
     // ── Audit Logs ───────────────────────────────────────────────────────────
     // CLIENT CANNOT WRITE. Only Admin SDK (Cloud Functions) can write via bypass.
     // Admin can read for security review and analytics.

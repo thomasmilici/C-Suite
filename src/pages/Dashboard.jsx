@@ -19,6 +19,7 @@ import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
 import { OKRManager } from '../components/modals/OKRManager';
 import { SignalInput } from '../components/modals/SignalInput';
 import { EventsList } from '../components/EventsList';
+import { AiPendingActionTile } from '../components/AiPendingActionTile';
 import { subscribeToActiveEvents } from '../services/eventService';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -118,6 +119,9 @@ export const Dashboard = ({ user }) => {
 
                 {/* Mobile-First Grid: 1 col (mobile) -> 2 col (md) -> 3 col (lg) -> 4 col (2xl) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-6">
+
+                    {/* HITL: AI Pending Actions — shown only when AI proposes actions */}
+                    <AiPendingActionTile />
 
                     {/* 1. Daily Briefing (Global) - Priority on Mobile */}
                     <GlassTile className="md:col-span-2 lg:col-span-2 min-h-[340px]" padding="p-0">

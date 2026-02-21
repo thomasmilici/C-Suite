@@ -3,7 +3,7 @@ import { Shield, User, LogOut } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 
-export const AppHeader = ({ user, isAdmin }) => {
+export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -13,16 +13,16 @@ export const AppHeader = ({ user, isAdmin }) => {
 
     return (
         <header className="sticky top-0 z-30 w-full border-b border-white/5 bg-[#050508]/80 backdrop-blur-xl">
-            <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center justify-between">
+            <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center gap-3">
 
                 {/* Brand / Status */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-shrink-0">
                     <img
                         src="/logo.png"
                         alt="C-Suite OS"
                         className="w-8 h-8 rounded-xl object-contain"
                     />
-                    <div>
+                    <div className="hidden sm:block">
                         <h1 className="text-sm font-mono font-bold tracking-tighter text-white leading-none">
                             C-Suite <span className="text-zinc-600">OS</span>
                         </h1>
@@ -35,8 +35,15 @@ export const AppHeader = ({ user, isAdmin }) => {
                     </div>
                 </div>
 
+                {/* CommandBar slot — center of header, takes remaining space */}
+                {commandBarSlot && (
+                    <div className="flex-1 flex items-center justify-center">
+                        {commandBarSlot}
+                    </div>
+                )}
+
                 {/* Right Actions */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-shrink-0 ml-auto">
                     {/* User Profile / Admin Badge */}
                     <div className="hidden sm:flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
                         <div className="w-5 h-5 rounded bg-indigo-500/20 flex items-center justify-center text-indigo-400">

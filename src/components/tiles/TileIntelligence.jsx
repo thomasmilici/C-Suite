@@ -495,17 +495,33 @@ export const TileIntelligence = ({ adminName, eventId }) => {
     const [showArchive, setShowArchive] = useState(false);
 
     useEffect(() => {
-        const base = collection(db, 'reports');
+        // Read from intelligence_archives (long-term memory, saved server-side)
+        const base = collection(db, 'intelligence_archives');
         const q = eventId
-            ? query(base, where('eventId', '==', eventId), orderBy('savedAt', 'desc'), limit(5))
-            : query(base, orderBy('savedAt', 'desc'), limit(5));
+            ? query(base, where('relatedDossierId', '==', eventId), orderBy('timestamp', 'desc'), limit(5))
+            : query(base, orderBy('timestamp', 'desc'), limit(5));
         const unsub = onSnapshot(q, (snap) => {
             const valid = snap.docs
                 .map(d => ({ id: d.id, ...d.data() }))
-                .filter(r => r.topic && r.content && r.content.length > 100);
+                .filter(r => r.title && r.content && r.content.length > 100)
+                // Normalize fields: intelligence_archives uses 'title' and 'timestamp',
+                // legacy reports used 'topic' and 'savedAt'. Map for compatibility.
+                .map(r => ({
+                    ...r,
+                    topic: r.topic || r.title,
+                    savedAt: r.savedAt || r.timestamp,
+                }));
             setRecentReports(valid);
         }, (err) => {
-            console.error('Firestore reports error:', err);
+            // Fallback to legacy 'reports' collection if permission denied (non-COS role)
+            console.warn('intelligence_archives read failed, falling back to reports:', err.code);
+            const fallback = collection(db, 'reports');
+            const fq = eventId
+                ? query(fallback, where('eventId', '==', eventId), orderBy('savedAt', 'desc'), limit(5))
+                : query(fallback, orderBy('savedAt', 'desc'), limit(5));
+            onSnapshot(fq, (snap) => {
+                setRecentReports(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.topic && r.content));
+            });
         });
         return () => unsub();
     }, [eventId]);
@@ -516,15 +532,16 @@ export const TileIntelligence = ({ adminName, eventId }) => {
         setError(null);
         try {
             const researchFn = httpsCallable(functions, 'researchAndReport');
-            const result = await researchFn({ topic: topic.trim(), reportType: type });
+            // Pass relatedDossierId so backend saves it scoped to the current dossier
+            const result = await researchFn({
+                topic: topic.trim(),
+                reportType: type,
+                ...(eventId && { relatedDossierId: eventId }),
+            });
             if (result.data?.data && result.data.data.content) {
                 const docNumber = generateDocNumber();
+                // Backend already saved to intelligence_archives — just show in UI
                 const reportData = { ...result.data.data, docNumber };
-                await addDoc(collection(db, 'reports'), {
-                    ...reportData,
-                    ...(eventId && { eventId }),
-                    savedAt: serverTimestamp(),
-                });
                 setActiveReport(reportData);
                 setCustomTopic('');
             } else {

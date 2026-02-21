@@ -38,7 +38,8 @@
       "Bash(cd:*)",
       "Bash(npm run lint)",
       "Bash(firebase firestore:rules:get:*)",
-      "Bash(firebase firestore:rules:*)"
+      "Bash(firebase firestore:rules:*)",
+      "Bash(npx wait-on:*)"
     ]
   }
 }

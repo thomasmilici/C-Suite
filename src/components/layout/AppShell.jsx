@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
 import { WorkspaceNav } from './WorkspaceNav';
@@ -6,40 +6,142 @@ import { AiFab } from '../ui/AiFab';
 import { NeuralInterface } from '../modules/Intelligence/NeuralInterface';
 import { BottomNav } from '../ui/BottomNav';
 import { AppCredits } from '../ui/AppCredits';
+import { CommandBar, speakText, stopSpeaking } from '../CommandBar';
+import { CopilotDialogue } from '../CopilotDialogue';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../firebase';
+import { getAuth } from 'firebase/auth';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
+
+const HISTORY_LIMIT = 20;
+
+async function loadHistory(uid) {
+    try {
+        const snap = await getDoc(doc(db, 'shadow_cos_prefs', uid));
+        if (snap.exists() && snap.data().history?.length > 0) return snap.data().history;
+    } catch (_) {}
+    return [];
+}
+
+async function saveMessage(uid, message) {
+    try {
+        const ref = doc(db, 'shadow_cos_prefs', uid);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+            await setDoc(ref, { history: [message], updatedAt: new Date() });
+        } else {
+            const existing = snap.data().history || [];
+            const updated = [...existing, message].slice(-HISTORY_LIMIT);
+            await updateDoc(ref, { history: updated, updatedAt: new Date() });
+        }
+    } catch (_) {}
+}
 
 export const AppShell = ({ children, user, isAdmin }) => {
-    const [showAi, setShowAi] = useState(false);
+    const [showLegacyAi, setShowLegacyAi] = useState(false);
+    const [showCopilot, setShowCopilot] = useState(false);
+    const [isThinking, setIsThinking] = useState(false);
+    const [ttsEnabled, setTtsEnabled] = useState(false);
+    const [messages, setMessages] = useState([]);
     const location = useLocation();
 
-    // Determine if we should show the WorkspaceNav (Level 2)
-    // Usually shown on dashboard and main feature pages
     const showWorkspaceNav = !location.pathname.includes('/login') &&
         !location.pathname.includes('/join');
+
+    // Resolve contextId from URL for dossier isolation
+    const contextMatch = location.pathname.match(/\/progetto\/([^/]+)/);
+    const contextId = contextMatch ? contextMatch[1] : null;
+
+    const handleSend = useCallback(async (text, ctxId) => {
+        const auth = getAuth();
+        const uid = auth.currentUser?.uid;
+
+        // Add user message and open dialogue
+        const userMsg = { id: Date.now(), type: 'user', text };
+        setMessages(prev => [...prev, userMsg]);
+        setShowCopilot(true);
+        setIsThinking(true);
+        stopSpeaking();
+
+        // Build history for API
+        const storedHistory = uid ? await loadHistory(uid) : [];
+        const history = storedHistory.map(h => ({ role: h.role, text: h.text }));
+        if (uid) await saveMessage(uid, { role: 'user', text });
+
+        try {
+            const askShadow = httpsCallable(functions, 'askShadowCoS');
+            const result = await askShadow({ query: text, history, contextId: ctxId || null });
+            const rawText = result.data?.data || 'Analisi non disponibile.';
+
+            const aiMsg = { id: Date.now() + 1, type: 'ai', text: rawText };
+            setMessages(prev => [...prev, aiMsg]);
+
+            if (uid) await saveMessage(uid, { role: 'model', text: rawText });
+
+            // TTS: read response aloud if enabled
+            if (ttsEnabled) {
+                // Strip markdown for speech
+                const plain = rawText.replace(/#{1,6}\s/g, '').replace(/[*_`]/g, '');
+                speakText(plain, { lang: 'it-IT' });
+            }
+        } catch (e) {
+            const errMsg = { id: Date.now() + 1, type: 'ai', text: 'Neural link instabile. Riprova.' };
+            setMessages(prev => [...prev, errMsg]);
+        } finally {
+            setIsThinking(false);
+        }
+    }, [ttsEnabled, contextId]);
+
+    const handleClear = useCallback(() => {
+        setMessages([]);
+        stopSpeaking();
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#050508] text-gray-200 font-sans selection:bg-zinc-800 relative">
 
-            {/* Level 1 Header: Global */}
-            <AppHeader user={user} isAdmin={isAdmin} />
+            {/* Level 1 Header: Global — includes CommandBar */}
+            <AppHeader
+                user={user}
+                isAdmin={isAdmin}
+                commandBarSlot={
+                    <CommandBar
+                        onSend={handleSend}
+                        isProcessing={isThinking}
+                        ttsEnabled={ttsEnabled}
+                        onTtsToggle={() => { setTtsEnabled(v => !v); stopSpeaking(); }}
+                    />
+                }
+            />
 
             {/* Level 2 Header: Context Navigation */}
             {showWorkspaceNav && <WorkspaceNav />}
 
-            {/* Main Content Area */}
-            <div className="relative z-10">
+            {/* Main Content Area — shifted right when copilot open on desktop */}
+            <div className={`relative z-10 transition-all duration-300 ${showCopilot ? 'md:mr-[420px]' : ''}`}>
                 {children}
             </div>
 
-            {/* AI Launcher (Desktop) - Keyline Anchored */}
-            <AiFab
-                onClick={() => setShowAi(true)}
-                isProcessing={false} // Connect to actual AI state if available
+            {/* CopilotDialogue — slide-in drawer */}
+            <CopilotDialogue
+                messages={messages}
+                isOpen={showCopilot}
+                isThinking={isThinking}
+                onClose={() => { setShowCopilot(false); stopSpeaking(); }}
+                onClear={handleClear}
             />
 
-            {/* AI Interface Modal ( Global ) */}
-            {showAi && (
+            {/* Legacy AI FAB (desktop) — opens NeuralInterface modal for advanced use */}
+            <AiFab
+                onClick={() => setShowLegacyAi(true)}
+                isProcessing={isThinking}
+            />
+
+            {/* Legacy NeuralInterface Modal */}
+            {showLegacyAi && (
                 <NeuralInterface
-                    onClose={() => setShowAi(false)}
+                    onClose={() => setShowLegacyAi(false)}
                     isAdmin={isAdmin}
                     initiallyOpen={true}
                 />
@@ -47,7 +149,7 @@ export const AppShell = ({ children, user, isAdmin }) => {
 
             {/* Mobile Bottom Navigation */}
             <div className="md:hidden">
-                <BottomNav onAiClick={() => setShowAi(true)} />
+                <BottomNav onAiClick={() => setShowCopilot(v => !v)} />
             </div>
 
             {/* Footer Credits (Global) */}
