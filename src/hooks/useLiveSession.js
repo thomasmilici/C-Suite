@@ -115,7 +115,7 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
             setup: {
                 model: LIVE_MODEL,
                 generationConfig: {
-                    responseModalities: ["AUDIO", "TEXT"]
+                    responseModalities: ["AUDIO"]
                 },
                 systemInstruction: {
                     parts: [{ text: SYSTEM_INSTRUCTION_VOCE }]
