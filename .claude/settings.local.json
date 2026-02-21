@@ -39,7 +39,12 @@
       "Bash(npm run lint)",
       "Bash(firebase firestore:rules:get:*)",
       "Bash(firebase firestore:rules:*)",
-      "Bash(npx wait-on:*)"
+      "Bash(npx wait-on:*)",
+      "Bash(npx firebase deploy --only functions:askShadowCoS)",
+      "Bash(npx firebase deploy:*)",
+      "Bash(ls \"C:\\\\Users\\\\thoma\\\\Documents\\\\COS App\\\\node_modules\\\\firebase\\\\ai\"\" 2>/dev/null || dir \"C:UsersthomaDocumentsCOS Appnode_modulesfirebaseai\"\")",
+      "Bash(ls \"C:\\\\Users\\\\thoma\\\\Documents\\\\COS App\\\\node_modules\\\\@firebase\\\\ai\\\\dist\"\" 2>/dev/null || dir \"C:UsersthomaDocumentsCOS Appnode_modules@firebaseaidist\"\")",
+      "WebFetch(domain:firebase.google.com)"
     ]
   }
 }

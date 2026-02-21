@@ -3,7 +3,7 @@
  *
  * Dual-Model Bridge Architecture:
  * ┌─────────────────────────────────────────────────────────────────┐
- * │  LA VOCE  — gemini-2.5-flash-native-audio-preview-12-2025      │
+ * │  LA VOCE  — gemini-2.5-flash        (Native WebSocket)         │
  * │  Real-time WebSocket audio. Fast, conversational.              │
  * │  Per domande semplici risponde direttamente.                   │
  * │  Per domande complesse → chiama delegaRagionamentoStrategico() │
@@ -15,30 +15,16 @@
  * │  Deep reasoning, Google Search, full Firestore context,        │
  * │  HITL tools. Returns a terse voice-ready synthesis.            │
  * └─────────────────────────────────────────────────────────────────┘
- *
- * SDK internals:
- * - model.connect()          → LiveSession (WebSocket)
- * - startAudioConversation() → AudioWorklet 16kHz mic + 24kHz PCM playback
- * - Fan-out proxy            → same serverMessages fed to audio runner AND
- *                              transcript extractor loop
  */
 
-import { useRef, useState, useCallback } from 'react';
-import { getAI, GoogleAIBackend, getLiveGenerativeModel, startAudioConversation } from 'firebase/ai';
-import { getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
 
 // ── Constants ────────────────────────────────────────────────────────────────
+const LIVE_MODEL = 'models/gemini-2.0-flash-exp';
 
-// La Voce: fast real-time audio model
-// Primary: latest native audio preview. Fallback: September 2025 preview.
-const LIVE_MODEL_PRIMARY  = 'gemini-2.5-flash-native-audio-preview-12-2025';
-const LIVE_MODEL_FALLBACK = 'gemini-2.5-flash-native-audio-preview-09-2025';
-const LIVE_MODEL = LIVE_MODEL_PRIMARY;
-
-// System prompt for La Voce: minimal intelligence, maximum delegation
+// System prompt for La Voce
 const SYSTEM_INSTRUCTION_VOCE = `Sei "La Voce" — l'interfaccia vocale veloce del Shadow CoS di Quinta OS.
 Il tuo unico compito è essere un intermediario vocale naturale tra l'utente e il sistema.
 
@@ -61,87 +47,37 @@ Solo per scambi puramente conversazionali: "ciao", "grazie", "arrivederci", "com
 - Quando ricevi la sintesi dal tool, leggila ad alta voce in modo naturale e fluido.
 - Zero markdown, zero elenchi — solo parlato naturale.`;
 
-// Tool declaration: La Voce can call this to delegate to Gemini 3 Pro
-const BRIDGE_TOOL = {
-    functionDeclarations: [{
-        name: 'delegaRagionamentoStrategico',
-        description: 'Delega una domanda operativa o strategica complessa al motore di ragionamento avanzato (Gemini 3 Pro) che ha accesso al database completo, Google Search e agli strumenti HITL. Usa questo tool per QUALSIASI domanda che richieda analisi, dati o ragionamento — non rispondere mai da solo a queste domande.',
-        parameters: {
-            type: 'object',
-            properties: {
-                query: {
-                    type: 'string',
-                    description: 'La domanda o richiesta esatta dell\'utente, da passare al motore di ragionamento avanzato.',
-                },
-            },
-            required: ['query'],
-        },
-    }],
-};
+// ── WebSocket Utilities ──────────────────────────────────────────────────────
 
-// ── Fan-out proxy for serverMessages ─────────────────────────────────────────
-// The audio runner from startAudioConversation() exclusively consumes the
-// session's serverMessages async generator. We proxy it to broadcast to two
-// independent consumers: the audio runner + our transcript/tool-call observer.
-
-function createFanoutProxy(originalGenerator) {
-    const queues = [[], []];
-    const resolvers = [null, null];
-    let done = false;
-
-    (async () => {
-        try {
-            for await (const value of originalGenerator) {
-                for (let i = 0; i < 2; i++) {
-                    queues[i].push({ value, done: false });
-                    if (resolvers[i]) { const r = resolvers[i]; resolvers[i] = null; r(); }
-                }
-            }
-        } catch (_) {
-            // generator closed
-        } finally {
-            done = true;
-            for (let i = 0; i < 2; i++) {
-                queues[i].push({ value: undefined, done: true });
-                if (resolvers[i]) { const r = resolvers[i]; resolvers[i] = null; r(); }
-            }
-        }
-    })();
-
-    function makeConsumer(idx) {
-        return {
-            [Symbol.asyncIterator]() { return this; },
-            async next() {
-                while (queues[idx].length === 0 && !done) {
-                    await new Promise(r => { resolvers[idx] = r; });
-                }
-                return queues[idx].length > 0 ? queues[idx].shift() : { value: undefined, done: true };
-            },
-        };
+// Convert PCM Float32 to Int16
+function floatTo16BitPCM(input) {
+    const output = new Int16Array(input.length);
+    for (let i = 0; i < input.length; i++) {
+        const s = Math.max(-1, Math.min(1, input[i]));
+        output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
     }
-
-    return [makeConsumer(0), makeConsumer(1)];
+    return output;
 }
 
-// ── Volume analyzer ───────────────────────────────────────────────────────────
+// Convert Int16 PCM (from base64) to Float32
+function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
 
-function createVolumeAnalyzer(audioContext, sourceNode, onVolume) {
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    sourceNode.connect(analyser);
-    let rafId = null;
-    const tick = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-        onVolume(avg / 255);
-        rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => {
-        if (rafId) cancelAnimationFrame(rafId);
-        analyser.disconnect();
-    };
+// Encode to base64
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -152,9 +88,14 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
     const [transcript, setTranscript] = useState('');
     const [volume, setVolume] = useState(0);
 
-    const sessionRef = useRef(null);
-    const controllerRef = useRef(null);
-    const stopVolumeRef = useRef(null);
+    const wsRef = useRef(null);
+    const streamRef = useRef(null);
+    const audioContextRef = useRef(null);
+    const processorRef = useRef(null);
+    const analyserRef = useRef(null);
+    const nextPlayTimeRef = useRef(0);
+    const reconnectAttemptsRef = useRef(0);
+    const MAX_RECONNECT = 2;
 
     // Bridge call to Il Cervello (Gemini 3 Pro via Cloud Function)
     const callBridge = useCallback(async (query, contextId = null) => {
@@ -168,141 +109,277 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
         }
     }, []);
 
+    // ── sendSetup ────────────────────────────────────────────────────────────
+    const sendSetup = (ws) => {
+        const setupMessage = {
+            setup: {
+                model: LIVE_MODEL,
+                generationConfig: {
+                    responseModalities: ["AUDIO", "TEXT"]
+                },
+                systemInstruction: {
+                    parts: [{ text: SYSTEM_INSTRUCTION_VOCE }]
+                },
+                tools: [{
+                    functionDeclarations: [{
+                        name: 'delegaRagionamentoStrategico',
+                        description: 'Delega una domanda operativa...',
+                        parameters: {
+                            type: 'OBJECT',
+                            properties: {
+                                query: { type: 'STRING' }
+                            },
+                            required: ['query']
+                        }
+                    }]
+                }]
+            }
+        };
+        ws.send(JSON.stringify(setupMessage));
+    };
+
     // ── startSession ──────────────────────────────────────────────────────────
     const startSession = useCallback(async (contextId = null) => {
+        console.log('[useLiveSession] Starting native WebSocket session...');
         try {
-            const app = getApp();
-            const ai = getAI(app, { backend: new GoogleAIBackend() });
+            // 1. Get API Key
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!apiKey) {
+                onError?.('API Key non configurata (VITE_GEMINI_API_KEY). Controlla il file .env.');
+                return;
+            }
 
-            // Build La Voce model with Bridge tool declaration
-            const model = getLiveGenerativeModel(ai, {
-                model: LIVE_MODEL,
-                systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION_VOCE }] },
-                tools: [BRIDGE_TOOL],
-                generationConfig: {
-                    responseModalities: ['AUDIO'],
-                    inputAudioTranscription: {},
-                    outputAudioTranscription: {},
-                },
-            });
+            // 2. Setup Audio Recording (16kHz PCM)
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 16000 } });
+            streamRef.current = stream;
 
-            const session = await model.connect();
-            sessionRef.current = session;
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            audioContextRef.current = audioCtx;
 
-            // Fan-out: audio runner gets consumer[0], our loop gets consumer[1]
-            const [audioConsumer, observerConsumer] = createFanoutProxy(session.serverMessages);
-            session.serverMessages = audioConsumer;
+            const source = audioCtx.createMediaStreamSource(stream);
 
-            // Observer loop: extracts transcripts from observerConsumer
-            // (audio runner ignores text parts; we capture them here)
-            (async () => {
-                try {
-                    for await (const message of observerConsumer) {
-                        if (!message || typeof message !== 'object') continue;
-                        if ('serverContent' in message) {
-                            const sc = message.serverContent;
-                            if (sc?.inputTranscription?.text) setTranscript(sc.inputTranscription.text);
-                            if (sc?.outputTranscription?.text) {
-                                setTranscript(sc.outputTranscription.text);
-                                onTextMessage?.(sc.outputTranscription.text);
+            // Setup volume analyzer
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            analyserRef.current = analyser;
+
+            // Setup processor for capturing PCM
+            const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+            source.connect(processor);
+            processor.connect(audioCtx.destination);
+            processorRef.current = processor;
+
+            // Volume meter loop
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            const updateVolume = () => {
+                if (!analyserRef.current) return;
+                analyser.getByteFrequencyData(dataArray);
+                const avg = dataArray.reduce((S, v) => S + v, 0) / dataArray.length;
+                setVolume(avg / 255);
+                requestAnimationFrame(updateVolume);
+            };
+            updateVolume();
+
+            // 3. Connect WebSocket
+            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+            const ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
+
+            ws.onopen = () => {
+                console.log('[useLiveSession] WebSocket connected');
+                setIsConnected(true);
+                reconnectAttemptsRef.current = 0;
+                sendSetup(ws);
+
+                // Start sending audio chunks
+                processor.onaudioprocess = (e) => {
+                    if (ws.readyState === window.WebSocket.OPEN) {
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        const pcm16 = floatTo16BitPCM(inputData);
+                        const base64Audio = arrayBufferToBase64(pcm16.buffer);
+                        // Send realtime input
+                        const msg = {
+                            realtimeInput: {
+                                mediaChunks: [{
+                                    mimeType: "audio/pcm;rate=16000",
+                                    data: base64Audio
+                                }]
                             }
-                            if (sc?.modelTurn?.parts?.length > 0) setIsSpeaking(true);
-                            if (sc?.turnComplete) setIsSpeaking(false);
-                        }
+                        };
+                        ws.send(JSON.stringify(msg));
                     }
-                } catch (_) {}
-            })();
-
-            // Temporarily intercept getUserMedia to attach our volume analyzer
-            const origGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-            navigator.mediaDevices.getUserMedia = async (constraints) => {
-                const stream = await origGetUserMedia(constraints);
-                navigator.mediaDevices.getUserMedia = origGetUserMedia;
-                try {
-                    const volCtx = new AudioContext();
-                    const volSource = volCtx.createMediaStreamSource(stream);
-                    const stopVol = createVolumeAnalyzer(volCtx, volSource, setVolume);
-                    stopVolumeRef.current = () => {
-                        stopVol();
-                        volSource.disconnect();
-                        void volCtx.close();
-                    };
-                } catch (_) {}
-                return stream;
+                };
             };
 
-            // Start audio conversation with Bridge function calling handler
-            const controller = await startAudioConversation(session, {
-                functionCallingHandler: async (functionCalls) => {
-                    if (!functionCalls?.length) return {};
-                    const call = functionCalls[0];
+            ws.onmessage = async (event) => {
+                let data;
+                if (event.data instanceof Blob) {
+                    const text = await event.data.text();
+                    data = JSON.parse(text);
+                } else {
+                    data = JSON.parse(event.data);
+                }
 
-                    if (call.name === 'delegaRagionamentoStrategico') {
-                        const query = call.args?.query || '';
-                        console.log(`[useLiveSession] Bridge: delegating to Gemini 3 Pro — "${query.slice(0, 80)}"`);
+                // Handle server content
+                if (data.serverContent) {
+                    const sc = data.serverContent;
 
-                        // Call Il Cervello via Cloud Function
-                        const sintesi = await callBridge(query, contextId);
-
-                        // Also surface the synthesis as a text message in the drawer
-                        onTextMessage?.(sintesi);
-
-                        // Return the synthesis to La Voce so it reads it aloud
-                        return {
-                            id: call.id,
-                            name: call.name,
-                            response: { sintesi },
-                        };
+                    // Turn completion
+                    if (sc.turnComplete) {
+                        setIsSpeaking(false);
                     }
 
-                    // Unknown tool — return empty response to avoid stalling session
-                    console.warn(`[useLiveSession] Unknown tool call: ${call.name}`);
-                    return {
-                        id: call.id,
-                        name: call.name,
-                        response: { output: 'Tool non riconosciuto.' },
-                    };
-                },
-            });
+                    // Content parts
+                    if (sc.modelTurn && sc.modelTurn.parts) {
+                        for (const part of sc.modelTurn.parts) {
 
-            controllerRef.current = controller;
-            setIsConnected(true);
-            setTranscript('');
+                            // Audio Response (Playback) - Gemini plays back at 24kHz
+                            if (part.inlineData && part.inlineData.data) {
+                                setIsSpeaking(true);
+                                playAudio(part.inlineData.data);
+                            }
+
+                            // Text Response (Transcript)
+                            if (part.text) {
+                                setTranscript(part.text);
+                                onTextMessage?.(part.text);
+                            }
+
+                            // Tool Call (The Bridge)
+                            if (part.functionCall) {
+                                const call = part.functionCall;
+                                if (call.name === 'delegaRagionamentoStrategico') {
+                                    setIsSpeaking(false);
+                                    const query = call.args?.query || '';
+                                    console.log(`[useLiveSession] Bridge: delegating to Gemini 3 Pro — "${query.slice(0, 80)}"`);
+
+                                    const sintesi = await callBridge(query, contextId);
+                                    onTextMessage?.(sintesi);
+
+                                    // Return tool response
+                                    const toolResponse = {
+                                        toolResponse: {
+                                            functionResponses: [{
+                                                id: call.id || "1",
+                                                name: call.name,
+                                                response: { sintesi }
+                                            }]
+                                        }
+                                    };
+                                    if (ws.readyState === window.WebSocket.OPEN) {
+                                        ws.send(JSON.stringify(toolResponse));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            ws.onclose = (event) => {
+                console.log('[useLiveSession] WebSocket closed:', event.code, event.reason);
+                if (event.code !== 1000 && reconnectAttemptsRef.current < MAX_RECONNECT) {
+                    reconnectAttemptsRef.current += 1;
+                    console.log(`[useLiveSession] Reconnecting... Attempt ${reconnectAttemptsRef.current}`);
+                    // Clean reconnect logic
+                    _cleanup(false);
+                    setTimeout(() => startSession(contextId), 1000);
+                } else {
+                    _cleanup(true);
+                    if (event.code !== 1000) {
+                        onError?.('Connessione WebSocket persa. Riprova più tardi.');
+                    }
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('[useLiveSession] WebSocket error:', error);
+            };
 
         } catch (e) {
-            const msg = e?.message || '';
-            if (e?.name === 'NotAllowedError') {
-                onError?.('Permesso microfono negato. Concedi l\'accesso nelle impostazioni del browser.');
-            } else if (e?.name === 'NotFoundError') {
-                onError?.('Nessun microfono trovato. Connetti un dispositivo audio.');
-            } else if (msg.includes('not found') || msg.includes('entity') || msg.includes('ENTITY')) {
-                onError?.('API Firebase AI Logic non abilitata. Vai su console.firebase.google.com → progetto → Build → AI Logic e attiva il servizio.');
-            } else if (msg.includes('handshake') || msg.includes('setupComplete')) {
-                onError?.('Connessione Live fallita. Verifica che Firebase AI Logic API sia abilitata nel tuo progetto Google Cloud.');
-            } else {
-                onError?.(`Errore Live: ${msg || 'Connessione fallita'}`);
-            }
             console.error('[useLiveSession] startSession error:', e);
-            _cleanup();
+            onError?.(e.message || 'Errore durante l\'avvio della sessione.');
+            _cleanup(true);
         }
-    }, [onTextMessage, onError, callBridge]);
+    }, [callBridge, onTextMessage, onError]);
+
+    // ── Audio Playback (24kHz PCM from Gemini) ───────────────────────────────
+    const playAudio = (base64Data) => {
+        if (!audioContextRef.current) return;
+        const ctx = audioContextRef.current;
+
+        try {
+            const arrayBuffer = base64ToArrayBuffer(base64Data);
+            const int16 = new Int16Array(arrayBuffer);
+            const float32 = new Float32Array(int16.length);
+            for (let i = 0; i < int16.length; i++) {
+                float32[i] = int16[i] / 32768.0;
+            }
+
+            const audioBuffer = ctx.createBuffer(1, float32.length, 24000);
+            audioBuffer.getChannelData(0).set(float32);
+
+            const source = ctx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(ctx.destination);
+
+            // Scheduling sequentially
+            if (nextPlayTimeRef.current < ctx.currentTime) {
+                nextPlayTimeRef.current = ctx.currentTime;
+            }
+            source.start(nextPlayTimeRef.current);
+            nextPlayTimeRef.current += audioBuffer.duration;
+        } catch (e) {
+            console.error('[useLiveSession] Audio playback error:', e);
+        }
+    };
+
 
     // ── endSession ────────────────────────────────────────────────────────────
     const endSession = useCallback(() => {
-        _cleanup();
+        console.log('[useLiveSession] User ended session');
+        reconnectAttemptsRef.current = MAX_RECONNECT; // prevent reconnect
+        _cleanup(true);
     }, []);
 
-    function _cleanup() {
-        try { controllerRef.current?.stop?.(); } catch (_) {}
-        controllerRef.current = null;
-        try { stopVolumeRef.current?.(); } catch (_) {}
-        stopVolumeRef.current = null;
-        try { sessionRef.current?.close?.(); } catch (_) {}
-        sessionRef.current = null;
-        setIsConnected(false);
-        setIsSpeaking(false);
-        setVolume(0);
-        setTranscript('');
+    // ── cleanup ───────────────────────────────────────────────────────────────
+    function _cleanup(fullReset = true) {
+        if (processorRef.current) {
+            processorRef.current.disconnect();
+            processorRef.current.onaudioprocess = null;
+            processorRef.current = null;
+        }
+        if (analyserRef.current) {
+            analyserRef.current.disconnect();
+            analyserRef.current = null;
+        }
+        if (audioContextRef.current) {
+            void audioContextRef.current.close();
+            audioContextRef.current = null;
+        }
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        if (wsRef.current) {
+            // Unbind handlers so we don't trigger anything on close if we're cleaning up
+            wsRef.current.onclose = null;
+            wsRef.current.onerror = null;
+            wsRef.current.onmessage = null;
+            wsRef.current.onopen = null;
+            wsRef.current.close(1000);
+            wsRef.current = null;
+        }
+
+        if (fullReset) {
+            setIsConnected(false);
+            setIsSpeaking(false);
+            setVolume(0);
+            setTranscript('');
+            nextPlayTimeRef.current = 0;
+            reconnectAttemptsRef.current = 0;
+        }
     }
 
     return { isConnected, isSpeaking, transcript, volume, startSession, endSession };
