@@ -51,11 +51,11 @@ export const CopilotDialogue = ({ messages = [], isOpen, isThinking, onClose, on
                         exit={{ x: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 28, stiffness: 280 }}
                         className={`
-                            fixed z-50 flex flex-col
+                            fixed z-50 flex flex-col overflow-hidden
                             bg-zinc-950 border-l border-white/[0.07]
                             shadow-2xl shadow-black/60
                             /* Desktop */
-                            right-0 top-[57px] bottom-0 w-[420px]
+                            right-0 top-14 bottom-0 w-[420px]
                             /* Mobile override */
                             max-md:w-full max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:h-[72vh]
                             max-md:border-l-0 max-md:border-t max-md:rounded-t-2xl

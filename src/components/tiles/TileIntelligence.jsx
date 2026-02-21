@@ -322,16 +322,30 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
     };
 
     useEffect(() => {
-        const q = query(collection(db, 'reports'), orderBy('savedAt', 'desc'));
+        // Read from intelligence_archives (long-term memory, saved server-side)
+        const q = query(collection(db, 'intelligence_archives'), orderBy('timestamp', 'desc'));
         const unsub = onSnapshot(q, (snap) => {
             const valid = snap.docs
                 .map(d => ({ id: d.id, ...d.data() }))
-                .filter(r => r.topic && r.content && r.content.length > 50);
+                .filter(r => (r.title || r.topic) && r.content && r.content.length > 50)
+                .map(r => ({
+                    ...r,
+                    topic: r.topic || r.title,
+                    savedAt: r.savedAt || r.timestamp,
+                }));
             setAllReports(valid);
             setLoading(false);
         }, (err) => {
-            console.error('Archive load error:', err);
-            setLoading(false);
+            // Fallback to legacy reports collection
+            console.warn('intelligence_archives read failed in archive modal, falling back:', err.code);
+            const q2 = query(collection(db, 'reports'), orderBy('savedAt', 'desc'));
+            onSnapshot(q2, (snap) => {
+                const valid = snap.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .filter(r => r.topic && r.content && r.content.length > 50);
+                setAllReports(valid);
+                setLoading(false);
+            }, () => setLoading(false));
         });
         return () => unsub();
     }, []);
@@ -339,7 +353,7 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
     const handleDelete = async (reportId) => {
         setDeletingId(reportId);
         try {
-            await deleteDoc(doc(db, 'reports', reportId));
+            await deleteDoc(doc(db, 'intelligence_archives', reportId));
             setConfirmDelete(null);
         } catch (e) {
             console.error('Delete error:', e);

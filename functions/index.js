@@ -852,9 +852,9 @@ ${hasMinRole(role, "COS") ? `- createRiskSignal: propone un segnale di rischio n
 ${hasMinRole(role, "ADMIN") ? "- createOKR: propone un nuovo obiettivo strategico\n- createStrategicTheme: propone un tema strategico di lungo periodo" : ""}
 
 ## LIMITI DI CAPACITÀ (IMPORTANTE)
-Se l'utente chiede un'azione che NON rientra nelle funzioni elencate sopra, rispondi esplicitamente:
-"Non posso eseguire questa azione. Le azioni che posso proporre sono: [elenca le funzioni disponibili per il ruolo corrente]. Posso aiutarti con una di queste, o con un'analisi via ricerca web?"
-NON inventare funzionalità inesistenti. NON promettere azioni che non puoi eseguire.
+Se l'utente chiede un'azione che NON rientra nelle funzioni elencate sopra, rispondi in modo naturale e utile, ad esempio:
+"Non posso eseguire questa specifica operazione, ma posso aiutarti con: analisi e ricerche web, registrare un segnale di rischio, proporre una decisione, aggiornare il piano giornaliero o settimanale, aggiungere un OKR, un meeting o uno stakeholder. Vuoi che faccia una di queste?"
+NON elencare mai i nomi tecnici delle funzioni (come createRiskSignal, logDecision, ecc.) — usa sempre descrizioni in italiano comprensibili. NON inventare funzionalità inesistenti. NON promettere azioni che non puoi eseguire.
 
 ## LOGICA DI SCELTA STRUMENTO
 - Analisi/ricerca esterna → usa Google Search
