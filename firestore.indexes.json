@@ -4,88 +4,57 @@
             "collectionGroup": "events",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "status",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "status",    "order": "ASCENDING"  },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
             ]
         },
         {
             "collectionGroup": "events",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "teamMembers",
-                    "arrayConfig": "CONTAINS"
-                },
-                {
-                    "fieldPath": "status",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "teamMembers", "arrayConfig": "CONTAINS" },
+                { "fieldPath": "status",      "order": "ASCENDING"      },
+                { "fieldPath": "createdAt",   "order": "DESCENDING"     }
             ]
         },
         {
             "collectionGroup": "signals",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "eventId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "eventId",   "order": "ASCENDING"  },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
             ]
         },
         {
             "collectionGroup": "decisions",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "eventId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "savedAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "eventId", "order": "ASCENDING"  },
+                { "fieldPath": "savedAt", "order": "DESCENDING" }
             ]
         },
         {
             "collectionGroup": "reports",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "eventId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "savedAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "eventId", "order": "ASCENDING"  },
+                { "fieldPath": "savedAt", "order": "DESCENDING" }
             ]
         },
         {
             "collectionGroup": "okrs",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "eventId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "eventId",   "order": "ASCENDING"  },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "pending_ai_actions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status",    "order": "ASCENDING"  },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
             ]
         }
     ],

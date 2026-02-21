@@ -33,7 +33,10 @@ import { functions } from '../firebase';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 // La Voce: fast real-time audio model
-const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
+// Primary: latest native audio preview. Fallback: September 2025 preview.
+const LIVE_MODEL_PRIMARY  = 'gemini-2.5-flash-native-audio-preview-12-2025';
+const LIVE_MODEL_FALLBACK = 'gemini-2.5-flash-native-audio-preview-09-2025';
+const LIVE_MODEL = LIVE_MODEL_PRIMARY;
 
 // System prompt for La Voce: minimal intelligence, maximum delegation
 const SYSTEM_INSTRUCTION_VOCE = `Sei "La Voce" — l'interfaccia vocale veloce del Shadow CoS di Quinta OS.
@@ -267,12 +270,17 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
             setTranscript('');
 
         } catch (e) {
+            const msg = e?.message || '';
             if (e?.name === 'NotAllowedError') {
                 onError?.('Permesso microfono negato. Concedi l\'accesso nelle impostazioni del browser.');
             } else if (e?.name === 'NotFoundError') {
                 onError?.('Nessun microfono trovato. Connetti un dispositivo audio.');
+            } else if (msg.includes('not found') || msg.includes('entity') || msg.includes('ENTITY')) {
+                onError?.('API Firebase AI Logic non abilitata. Vai su console.firebase.google.com → progetto → Build → AI Logic e attiva il servizio.');
+            } else if (msg.includes('handshake') || msg.includes('setupComplete')) {
+                onError?.('Connessione Live fallita. Verifica che Firebase AI Logic API sia abilitata nel tuo progetto Google Cloud.');
             } else {
-                onError?.(`Errore Live: ${e?.message || 'Connessione fallita'}`);
+                onError?.(`Errore Live: ${msg || 'Connessione fallita'}`);
             }
             console.error('[useLiveSession] startSession error:', e);
             _cleanup();

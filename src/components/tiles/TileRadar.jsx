@@ -153,8 +153,8 @@ export const TileRadar = ({ isAdmin, onOpenModal, eventId }) => {
             {hasSignals ? (
                 <div className="flex-grow flex flex-col gap-3 relative z-10 min-h-0">
                     {/* Radar Chart */}
-                    <div className="flex-shrink-0" style={{ height: '200px' }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="flex-shrink-0 w-full" style={{ height: '200px', minHeight: '200px' }}>
+                        <ResponsiveContainer width="100%" height={200}>
                             <RadarChart data={radarData} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
                                 <PolarGrid
                                     stroke="rgba(255,255,255,0.06)"
