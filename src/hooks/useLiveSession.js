@@ -19,7 +19,7 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../firebase';
+import { auth, functions } from '../firebase';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const LIVE_MODEL = 'models/gemini-2.5-flash-native-audio-preview-12-2025';
@@ -110,7 +110,7 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
     }, []);
 
     // ── sendSetup ────────────────────────────────────────────────────────────
-    const sendSetup = (ws) => {
+    const sendSetup = (ws, systemInstructionText) => {
         const setupMessage = {
             setup: {
                 model: LIVE_MODEL,
@@ -118,7 +118,7 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
                     responseModalities: ["AUDIO"]
                 },
                 systemInstruction: {
-                    parts: [{ text: SYSTEM_INSTRUCTION_VOCE }]
+                    parts: [{ text: systemInstructionText }]
                 },
                 tools: [{
                     functionDeclarations: [{
@@ -142,12 +142,30 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
     const startSession = useCallback(async (contextId = null) => {
         console.log('[useLiveSession] Starting native WebSocket session...');
         try {
-            // 1. Get API Key
+            // 1. Get API Key & Identity
             const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
             if (!apiKey) {
                 onError?.('API Key non configurata (VITE_GEMINI_API_KEY). Controlla il file .env.');
                 return;
             }
+
+            const user = auth.currentUser;
+            const firstName = user?.displayName ? user.displayName.split(' ')[0] : 'Operatore';
+
+            const today = new Date().toLocaleDateString('it-IT');
+            const lastSession = localStorage.getItem('lastLiveSessionDate');
+            const isFirstContact = lastSession !== today;
+
+            if (isFirstContact) {
+                localStorage.setItem('lastLiveSessionDate', today);
+            }
+
+            const dynamicPrompt = `${SYSTEM_INSTRUCTION_VOCE}
+
+## IDENTITÀ UTENTE E SALUTO
+Ti rivolgerai all'utente chiamandolo per nome: ${firstName}.
+${isFirstContact ? "Se è il primo contatto della giornata, inizia con un saluto amichevole e personalizzato (es: 'Ciao " + firstName + ", bentornato. Pronto per gestire la giornata?')." : "Non è il vostro primo contatto oggi. Sii diretto senza ripetere i saluti iniziali."}
+Mantieni un tono amichevole, meno robotico e più simile a un partner strategico.`;
 
             // 2. Setup Audio Recording (16kHz PCM)
             const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 16000 } });
@@ -190,7 +208,22 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
                 console.log('[useLiveSession] WebSocket connected');
                 setIsConnected(true);
                 reconnectAttemptsRef.current = 0;
-                sendSetup(ws);
+                sendSetup(ws, dynamicPrompt);
+
+                // Se è la prima volta, mandiamo un evento di "user" invisibile nel WebSocket 
+                // così La Voce ci risponde con il saluto.
+                if (isFirstContact) {
+                    const greetingTriggerMsg = {
+                        clientContent: {
+                            turns: [{
+                                role: "user",
+                                parts: [{ text: "Ciao, mi sono appena connesso per iniziare la giornata." }]
+                            }],
+                            turnComplete: true
+                        }
+                    };
+                    ws.send(JSON.stringify(greetingTriggerMsg));
+                }
 
                 // Start sending audio chunks
                 processor.onaudioprocess = (e) => {
