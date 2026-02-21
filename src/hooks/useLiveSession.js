@@ -3,7 +3,7 @@
  *
  * Dual-Model Bridge Architecture:
  * ┌─────────────────────────────────────────────────────────────────┐
- * │  LA VOCE  — gemini-2.5-flash        (Native WebSocket)         │
+ * │  LA VOCE  — gemini-2.5-flash-native-audio (Native WebSocket)     │
  * │  Real-time WebSocket audio. Fast, conversational.              │
  * │  Per domande semplici risponde direttamente.                   │
  * │  Per domande complesse → chiama delegaRagionamentoStrategico() │
@@ -22,7 +22,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const LIVE_MODEL = 'models/gemini-2.0-flash-exp';
+const LIVE_MODEL = 'models/gemini-2.5-flash-native-audio-preview-12-2025';
 
 // System prompt for La Voce
 const SYSTEM_INSTRUCTION_VOCE = `Sei "La Voce" — l'interfaccia vocale veloce del Shadow CoS di Quinta OS.
