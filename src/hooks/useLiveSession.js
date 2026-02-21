@@ -43,7 +43,7 @@ Solo per scambi puramente conversazionali: "ciao", "grazie", "arrivederci", "com
 
 ## STILE
 - Lingua: italiano sempre.
-- Se stai delegando, di' brevemente: "Un momento, consulto il sistema..." poi aspetta la risposta.
+- Se stai delegando, devi dire SOLO ED ESCLUSIVAMENTE una breve frase di cortesia (es. "Un momento, consulto il sistema...") e poi eseguire IMMEDITAMENTE la function call. ATTENDI IN SILENZIO la risposta del tool senza generare altri ragionamenti.
 - Quando ricevi la sintesi dal tool, leggila ad alta voce in modo naturale e fluido.
 - Zero markdown, zero elenchi — solo parlato naturale.`;
 
@@ -255,20 +255,21 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
                                     console.log(`[useLiveSession] Bridge: delegating to Gemini 3 Pro — "${query.slice(0, 80)}"`);
 
                                     const sintesi = await callBridge(query, contextId);
+                                    console.log("[Bridge] Risposta ricevuta da Gemini 3 Pro:", sintesi);
                                     onTextMessage?.(sintesi);
 
-                                    // Return tool response
-                                    const toolResponse = {
+                                    // Return tool response according to API spec correctly passing functionCall ID and expected response format
+                                    const toolResponseMsg = {
                                         toolResponse: {
                                             functionResponses: [{
-                                                id: call.id || "1",
+                                                id: call.id,
                                                 name: call.name,
-                                                response: { sintesi }
+                                                response: { output: sintesi }
                                             }]
                                         }
                                     };
                                     if (ws.readyState === window.WebSocket.OPEN) {
-                                        ws.send(JSON.stringify(toolResponse));
+                                        ws.send(JSON.stringify(toolResponseMsg));
                                     }
                                 }
                             }
