@@ -278,6 +278,34 @@ Mantieni un tono amichevole, meno robotico e più simile a un partner strategico
                     data = JSON.parse(event.data);
                 }
 
+                // Handle Tool Calls (Gemini Live API format)
+                if (data.toolCall && data.toolCall.functionCalls) {
+                    for (const call of data.toolCall.functionCalls) {
+                        if (call.name === 'delegaRagionamentoStrategico') {
+                            setIsSpeaking(false);
+                            const query = call.args?.query || '';
+                            console.log(`[useLiveSession] Bridge: delegating to Gemini 3 Pro — "${query.slice(0, 80)}"`);
+
+                            const sintesi = await callBridge(query, contextId);
+                            console.log("[Bridge] Risposta ricevuta da Gemini 3 Pro:", sintesi);
+                            onTextMessage?.(sintesi);
+
+                            const toolResponseMsg = {
+                                toolResponse: {
+                                    functionResponses: [{
+                                        id: call.id,
+                                        name: call.name,
+                                        response: { result: sintesi }
+                                    }]
+                                }
+                            };
+                            if (ws.readyState === window.WebSocket.OPEN) {
+                                ws.send(JSON.stringify(toolResponseMsg));
+                            }
+                        }
+                    }
+                }
+
                 // Handle server content
                 if (data.serverContent) {
                     const sc = data.serverContent;
@@ -301,34 +329,6 @@ Mantieni un tono amichevole, meno robotico e più simile a un partner strategico
                             if (part.text) {
                                 setTranscript(part.text);
                                 onTextMessage?.(part.text);
-                            }
-
-                            // Tool Call (The Bridge)
-                            if (part.functionCall) {
-                                const call = part.functionCall;
-                                if (call.name === 'delegaRagionamentoStrategico') {
-                                    setIsSpeaking(false);
-                                    const query = call.args?.query || '';
-                                    console.log(`[useLiveSession] Bridge: delegating to Gemini 3 Pro — "${query.slice(0, 80)}"`);
-
-                                    const sintesi = await callBridge(query, contextId);
-                                    console.log("[Bridge] Risposta ricevuta da Gemini 3 Pro:", sintesi);
-                                    onTextMessage?.(sintesi);
-
-                                    // Return tool response according to API spec correctly passing functionCall ID and expected response format
-                                    const toolResponseMsg = {
-                                        toolResponse: {
-                                            functionResponses: [{
-                                                id: call.id,
-                                                name: call.name,
-                                                response: { output: sintesi }
-                                            }]
-                                        }
-                                    };
-                                    if (ws.readyState === window.WebSocket.OPEN) {
-                                        ws.send(JSON.stringify(toolResponseMsg));
-                                    }
-                                }
                             }
                         }
                     }
