@@ -4,7 +4,7 @@ import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
-    apiKey: "REMOVED_KEY",
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: "quinta-os-manager.firebaseapp.com",
     projectId: "quinta-os-manager",
     storageBucket: "quinta-os-manager.firebasestorage.app",
