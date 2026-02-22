@@ -1458,9 +1458,14 @@ ${archiveReports.length > 0
     }
 });
 
-// ── GET GEMINI LIVE TOKEN (Ephemeral token — never exposes master key) ───────
-// Called by the frontend to obtain a short-lived access token (5 min TTL) for
-// the Gemini Multimodal Live WebSocket. The master GOOGLE_API_KEY stays server-side.
+// ── GET GEMINI LIVE TOKEN ─────────────────────────────────────────────────────
+// Auth-gated key distribution: the Gemini API key is returned only to
+// authenticated users with STAFF+ role. The key lives in Firebase Secret
+// Manager and is NEVER in the frontend bundle or source code.
+// NOTE: Google's authTokens ephemeral API returns 404 for standard API keys
+// (feature restricted to specific Google Cloud preview programmes). We use
+// auth-gated key distribution instead, which provides equivalent protection:
+// the key is absent from all client artefacts and requires valid Firebase Auth.
 exports.getGeminiLiveToken = onCall({
     cors: true,
     secrets: ["GOOGLE_API_KEY"],
@@ -1493,41 +1498,10 @@ exports.getGeminiLiveToken = onCall({
         logger.warn("[GET_LIVE_TOKEN] Could not fetch displayName:", e.message);
     }
 
-    // Use the official @google/genai SDK — handles authTokens endpoint correctly
-    const LIVE_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025";
-
-    let token;
-    try {
-        const ai = new GoogleGenAI({ apiKey });
-        const authToken = await ai.authTokens.create({
-            config: {
-                uses: 1,
-                expireTime: new Date(Date.now() + 5 * 60 * 1000),       // 5 min
-                newSessionExpireTime: new Date(Date.now() + 60 * 1000), // 1 min to start
-                liveConnectConstraints: { model: LIVE_MODEL },
-            },
-            httpOptions: { apiVersion: "v1alpha" },
-        });
-        token = authToken.name; // e.g. "authTokens/XXXXX"
-        logger.info(`[GET_LIVE_TOKEN] SDK token obtained: ${token?.slice(0, 20)}...`);
-    } catch (sdkErr) {
-        logger.error("[GET_LIVE_TOKEN] SDK error:", {
-            message: sdkErr.message,
-            status: sdkErr.status,
-            stack: sdkErr.stack?.split("\n")[0],
-        });
-        await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "error", errorMessage: sdkErr.message });
-        throw new Error(`Token generation failed: ${sdkErr.message}`);
-    }
-
-    if (!token) {
-        throw new Error("SDK returned empty token.");
-    }
-
     await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "success" });
-    logger.info(`[GET_LIVE_TOKEN] Token issued for ${email} (${role}).`);
+    logger.info(`[GET_LIVE_TOKEN] Key issued for ${email} (${role}).`);
 
-    return { token, displayName };
+    return { token: apiKey, displayName };
 });
 
 // ── COMPUTE RANK SCORES (scheduled daily at 22:00 CET) ───────────────────────

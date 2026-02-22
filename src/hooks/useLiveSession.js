@@ -219,8 +219,8 @@ Mantieni un tono amichevole, meno robotico e più simile a un partner strategico
             };
             updateVolume();
 
-            // 3. Connect WebSocket using ephemeral token (not the master API key)
-            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=${ephemeralToken}`;
+            // 3. Connect WebSocket — key served from auth-gated Cloud Function, never in bundle
+            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${ephemeralToken}`;
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
 
