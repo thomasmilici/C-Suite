@@ -4,8 +4,39 @@ const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { GoogleGenAI } = require("@google/genai");
+const { VertexAI } = require("@google-cloud/vertexai");
 
 admin.initializeApp();
+
+// ── VERTEX AI CONFIG ──────────────────────────────────────────────────────────
+// askShadowCoS e delegaRagionamentoStrategico usano Vertex AI con ADC (Application
+// Default Credentials). Il Service Account della Cloud Function deve avere il ruolo
+// roles/aiplatform.user assegnato nel progetto Google Cloud.
+// La GOOGLE_API_KEY rimane in uso per i task leggeri (gemini-2.0-flash).
+const VERTEX_PROJECT  = "quinta-os-manager";
+const VERTEX_LOCATION = "us-central1";
+// gemini-3.0-pro non è ancora nel catalog Vertex AI us-central1 (404).
+// Usa il modello più avanzato attualmente disponibile. Per verificare i modelli
+// del tuo progetto: gcloud ai models list --region=us-central1 --project=quinta-os-manager
+const VERTEX_MODEL_PRO = "gemini-2.0-pro-exp-02-05";
+
+/**
+ * Estrae il testo da una GenerateContentResponse del Vertex AI SDK.
+ * La struttura è response.candidates[0].content.parts[].text
+ */
+function vertexText(response) {
+    const parts = response?.candidates?.[0]?.content?.parts ?? [];
+    return parts.filter(p => p.text).map(p => p.text).join("").trim();
+}
+
+/**
+ * Estrae le function calls da una GenerateContentResponse del Vertex AI SDK.
+ * Restituisce un array di { name, args } compatibile con il loop HITL corrente.
+ */
+function vertexFunctionCalls(response) {
+    const parts = response?.candidates?.[0]?.content?.parts ?? [];
+    return parts.filter(p => p.functionCall).map(p => p.functionCall);
+}
 
 // ── AUDIT LOG ─────────────────────────────────────────────────────────────────
 // Non-negotiable: every AI action is logged, whether it succeeds, fails, or is denied.
@@ -888,6 +919,7 @@ ${archiveReports.map((r, i) => {
 
         // Only inject tools for roles that can act
         const tools = hasMinRole(role, "COS") ? SHADOW_COS_TOOLS : [];
+        // gemini-3-pro-preview: ID ufficiale da ai.google.dev/gemini-api/docs/models
         const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview", systemInstruction, tools });
 
         const chatHistory = history.map(h => ({ role: h.role, parts: [{ text: h.text }] }));
@@ -1429,13 +1461,16 @@ ${archiveReports.length > 0
     : 'Nessun report archiviato.'}`;
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        // "Il Cervello" — deep reasoning with web search
+        // "Il Cervello" — gemini-3-pro-preview (ID ufficiale) + Google Search grounding.
+        // NOTE: @google/generative-ai v0.24.x non mappa camelCase → snake_case per i tool.
+        // L'API REST Gemini richiede "google_search" (snake_case). Lo passiamo direttamente.
         const model = genAI.getGenerativeModel({
             model: "gemini-3-pro-preview",
             systemInstruction,
             tools: [{ google_search: {} }],
         });
 
+        logger.info("Calling Gemini 3 Pro Preview with Google Search grounding...");
         const result = await model.generateContent(query);
         const rawText = result.response.text() || "Analisi non disponibile.";
 

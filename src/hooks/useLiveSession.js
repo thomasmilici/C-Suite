@@ -129,11 +129,14 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
                 tools: [{
                     functionDeclarations: [{
                         name: 'delegaRagionamentoStrategico',
-                        description: 'Delega una domanda operativa...',
+                        description: 'Delega qualsiasi domanda operativa, strategica o contestuale al motore di ragionamento avanzato (Gemini Pro). Deve essere chiamata per ogni richiesta che non sia puro small talk.',
                         parameters: {
                             type: 'OBJECT',
                             properties: {
-                                query: { type: 'STRING' }
+                                query: {
+                                    type: 'STRING',
+                                    description: 'La domanda o richiesta esatta dell\'utente, verbatim, senza riformulazioni.'
+                                }
                             },
                             required: ['query']
                         }
@@ -220,7 +223,8 @@ Mantieni un tono amichevole, meno robotico e più simile a un partner strategico
             updateVolume();
 
             // 3. Connect WebSocket — key served from auth-gated Cloud Function, never in bundle
-            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${ephemeralToken}`;
+            // v1beta richiesto da gemini-2.5-flash-native-audio-preview (v1alpha → 1008)
+            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${ephemeralToken}`;
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
 
