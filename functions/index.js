@@ -3,6 +3,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 
 admin.initializeApp();
 
@@ -1492,43 +1493,35 @@ exports.getGeminiLiveToken = onCall({
         logger.warn("[GET_LIVE_TOKEN] Could not fetch displayName:", e.message);
     }
 
-    const LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
-    const endpoint = `https://generativelanguage.googleapis.com/v1alpha/models/${LIVE_MODEL}:generateAccessToken?key=${apiKey}`;
+    // Use the official @google/genai SDK — handles authTokens endpoint correctly
+    const LIVE_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025";
 
-    logger.info(`[GET_LIVE_TOKEN] Calling endpoint: ${endpoint.replace(apiKey, "***")}`);
-
-    let response;
+    let token;
     try {
-        response = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ttl: "300s" }),  // 5 min TTL
+        const ai = new GoogleGenAI({ apiKey });
+        const authToken = await ai.authTokens.create({
+            config: {
+                uses: 1,
+                expireTime: new Date(Date.now() + 5 * 60 * 1000),       // 5 min
+                newSessionExpireTime: new Date(Date.now() + 60 * 1000), // 1 min to start
+                liveConnectConstraints: { model: LIVE_MODEL },
+            },
+            httpOptions: { apiVersion: "v1alpha" },
         });
-    } catch (fetchErr) {
-        logger.error("[GET_LIVE_TOKEN] Network error:", fetchErr.message);
-        throw new Error("Errore di rete durante la richiesta del token.");
+        token = authToken.name; // e.g. "authTokens/XXXXX"
+        logger.info(`[GET_LIVE_TOKEN] SDK token obtained: ${token?.slice(0, 20)}...`);
+    } catch (sdkErr) {
+        logger.error("[GET_LIVE_TOKEN] SDK error:", {
+            message: sdkErr.message,
+            status: sdkErr.status,
+            stack: sdkErr.stack?.split("\n")[0],
+        });
+        await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "error", errorMessage: sdkErr.message });
+        throw new Error(`Token generation failed: ${sdkErr.message}`);
     }
 
-    if (!response.ok) {
-        // Log full Google error body for debugging
-        const errBody = await response.text();
-        logger.error("[GET_LIVE_TOKEN] Google API error:", {
-            status: response.status,
-            statusText: response.statusText,
-            body: errBody,
-        });
-        await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "error", errorMessage: `${response.status} ${errBody}` });
-        throw new Error(`Token generation failed (${response.status}): ${errBody}`);
-    }
-
-    const data = await response.json();
-    logger.info("[GET_LIVE_TOKEN] Raw response keys:", Object.keys(data));
-
-    // The token field may be data.accessToken or data.token depending on API version
-    const token = data.accessToken || data.token || data.name;
     if (!token) {
-        logger.error("[GET_LIVE_TOKEN] No token in response:", JSON.stringify(data));
-        throw new Error("Risposta Google non contiene un token valido.");
+        throw new Error("SDK returned empty token.");
     }
 
     await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "success" });
