@@ -1479,12 +1479,6 @@ exports.getGeminiLiveToken = onCall({
 
     const uid = request.auth.uid;
     const email = request.auth.token?.email || null;
-    const role = await getUserRole(uid);
-
-    if (!hasMinRole(role, "STAFF")) {
-        await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "denied", errorMessage: "Ruolo insufficiente" });
-        throw new Error("Accesso negato: ruolo insufficiente.");
-    }
 
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) throw new Error("GOOGLE_API_KEY non configurata.");
@@ -1498,8 +1492,8 @@ exports.getGeminiLiveToken = onCall({
         logger.warn("[GET_LIVE_TOKEN] Could not fetch displayName:", e.message);
     }
 
-    await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "success" });
-    logger.info(`[GET_LIVE_TOKEN] Key issued for ${email} (${role}).`);
+    await writeAuditLog({ uid, email, action: "GET_LIVE_TOKEN", result: "success" });
+    logger.info(`[GET_LIVE_TOKEN] Key issued for ${email}.`);
 
     return { token: apiKey, displayName };
 });

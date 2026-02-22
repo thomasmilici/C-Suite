@@ -4,7 +4,7 @@ import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    apiKey: "AIzaSyCVCJNEtRnBDfHfUvIdoKMevM98_OW4zeI",
     authDomain: "quinta-os-manager.firebaseapp.com",
     projectId: "quinta-os-manager",
     storageBucket: "quinta-os-manager.firebasestorage.app",
@@ -13,6 +13,8 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+console.log("Firebase inizializzato correttamente");
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app, 'us-central1');
