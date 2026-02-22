@@ -1458,8 +1458,8 @@ ${archiveReports.length > 0
 });
 
 // ── GET GEMINI LIVE TOKEN (Ephemeral token — never exposes master key) ───────
-// Called by the frontend to obtain a short-lived token (5 min TTL) for the
-// Gemini Multimodal Live WebSocket. The master GOOGLE_API_KEY stays server-side.
+// Called by the frontend to obtain a short-lived access token (5 min TTL) for
+// the Gemini Multimodal Live WebSocket. The master GOOGLE_API_KEY stays server-side.
 exports.getGeminiLiveToken = onCall({
     cors: true,
     secrets: ["GOOGLE_API_KEY"],
@@ -1483,45 +1483,58 @@ exports.getGeminiLiveToken = onCall({
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) throw new Error("GOOGLE_API_KEY non configurata.");
 
-    const LIVE_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025";
-    const expireTime = new Date(Date.now() + 5 * 60 * 1000).toISOString();       // 5 min
-    const newSessionExpireTime = new Date(Date.now() + 60 * 1000).toISOString(); // 1 min to start
+    // Fetch user's displayName for personalised greeting on the frontend
+    let displayName = null;
+    try {
+        const userRecord = await admin.auth().getUser(uid);
+        displayName = userRecord.displayName || null;
+    } catch (e) {
+        logger.warn("[GET_LIVE_TOKEN] Could not fetch displayName:", e.message);
+    }
 
-    const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1alpha/authTokens",
-        {
+    const LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
+    const endpoint = `https://generativelanguage.googleapis.com/v1alpha/models/${LIVE_MODEL}:generateAccessToken?key=${apiKey}`;
+
+    logger.info(`[GET_LIVE_TOKEN] Calling endpoint: ${endpoint.replace(apiKey, "***")}`);
+
+    let response;
+    try {
+        response = await fetch(endpoint, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": apiKey,
-            },
-            body: JSON.stringify({
-                config: {
-                    uses: 1,
-                    expireTime,
-                    newSessionExpireTime,
-                    liveConnectConstraints: {
-                        model: LIVE_MODEL,
-                    },
-                },
-            }),
-        }
-    );
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ttl: "300s" }),  // 5 min TTL
+        });
+    } catch (fetchErr) {
+        logger.error("[GET_LIVE_TOKEN] Network error:", fetchErr.message);
+        throw new Error("Errore di rete durante la richiesta del token.");
+    }
 
     if (!response.ok) {
-        const errText = await response.text();
-        logger.error("[GET_LIVE_TOKEN] Google API error:", errText);
-        await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "error", errorMessage: errText });
-        throw new Error("Impossibile ottenere il token di sessione.");
+        // Log full Google error body for debugging
+        const errBody = await response.text();
+        logger.error("[GET_LIVE_TOKEN] Google API error:", {
+            status: response.status,
+            statusText: response.statusText,
+            body: errBody,
+        });
+        await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "error", errorMessage: `${response.status} ${errBody}` });
+        throw new Error(`Token generation failed (${response.status}): ${errBody}`);
     }
 
     const data = await response.json();
-    const token = data.name; // e.g. "authTokens/XXXXXX"
+    logger.info("[GET_LIVE_TOKEN] Raw response keys:", Object.keys(data));
+
+    // The token field may be data.accessToken or data.token depending on API version
+    const token = data.accessToken || data.token || data.name;
+    if (!token) {
+        logger.error("[GET_LIVE_TOKEN] No token in response:", JSON.stringify(data));
+        throw new Error("Risposta Google non contiene un token valido.");
+    }
 
     await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "success" });
-    logger.info(`[GET_LIVE_TOKEN] Token issued for ${email} (${role}). Expires: ${expireTime}`);
+    logger.info(`[GET_LIVE_TOKEN] Token issued for ${email} (${role}).`);
 
-    return { token };
+    return { token, displayName };
 });
 
 // ── COMPUTE RANK SCORES (scheduled daily at 22:00 CET) ───────────────────────

@@ -148,22 +148,29 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
     const startSession = useCallback(async (contextId = null) => {
         console.log('[useLiveSession] Starting native WebSocket session...');
         try {
-            // 1. Get ephemeral token (master key stays server-side) & user identity
+            // 1. Get ephemeral token + displayName (master key stays server-side)
             let ephemeralToken;
+            let firstName = 'Operatore';
             try {
                 const getToken = httpsCallable(functions, 'getGeminiLiveToken');
                 const result = await getToken({});
                 ephemeralToken = result.data?.token;
                 if (!ephemeralToken) throw new Error('Token vuoto nella risposta.');
-                console.log('[useLiveSession] Ephemeral token obtained.');
+                // displayName comes from the Cloud Function (authoritative, from Firebase Auth)
+                const displayName = result.data?.displayName;
+                if (displayName) {
+                    firstName = displayName.split(' ')[0];
+                } else {
+                    // Fallback to client-side auth user
+                    const user = auth.currentUser;
+                    if (user?.displayName) firstName = user.displayName.split(' ')[0];
+                }
+                console.log(`[useLiveSession] Ephemeral token obtained. User: ${firstName}`);
             } catch (tokenErr) {
                 console.error('[useLiveSession] Token fetch failed:', tokenErr);
                 onError?.('Impossibile ottenere il token di sessione. Riprova.');
                 return;
             }
-
-            const user = auth.currentUser;
-            const firstName = user?.displayName ? user.displayName.split(' ')[0] : 'Operatore';
 
             const today = new Date().toLocaleDateString('it-IT');
             const lastSession = localStorage.getItem('lastLiveSessionDate');
