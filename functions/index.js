@@ -1505,15 +1505,17 @@ ${archiveReports.length > 0
                 }).join('\n\n')
                 : 'Nessun report archiviato.'}`;
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        // "Il Cervello" — gemini-3-pro-preview (ID ufficiale) + Google Search grounding + Attività Server (Tools).
-        // NOTE: @google/generative-ai v0.24.x non mappa camelCase → snake_case per i tool.
-        // L'API REST Gemini richiede "google_search" (snake_case). Lo passiamo direttamente.
-        const model = genAI.getGenerativeModel({
+        // Initialize Vertex AI instead of GoogleGenerativeAI
+        const projectId = admin.app().options.projectId || process.env.GCLOUD_PROJECT;
+        const vertexai = new VertexAI({ project: projectId, location: 'us-central1' });
+
+        // "Il Cervello" — gemini-3-pro-preview via Vertex AI SDK + Tools
+        const model = vertexai.preview.getGenerativeModel({
             model: "gemini-3-pro-preview",
-            systemInstruction,
-            tools: [...BRIDGE_TOOLS, { google_search: {} }],
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            tools: [...BRIDGE_TOOLS, { googleSearchRetrieval: {} }],
         });
+
 
         logger.info("Calling Gemini 3 Pro Preview with Google Search and Server Tools...");
 
