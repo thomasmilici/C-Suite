@@ -3,7 +3,7 @@
  *
  * Dual-Model Bridge Architecture:
  * ┌─────────────────────────────────────────────────────────────────┐
- * │  LA VOCE  — gemini-2.5-flash-native-audio (Native WebSocket)     │
+ * │  LA VOCE  — gemini-2.5-flash-native-audio (Native WebSocket)   │
  * │  Real-time WebSocket audio. Fast, conversational.              │
  * │  Per domande semplici risponde direttamente.                   │
  * │  Per domande complesse → chiama delegaRagionamentoStrategico() │
@@ -15,6 +15,12 @@
  * │  Deep reasoning, Google Search, full Firestore context,        │
  * │  HITL tools. Returns a terse voice-ready synthesis.            │
  * └─────────────────────────────────────────────────────────────────┘
+ *
+ * SECURITY: No API key is ever exposed to the browser.
+ * The master key lives in Firebase secrets (server-side only).
+ * The client obtains a short-lived ephemeral token (5 min TTL)
+ * via the getGeminiLiveToken Cloud Function, which verifies auth
+ * before issuing it. Token is single-use and model-locked.
  */
 
 import { useRef, useState, useCallback, useEffect } from 'react';
@@ -142,10 +148,17 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
     const startSession = useCallback(async (contextId = null) => {
         console.log('[useLiveSession] Starting native WebSocket session...');
         try {
-            // 1. Get API Key & Identity
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-            if (!apiKey) {
-                onError?.('API Key non configurata (VITE_GEMINI_API_KEY). Controlla il file .env.');
+            // 1. Get ephemeral token (master key stays server-side) & user identity
+            let ephemeralToken;
+            try {
+                const getToken = httpsCallable(functions, 'getGeminiLiveToken');
+                const result = await getToken({});
+                ephemeralToken = result.data?.token;
+                if (!ephemeralToken) throw new Error('Token vuoto nella risposta.');
+                console.log('[useLiveSession] Ephemeral token obtained.');
+            } catch (tokenErr) {
+                console.error('[useLiveSession] Token fetch failed:', tokenErr);
+                onError?.('Impossibile ottenere il token di sessione. Riprova.');
                 return;
             }
 
@@ -199,8 +212,8 @@ Mantieni un tono amichevole, meno robotico e più simile a un partner strategico
             };
             updateVolume();
 
-            // 3. Connect WebSocket
-            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+            // 3. Connect WebSocket using ephemeral token (not the master API key)
+            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=${ephemeralToken}`;
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
 

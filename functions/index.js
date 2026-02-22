@@ -1457,6 +1457,73 @@ ${archiveReports.length > 0
     }
 });
 
+// ── GET GEMINI LIVE TOKEN (Ephemeral token — never exposes master key) ───────
+// Called by the frontend to obtain a short-lived token (5 min TTL) for the
+// Gemini Multimodal Live WebSocket. The master GOOGLE_API_KEY stays server-side.
+exports.getGeminiLiveToken = onCall({
+    cors: true,
+    secrets: ["GOOGLE_API_KEY"],
+}, async (request) => {
+    logger.info("--- GET GEMINI LIVE TOKEN ---");
+
+    if (!request.auth) {
+        await writeAuditLog({ action: "GET_LIVE_TOKEN", result: "denied", errorMessage: "Unauthenticated" });
+        throw new Error("Accesso negato: autenticazione richiesta.");
+    }
+
+    const uid = request.auth.uid;
+    const email = request.auth.token?.email || null;
+    const role = await getUserRole(uid);
+
+    if (!hasMinRole(role, "STAFF")) {
+        await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "denied", errorMessage: "Ruolo insufficiente" });
+        throw new Error("Accesso negato: ruolo insufficiente.");
+    }
+
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) throw new Error("GOOGLE_API_KEY non configurata.");
+
+    const LIVE_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025";
+    const expireTime = new Date(Date.now() + 5 * 60 * 1000).toISOString();       // 5 min
+    const newSessionExpireTime = new Date(Date.now() + 60 * 1000).toISOString(); // 1 min to start
+
+    const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1alpha/authTokens",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey,
+            },
+            body: JSON.stringify({
+                config: {
+                    uses: 1,
+                    expireTime,
+                    newSessionExpireTime,
+                    liveConnectConstraints: {
+                        model: LIVE_MODEL,
+                    },
+                },
+            }),
+        }
+    );
+
+    if (!response.ok) {
+        const errText = await response.text();
+        logger.error("[GET_LIVE_TOKEN] Google API error:", errText);
+        await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "error", errorMessage: errText });
+        throw new Error("Impossibile ottenere il token di sessione.");
+    }
+
+    const data = await response.json();
+    const token = data.name; // e.g. "authTokens/XXXXXX"
+
+    await writeAuditLog({ uid, email, role, action: "GET_LIVE_TOKEN", result: "success" });
+    logger.info(`[GET_LIVE_TOKEN] Token issued for ${email} (${role}). Expires: ${expireTime}`);
+
+    return { token };
+});
+
 // ── COMPUTE RANK SCORES (scheduled daily at 22:00 CET) ───────────────────────
 const computeScoresLogic = async () => {
     const db = admin.firestore();
