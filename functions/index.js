@@ -13,7 +13,7 @@ admin.initializeApp();
 // Default Credentials). Il Service Account della Cloud Function deve avere il ruolo
 // roles/aiplatform.user assegnato nel progetto Google Cloud.
 // La GOOGLE_API_KEY rimane in uso per i task leggeri (gemini-2.0-flash).
-const VERTEX_PROJECT  = "quinta-os-manager";
+const VERTEX_PROJECT = "quinta-os-manager";
 const VERTEX_LOCATION = "us-central1";
 // gemini-3.0-pro non è ancora nel catalog Vertex AI us-central1 (404).
 // Usa il modello più avanzato attualmente disponibile. Per verificare i modelli
@@ -258,7 +258,7 @@ async function fetchContext() {
     } catch (e) { logger.warn("Failed to fetch Events:", e.message); }
     try {
         const snap = await db.collection("decisions").orderBy("savedAt", "desc").limit(5).get();
-        decisions = snap.docs.map(d => ({ decision: d.data().decision, verdict: d.data().verdict, decisionMaker: d.data().decisionMaker }));
+        decisions = snap.docs.map(d => ({ id: d.id, decision: d.data().decision, verdict: d.data().verdict, decisionMaker: d.data().decisionMaker }));
     } catch (e) { logger.warn("Failed to fetch Decisions:", e.message); }
     try {
         const snap = await db.collection("reports").orderBy("savedAt", "desc").limit(5).get();
@@ -462,6 +462,48 @@ const SHADOW_COS_TOOLS = [
     },
 ];
 
+// ── BRIDGE TOOLS SCHEMA (Voice Only) ──────────────────────────────────────────
+const BRIDGE_TOOLS = [
+    {
+        functionDeclarations: [
+            {
+                name: "updatePulseState",
+                description: "Aggiorna lo stato (mood/status) del Pulse corrente su Firestore (es. 'CRISI APEX', 'focused', 'stressed').",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        newStatus: { type: "STRING", description: "Il nuovo stato" }
+                    },
+                    required: ["newStatus"]
+                }
+            },
+            {
+                name: "archiveDecision",
+                description: "Cambia lo stato di una decisione specifica in 'archived'.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        decisionId: { type: "STRING", description: "L'ID della decisione" }
+                    },
+                    required: ["decisionId"]
+                }
+            },
+            {
+                name: "queueActionForApproval",
+                description: "Accoda un'azione critica o distruttiva per l'approvazione manuale del Chief of Staff (Human-in-the-Loop).",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        actionType: { type: "STRING", description: "Il nome dell'azione da eseguire (es. 'deleteUser', 'launchCampaign')" },
+                        payload: { type: "OBJECT", description: "Oggetto JSON con i parametri dell'azione" }
+                    },
+                    required: ["actionType", "payload"]
+                }
+            }
+        ]
+    }
+];
+
 // ── HITL: CREATE PENDING ACTION ───────────────────────────────────────────────
 // Instead of writing directly to production collections, AI proposals are stored
 // in `pending_ai_actions` with status "pending". The human approves or rejects
@@ -476,15 +518,15 @@ async function createPendingAction({ name, args, uid, email, role, aiRunId, sess
     // Human-readable summaries per tool
     const SUMMARIES = {
         createRiskSignal: (a) => `Crea segnale [${(a.level || "?").toUpperCase()}]: "${(a.text || "").slice(0, 80)}"`,
-        createOKR:        (a) => `Crea OKR: "${(a.title || "").slice(0, 80)}"`,
+        createOKR: (a) => `Crea OKR: "${(a.title || "").slice(0, 80)}"`,
         updateDailyPulse: (a) => `Aggiorna Daily Pulse con ${(a.items || []).length} item`,
-        logDecision:      (a) => `Registra decisione: "${(a.decision || "").slice(0, 80)}"`,
+        logDecision: (a) => `Registra decisione: "${(a.decision || "").slice(0, 80)}"`,
         updateDailyFocus: (a) => `Aggiorna Focus giornaliero con ${(a.items || []).length} item`,
         addWeeklyOutcome: (a) => `Aggiunge outcome settimanale: "${(a.outcome || "").slice(0, 80)}"`,
         addWeeklyStakeholderMove: (a) => `Mossa stakeholder: "${(a.stakeholder || "")}" — ${(a.concrete_move || "").slice(0, 60)}`,
         createStrategicTheme: (a) => `Crea tema strategico: "${(a.title || "").slice(0, 80)}"`,
-        addStakeholder:   (a) => `Aggiungi stakeholder: "${(a.name || "")}" [${a.influence || "?"}/${a.alignment || "?"}]`,
-        addMeeting:       (a) => `Registra meeting: "${(a.title || "").slice(0, 80)}" — ${a.date || "data da definire"}`,
+        addStakeholder: (a) => `Aggiungi stakeholder: "${(a.name || "")}" [${a.influence || "?"}/${a.alignment || "?"}]`,
+        addMeeting: (a) => `Registra meeting: "${(a.title || "").slice(0, 80)}" — ${a.date || "data da definire"}`,
     };
 
     const summary = SUMMARIES[name] ? SUMMARIES[name](args) : `Esegui: ${name}`;
@@ -841,10 +883,10 @@ exports.askShadowCoS = onCall({
         // When the user is inside a specific Dossier view, we show ONLY that dossier's
         // data. This prevents cross-contamination between dossiers.
         const isScoped = !!contextId;
-        const scopedEvents   = isScoped ? events.filter(e => e.id === contextId) : events;
-        const scopedSignals  = isScoped ? signals.filter(s => s.eventId === contextId) : signals;
+        const scopedEvents = isScoped ? events.filter(e => e.id === contextId) : events;
+        const scopedSignals = isScoped ? signals.filter(s => s.eventId === contextId) : signals;
         const scopedDecisions = isScoped ? decisions.filter(d => d.eventId === contextId) : decisions;
-        const scopedReports  = isScoped ? reports.filter(r => r.eventId === contextId) : reports;
+        const scopedReports = isScoped ? reports.filter(r => r.eventId === contextId) : reports;
         // OKRs, Pulse, Team are always global (not scoped to single dossiers)
         const contextLabel = isScoped
             ? `DOSSIER: "${scopedEvents[0]?.title || contextId}" (vista contestuale — dati filtrati per questo dossier)`
@@ -905,15 +947,15 @@ NON elencare mai i nomi tecnici delle funzioni (come createRiskSignal, logDecisi
 
 ## [ARCHIVIO INTELLIGENCE DISPONIBILE]
 ${archiveReports.length > 0
-    ? `Hai accesso a ${archiveReports.length} report di ricerca già eseguiti. DEVI consultarli quando proponi azioni strategiche o correttive. Non proporre soluzioni che contraddicono queste ricerche già effettuate. Giustifica sempre le tue decisioni citando i report pertinenti.
+                ? `Hai accesso a ${archiveReports.length} report di ricerca già eseguiti. DEVI consultarli quando proponi azioni strategiche o correttive. Non proporre soluzioni che contraddicono queste ricerche già effettuate. Giustifica sempre le tue decisioni citando i report pertinenti.
 
 ${archiveReports.map((r, i) => {
-    // Inject first 800 chars of content to stay within token limits
-    const excerpt = (r.content || '').slice(0, 800).replace(/\n+/g, ' ');
-    const scoped = r.relatedDossierId === contextId ? ' [DOSSIER CORRENTE]' : '';
-    return `[REPORT ${i + 1}${scoped}] "${r.title}" (${r.reportType || 'strategico'})\n${excerpt}${r.content?.length > 800 ? '...' : ''}`;
-}).join('\n\n')}`
-    : 'Nessun report archiviato disponibile. Puoi usare Google Search per ricerche live o attendere che vengano generati report tramite Intelligence Reports.'}`;
+                    // Inject first 800 chars of content to stay within token limits
+                    const excerpt = (r.content || '').slice(0, 800).replace(/\n+/g, ' ');
+                    const scoped = r.relatedDossierId === contextId ? ' [DOSSIER CORRENTE]' : '';
+                    return `[REPORT ${i + 1}${scoped}] "${r.title}" (${r.reportType || 'strategico'})\n${excerpt}${r.content?.length > 800 ? '...' : ''}`;
+                }).join('\n\n')}`
+                : 'Nessun report archiviato disponibile. Puoi usare Google Search per ricerche live o attendere che vengano generati report tramite Intelligence Reports.'}`;
 
         const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -1421,10 +1463,10 @@ exports.delegaRagionamentoStrategico = onCall({
 
         // Same context isolation logic as askShadowCoS
         const isScoped = !!contextId;
-        const scopedEvents    = isScoped ? events.filter(e => e.id === contextId) : events;
-        const scopedSignals   = isScoped ? signals.filter(s => s.eventId === contextId) : signals;
+        const scopedEvents = isScoped ? events.filter(e => e.id === contextId) : events;
+        const scopedSignals = isScoped ? signals.filter(s => s.eventId === contextId) : signals;
         const scopedDecisions = isScoped ? decisions.filter(d => d.eventId === contextId) : decisions;
-        const scopedReports   = isScoped ? reports.filter(r => r.eventId === contextId) : reports;
+        const scopedReports = isScoped ? reports.filter(r => r.eventId === contextId) : reports;
         const contextLabel = isScoped
             ? `DOSSIER: "${scopedEvents[0]?.title || contextId}"`
             : "PORTFOLIO GLOBALE";
@@ -1432,47 +1474,111 @@ exports.delegaRagionamentoStrategico = onCall({
         // Bridge-specific system instruction: output MUST be terse, spoken-language friendly.
         // Gemini 3 Pro does the deep reasoning; its output is synthesized for voice delivery.
         const systemInstruction = `Sei il cervello strategico del "Shadow CoS" di Quinta OS (Gemini 3 Pro).
-Stai rispondendo a una richiesta proveniente dall'interfaccia vocale.
+Stai rispondendo a una richiesta proveniente dall'interfaccia vocale. Ti stai comportando da "operatore attivo" e OS operativo.
 
 ## VINCOLO CRITICO: OUTPUT PER VOCE
 La tua risposta verrà letta ad alta voce dall'assistente vocale all'utente.
 - Massimo 4-5 frasi. Sii DENSO e DIRETTO.
 - ZERO markdown, ZERO elenchi puntati, ZERO tabelle — solo prosa fluida.
-- Concludi sempre con UNA raccomandazione operativa concreta.
+- Concludi sempre con UNA raccomandazione operativa concreta, oppure con la conferma dell'azione compiuta.
 - Lingua: italiano.
 
-## CAPACITÀ
-Hai accesso a Google Search e a tutto il contesto operativo. Usali per rispondere con precisione.
+## CAPACITÀ ATTIVE (Agentic Hands)
+Hai accesso in scrittura al database tramite i tool forniti (updatePulseState, archiveDecision, queueActionForApproval) e accesso di ricerca tramite Google Search.
+Se l'utente ti ordina esplicitamente di aggiornare il Pulse, archiviare un dossier o modificare parametri, ESEGUI L'AZIONE TRONCANDO OGNI INDUGIO chiamando il function call corrispondente.
+Non suggerire MAI all'utente di farlo manualmente se puoi farlo tu stesso coi tools.
+Dopo aver eseguito il tool, conferma verbalmente l'operazione completata.
 
 ## CONTESTO OPERATIVO — ${contextLabel}
 📁 DOSSIER (${scopedEvents.length}): ${scopedEvents.length > 0 ? scopedEvents.map(e => `"${e.title}" [${e.status}]`).join(", ") : "Nessuno"}
 🎯 OKR (${okrs.length}): ${okrs.length > 0 ? okrs.map(o => `"${o.title}" ${o.progress}%`).join(", ") : "Nessuno"}
 ⚠️ SEGNALI (${scopedSignals.length}): ${scopedSignals.length > 0 ? scopedSignals.map(s => `[${s.level}] ${s.text}`).join(" | ") : "Nessuno"}
 📋 PULSE: ${pulse.length > 0 ? pulse.map(p => p.text || p).join(", ") : "Nessun focus oggi"}
-🧠 DECISIONI (${scopedDecisions.length}): ${scopedDecisions.length > 0 ? scopedDecisions.map(d => `"${d.decision}"`).join(", ") : "Nessuna"}
+🧠 DECISIONI (${scopedDecisions.length}): ${scopedDecisions.length > 0 ? scopedDecisions.map(d => `[ID: ${d.id}] "${d.decision}"`).join(", ") : "Nessuna"}
 👥 TEAM (${team.length}): ${team.length > 0 ? team.map(m => `${m.name} [${m.role}]`).join(", ") : "Nessuno"}
 
 ## ARCHIVIO INTELLIGENCE
 ${archiveReports.length > 0
-    ? archiveReports.map((r, i) => {
-        const excerpt = (r.content || '').slice(0, 600).replace(/\n+/g, ' ');
-        return `[REPORT ${i + 1}] "${r.title}": ${excerpt}`;
-    }).join('\n\n')
-    : 'Nessun report archiviato.'}`;
+                ? archiveReports.map((r, i) => {
+                    const excerpt = (r.content || '').slice(0, 600).replace(/\n+/g, ' ');
+                    return `[REPORT ${i + 1}] "${r.title}": ${excerpt}`;
+                }).join('\n\n')
+                : 'Nessun report archiviato.'}`;
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        // "Il Cervello" — gemini-3-pro-preview (ID ufficiale) + Google Search grounding.
+        // "Il Cervello" — gemini-3-pro-preview (ID ufficiale) + Google Search grounding + Attività Server (Tools).
         // NOTE: @google/generative-ai v0.24.x non mappa camelCase → snake_case per i tool.
         // L'API REST Gemini richiede "google_search" (snake_case). Lo passiamo direttamente.
         const model = genAI.getGenerativeModel({
             model: "gemini-3-pro-preview",
             systemInstruction,
-            tools: [{ google_search: {} }],
+            tools: [...BRIDGE_TOOLS, { google_search: {} }],
         });
 
-        logger.info("Calling Gemini 3 Pro Preview with Google Search grounding...");
-        const result = await model.generateContent(query);
-        const rawText = result.response.text() || "Analisi non disponibile.";
+        logger.info("Calling Gemini 3 Pro Preview with Google Search and Server Tools...");
+
+        const chat = model.startChat();
+        let currentResult = await chat.sendMessage(query);
+        let loopCount = 0;
+        const MAX_LOOPS = 4;
+
+        // ── AGENTIC EXECUTION LOOP (Direct Hand Execution / HITL) ───────────
+        while (loopCount < MAX_LOOPS) {
+            loopCount++;
+            const response = currentResult.response;
+            const functionCalls = response.functionCalls ? response.functionCalls() : [];
+
+            if (!functionCalls || functionCalls.length === 0) {
+                break; // No more tool calls, exit loop
+            }
+
+            logger.info(`[Bridge Loop ${loopCount}] Executing ${functionCalls.length} server tools...`);
+            const functionResponseParts = [];
+
+            for (const call of functionCalls) {
+                let toolResult;
+                try {
+                    const db = admin.firestore();
+                    if (call.name === "updatePulseState") {
+                        const today = new Date().toISOString().split("T")[0];
+                        await db.collection("daily_pulse").doc(today).set({ mood: call.args.newStatus }, { merge: true });
+                        toolResult = { success: true, message: `Pulse di oggi aggiornato a '${call.args.newStatus}'` };
+                        logger.info(`[Server Tool] updatePulseState executed: ${call.args.newStatus}`);
+                    }
+                    else if (call.name === "archiveDecision") {
+                        await db.collection("decisions").doc(call.args.decisionId).update({ status: "archived" });
+                        toolResult = { success: true, message: `Decisione '${call.args.decisionId}' archiviata con successo.` };
+                        logger.info(`[Server Tool] archiveDecision executed: ${call.args.decisionId}`);
+                    }
+                    else if (call.name === "queueActionForApproval") {
+                        const ref = await db.collection("pending_ai_actions").add({
+                            proposedAction: call.args.actionType,
+                            payload: call.args.payload,
+                            status: "pending",
+                            summary: `Azione generica: ${call.args.actionType}`,
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                            createdBy: uid,
+                            aiRunId,
+                            sessionId: null,
+                        });
+                        toolResult = { success: true, message: `Azione '${call.args.actionType}' accodata e in attesa di approvazione (HITL). ID: ${ref.id}` };
+                        logger.info(`[Server Tool] queueActionForApproval executed: ${call.args.actionType}`);
+                    }
+                    else {
+                        toolResult = { error: `Tool sconosciuto o non autorizzato: ${call.name}` };
+                    }
+                } catch (toolError) {
+                    logger.error(`[Server Tool Error] ${call.name}:`, toolError.message);
+                    toolResult = { success: false, error: toolError.message };
+                }
+                functionResponseParts.push({ functionResponse: { name: call.name, response: toolResult } });
+            }
+
+            // Invia i risultati dell'esecuzione al modello per avere la sintesi vocale
+            currentResult = await chat.sendMessage(functionResponseParts);
+        }
+
+        const rawText = currentResult.response.text() || "Operazione completata.";
 
         // Strip any residual markdown for clean voice delivery
         const sintesi = rawText
