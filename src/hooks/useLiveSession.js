@@ -283,24 +283,40 @@ Mantieni un tono amichevole, meno robotico e più simile a un partner strategico
                     for (const call of data.toolCall.functionCalls) {
                         if (call.name === 'delegaRagionamentoStrategico') {
                             setIsSpeaking(false);
+
+                            // 1. Estrazione sicura degli ID
+                            const callId = call.id;
+                            const callName = call.name; // Usa dinamicamente il nome ricevuto
+
                             const query = call.args?.query || '';
                             console.log(`[useLiveSession] Bridge: delegating to Gemini 3 Pro — "${query.slice(0, 80)}"`);
 
-                            const sintesi = await callBridge(query, contextId);
-                            console.log("[Bridge] Risposta ricevuta da Gemini 3 Pro:", sintesi);
-                            onTextMessage?.(sintesi);
+                            // 2. Esecuzione del bridge
+                            const backendResponseString = await callBridge(query, contextId);
+                            console.log("[Bridge] Risposta ricevuta da Gemini 3 Pro:", backendResponseString);
+                            onTextMessage?.(backendResponseString);
 
-                            const toolResponseMsg = {
+                            // 3. COSTRUZIONE BLINDATA DEL PAYLOAD
+                            const toolResponsePayload = {
                                 toolResponse: {
-                                    functionResponses: [{
-                                        id: call.id,
-                                        name: call.name,
-                                        response: { result: sintesi }
-                                    }]
+                                    functionResponses: [
+                                        {
+                                            id: callId,
+                                            name: callName,
+                                            response: {
+                                                // CRITICO: Il backend ridà una stringa, ma la Live API 
+                                                // pretende che 'response' sia un oggetto JSON.
+                                                output: backendResponseString
+                                            }
+                                        }
+                                    ]
                                 }
                             };
+
+                            // 4. Log visibile per debug e Invio
+                            console.log("[DEBUG WebSocket] Payload toolResponse in uscita:", JSON.stringify(toolResponsePayload, null, 2));
                             if (ws.readyState === window.WebSocket.OPEN) {
-                                ws.send(JSON.stringify(toolResponseMsg));
+                                ws.send(JSON.stringify(toolResponsePayload));
                             }
                         }
                     }
