@@ -4,7 +4,6 @@ import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestor
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
 import { CheckCircle, XCircle, Zap, Loader2, Clock } from 'lucide-react';
-import SphereAI from './SphereAI';
 import toast from 'react-hot-toast';
 
 /**
@@ -107,7 +106,7 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
             animate={{ opacity: done ? 0.4 : 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -12, scale: 0.95 }}
             transition={{ duration: 0.25 }}
-            className={`flex items-start gap-3 p-3.5 rounded-xl border ${colorClass} transition-opacity`}
+            className={`flex items-start gap-2.5 p-3 rounded-xl border ${colorClass} transition-opacity`}
         >
             {/* Icon */}
             <div className="flex-shrink-0 mt-0.5">
@@ -134,34 +133,34 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
                         </span>
                     )}
                 </div>
-                <p className="text-sm leading-snug text-white/90">{action.summary}</p>
+                <p className="text-xs leading-snug text-white/90 line-clamp-2">{action.summary}</p>
 
                 {/* Error */}
                 {error && (
-                    <p className="text-[10px] text-red-400 mt-1.5 font-mono">{error}</p>
+                    <p className="text-[9px] text-red-400 mt-1 font-mono">{error}</p>
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 mt-2.5">
+                <div className="flex items-center gap-1.5 mt-2">
                     <button
                         onClick={handleApprove}
                         disabled={executing || rejecting || done}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-500/20 hover:text-emerald-300 text-xs font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-emerald-500/20 hover:text-emerald-300 text-[10px] font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {executing
-                            ? <Loader2 className="w-3 h-3 animate-spin" />
-                            : <CheckCircle className="w-3 h-3 text-emerald-400" />
+                            ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                            : <CheckCircle className="w-2.5 h-2.5 text-emerald-400" />
                         }
                         {executing ? 'Esecuzione...' : 'Esegui'}
                     </button>
                     <button
                         onClick={handleReject}
                         disabled={executing || rejecting || done}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] hover:bg-red-500/10 hover:text-red-300 text-xs font-mono text-zinc-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/[0.08] hover:bg-red-500/10 hover:text-red-300 text-[10px] font-mono text-zinc-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {rejecting
-                            ? <Loader2 className="w-3 h-3 animate-spin" />
-                            : <XCircle className="w-3 h-3" />
+                            ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                            : <XCircle className="w-2.5 h-2.5" />
                         }
                         Scarta
                     </button>
@@ -171,7 +170,7 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
     );
 };
 
-export const AiPendingActionTile = ({ contextId = null }) => {
+export const AiPendingActionTile = ({ contextId = null, position = 'top' }) => {
     const [pendingActions, setPendingActions] = useState([]);
     const [resolvedIds, setResolvedIds] = useState(new Set());
 
@@ -207,52 +206,32 @@ export const AiPendingActionTile = ({ contextId = null }) => {
         }, 700);
     };
 
-    // Hide tile completely when nothing pending
-    if (pendingActions.length === 0) return null;
+    // Split actions between top and bottom
+    const displayedActions = position === 'top' 
+        ? pendingActions.slice(0, 2)
+        : pendingActions.slice(2);
+
+    if (displayedActions.length === 0) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 font-mono text-xs opacity-50 p-6 text-center">
+                <span className="block mb-1">~ STANDBY ~</span>
+                Nessuna azione richiesta
+            </div>
+        );
+    }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            className="col-span-full mb-2"
-        >
-            <div className="glass-card p-4">
-                {/* SphereAI Header */}
-                <div className="flex flex-col items-center justify-center mb-4">
-                    <SphereAI size={100} state="idle" />
-                </div>
-
-                {/* Tile Header */}
-                <div className="flex items-center gap-2 mb-3">
-                    <div className="flex items-center gap-1.5">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-60" />
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
-                        </span>
-                        <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">
-                            Azioni Proposte
-                        </span>
-                    </div>
-                    <span className="ml-auto text-[9px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
-                        {pendingActions.length} in attesa
-                    </span>
-                </div>
-
-                {/* Action Cards */}
-                <div className="flex flex-col gap-2">
-                    <AnimatePresence mode="popLayout">
-                        {pendingActions.map(action => (
-                            <PendingActionCard
-                                key={action.id}
-                                action={action}
-                                onApproved={handleResolved}
-                                onRejected={handleResolved}
-                            />
-                        ))}
-                    </AnimatePresence>
-                </div>
-            </div>
-        </motion.div>
+        <div className="flex flex-col gap-2 w-full px-4 pb-4 overflow-y-auto no-scrollbar">
+            <AnimatePresence mode="popLayout">
+                {displayedActions.map(action => (
+                    <PendingActionCard
+                        key={action.id}
+                        action={action}
+                        onApproved={handleResolved}
+                        onRejected={handleResolved}
+                    />
+                ))}
+            </AnimatePresence>
+        </div>
     );
 };

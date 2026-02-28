@@ -108,7 +108,14 @@ export const ProactiveAlerts = ({ onAlertsChange }) => {
         if (onAlertsChange) onAlertsChange(visibleAlerts.length);
     }, [visibleAlerts.length, onAlertsChange]);
 
-    if (visibleAlerts.length === 0) return null;
+    if (visibleAlerts.length === 0) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 font-mono text-xs opacity-50 p-6 text-center">
+                <span className="block mb-1">~ SYSTEMS NOMINAL ~</span>
+                Nessuna anomalia rilevata
+            </div>
+        );
+    }
 
     const colorMap = {
         danger: { border: 'border-red-500/30', bg: 'bg-red-500/10', text: 'text-red-300', icon: 'text-red-400', dot: 'bg-red-400' },
@@ -117,32 +124,32 @@ export const ProactiveAlerts = ({ onAlertsChange }) => {
     };
 
     return (
-        <div className="max-w-screen-2xl mx-auto mb-4 space-y-2">
+        <div className="w-full space-y-2 overflow-y-auto no-scrollbar pb-2">
             <AnimatePresence>
                 {visibleAlerts.map(alert => {
                     const c = colorMap[alert.type] || colorMap.warning;
                     return (
                         <motion.div
                             key={alert.id}
-                            initial={{ opacity: 0, y: -10 }}
+                            initial={{ opacity: 0, y: -8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${c.border} ${c.bg} backdrop-blur-sm`}
+                            exit={{ opacity: 0, x: -10 }}
+                            className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border ${c.border} ${c.bg} backdrop-blur-sm`}
                         >
-                            <Zap className={`w-3.5 h-3.5 flex-shrink-0 ${c.icon}`} />
+                            <Zap className={`w-3 h-3 flex-shrink-0 mt-0.5 ${c.icon}`} />
                             <div className="flex-grow min-w-0">
-                                <span className={`text-[10px] font-bold font-mono uppercase tracking-widest ${c.icon} mr-2`}>
+                                <p className={`text-[9px] font-bold font-mono uppercase tracking-widest ${c.icon} mb-0.5`}>
                                     {alert.title}
-                                </span>
-                                <span className={`text-xs font-mono ${c.text}`}>
+                                </p>
+                                <p className={`text-[10px] font-mono leading-tight ${c.text} line-clamp-2`}>
                                     {alert.message}
-                                </span>
+                                </p>
                             </div>
                             <button
                                 onClick={() => setDismissed(prev => new Set([...prev, alert.id]))}
-                                className="text-zinc-600 hover:text-zinc-300 flex-shrink-0 transition-colors"
+                                className="text-zinc-600 hover:text-zinc-300 flex-shrink-0 transition-colors mt-0.5"
                             >
-                                <X className="w-3.5 h-3.5" />
+                                <X className="w-3 h-3" />
                             </button>
                         </motion.div>
                     );

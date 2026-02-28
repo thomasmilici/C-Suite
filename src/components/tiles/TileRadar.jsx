@@ -123,7 +123,7 @@ export const TileRadar = ({ isAdmin, onOpenModal, eventId }) => {
     const threatColor = maxVal >= 70 ? '#f87171' : maxVal >= 40 ? '#facc15' : '#34d399';
 
     return (
-        <div className="h-full flex flex-col p-7 relative overflow-hidden">
+        <div className="h-full flex flex-col relative overflow-hidden">
             {/* Subtle top highlight line */}
             <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 

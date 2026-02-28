@@ -100,7 +100,9 @@ export const ReportViewer = ({ report, onClose }) => {
                         prose-li:text-zinc-400 prose-li:text-xs prose-li:leading-relaxed
                         prose-strong:text-zinc-200
                         prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline">
-                        <ReactMarkdown>{content}</ReactMarkdown>
+                        <ReactMarkdown>
+                            {content}
+                        </ReactMarkdown>
                     </div>
                 </div>
 

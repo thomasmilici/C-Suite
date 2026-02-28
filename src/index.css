@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @theme {
   --color-technical: #E0E0E0;
@@ -20,7 +20,7 @@
   --animate-shimmer: shimmer 2s linear infinite;
 }
 
-/* ── DESIGN TOKENS ────────────────────────────────────────────────────────── */
+/* â”€â”€ DESIGN TOKENS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 :root {
   /* Surfaces */
   --surface-1: rgba(255, 255, 255, 0.03);
@@ -107,19 +107,20 @@
     text-wrap: balance;
   }
 
-  /* ── GLASS CARD (NEW) ───────────────────────────────────────────────────── */
+  /* â”€â”€ GLASS CARD (NEW) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .glass-card {
-    background: rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(145deg, rgba(15, 15, 20, 0.8) 0%, rgba(12, 12, 18, 0.65) 100%);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-top-color: rgba(255, 255, 255, 0.09);
     box-shadow:
-      0 4px 24px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    border-radius: 16px;
+      0 4px 32px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
   }
 
-  /* ── GLASSMORPHISM TILE (REFINED) ───────────────────────────────────────── */
+  /* â”€â”€ GLASSMORPHISM TILE (REFINED) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .glass-tile {
     /* Background: slightly more visible on dark */
     background: linear-gradient(145deg,
@@ -161,7 +162,7 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  /* ── TYPOGRAPHY UTILITIES ───────────────────────────────────────────────── */
+  /* â”€â”€ TYPOGRAPHY UTILITIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .text-primary {
     color: var(--text-1);
   }
@@ -172,6 +173,23 @@
 
   .text-muted {
     color: var(--text-3);
+  }
+
+  /* Line clamp for compact tile content */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .tile-title {
@@ -203,7 +221,7 @@
     color: var(--text-3);
   }
 
-  /* ── ACCESSIBILITY & UX ─────────────────────────────────────────────────── */
+  /* â”€â”€ ACCESSIBILITY & UX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .touch-target {
     min-height: 44px;
     min-width: 44px;
@@ -213,7 +231,7 @@
     cursor: pointer;
   }
 
-  /* Mobile scroll improvements */
+  /* â”€â”€ SCROLLBARS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -221,5 +239,360 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .thin-scroll::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+  }
+
+  .thin-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .thin-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 99px;
+  }
+
+  .thin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  }
+
+  /* â”€â”€ COCKPIT VIEWPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* Mobile: natural scroll. Desktop: locked to 100vh */
+  .cockpit-viewport {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  @media (min-width: 1024px) {
+    .cockpit-viewport {
+      height: 100vh;
+      overflow: hidden;
+    }
+  }
+
+  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   *  FIGMA BENTO LAYOUT â€” 3-Column Asymmetric + Junction Sphere
+   *  Layout: 300px | 1fr (center) | 300px
+   *  Center: 1 top card + 2 bottom cards with 3 cutouts converging on one sphere
+   * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+  /* â”€â”€ Base: mobile single column â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .bento-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Left / right columns: stacked tiles, scroll if needed */
+  .bento-left,
+  .bento-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Center column: top card + bottom section */
+  .bento-center {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    /* NO gap â€” sphere bridges the junction */
+    position: relative;
+    min-height: 480px;
+  }
+
+  /* Mobile sphere */
+  .bento-sphere-junction {
+    width: 240px;
+    height: 240px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 50;
+  }
+
+  /* Bottom section: two tiles side-by-side on mobile too */
+  .bento-center-bottom {
+    position: relative;
+    display: flex;
+    gap: 0;
+  }
+
+  .bento-bl-tile,
+  .bento-br-tile {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* â”€â”€ TABLET (768â€“1023px) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .bento-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .bento-center {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* â”€â”€ DESKTOP (â‰¥ 1024px) â€” Figma asymmetric layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  @media (min-width: 1024px) {
+    .bento-layout {
+      display: grid;
+      flex: 1;
+      min-height: 0;
+      /*
+       * Exact Figma column widths:
+       *   Left sidebar  = 300px (Dossier + Briefing stacked)
+       *   Center column = 1fr   (the star: top card + sphere + 2 bottom cards)
+       *   Right sidebar = 300px (OKR + Risk + Intelligence stacked)
+       */
+      grid-template-columns: 300px 1fr 300px;
+      grid-template-rows: 1fr;
+      gap: 16px;
+    }
+
+    /* â”€â”€ Left / Right sidebar columns */
+    .bento-left,
+    .bento-right {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .bento-left>*,
+    .bento-right>* {
+      min-height: 0;
+      overflow: hidden;
+      border-radius: 20px;
+    }
+
+    /* Equal split by default; can be overridden per child */
+    .bento-left>*:first-child {
+      flex: 1.3;
+    }
+
+    .bento-left>*:last-child {
+      flex: 1;
+    }
+
+    .bento-right>* {
+      flex: 1;
+    }
+
+    /* â”€â”€ CENTER COLUMN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    .bento-center {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+      min-height: 0;
+      overflow: visible;
+      /* sphere must overflow */
+    }
+
+    /* â”€â”€ TOP CARD (Azioni Proposte Top or Daily Briefing)
+     *    Cutout: concave arc at bottom-center, radius 140px.
+     *    Padding-bottom: 120px keeps text above the void.
+     */
+    .bento-center-top {
+      flex: 1;
+      min-height: 0;
+      border-radius: 20px;
+      overflow: visible !important;
+      padding-bottom: 120px !important;
+      -webkit-mask-image: radial-gradient(circle at 50% 100%, transparent 140px, black 141px);
+      mask-image: radial-gradient(circle at 50% 100%, transparent 140px, black 141px);
+    }
+
+    /* â”€â”€ BOTTOM SECTION wrapper â€” sphere is absolutely positioned here */
+    .bento-center-bottom {
+      position: relative;
+      display: flex;
+      flex-direction: row;
+      gap: 0;
+      /* NO gap between cards â€” sphere is the separator */
+      flex-shrink: 0;
+      height: 280px;
+      /* tall enough to house sphere + bottom content */
+      overflow: visible;
+    }
+
+    /* â”€â”€ SPHERE at junction (absolutely centered between top + bottom) */
+    .bento-sphere-junction {
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      /*
+       * top: 0 + transform: translateY(-50%) places the sphere's center
+       * exactly on the dividing line between the top card and this section.
+       * left: 50% + translateX(-50%) centres it horizontally.
+       */
+      top: 0;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    /* Inner sphere component: fill the wrapper */
+    .bento-sphere-junction>* {
+      width: 100% !important;
+      height: 100% !important;
+      pointer-events: auto;
+    }
+
+    /* Ambient glow radiating from sphere into surrounding tiles */
+    .bento-sphere-junction::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      box-shadow:
+        0 0 80px 30px rgba(124, 58, 237, 0.50),
+        0 0 160px 60px rgba(99, 102, 241, 0.25),
+        0 0 260px 80px rgba(59, 130, 246, 0.12);
+      pointer-events: none;
+      z-index: -1;
+      animation: sphereHalo 5s ease-in-out infinite;
+    }
+
+    @keyframes sphereHalo {
+
+      0%,
+      100% {
+        opacity: 0.8;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+    }
+
+    /* â”€â”€ BOTTOM-LEFT tile
+     *    Cutout: concave arc at top-right corner, radius 140px.
+     *    This creates the BOTTOM-LEFT quadrant of the sphere void.
+     *    Padding-top: 100px + padding-right: 40px protects text.
+     */
+    .bento-bl-tile {
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+      overflow: visible !important;
+      border-radius: 0 0 0 20px;
+      padding-top: 100px !important;
+      padding-right: 40px !important;
+      -webkit-mask-image: radial-gradient(circle at 100% 0%, transparent 140px, black 141px);
+      mask-image: radial-gradient(circle at 100% 0%, transparent 140px, black 141px);
+    }
+
+    /* â”€â”€ BOTTOM-RIGHT tile
+     *    Cutout: concave arc at top-left corner, radius 140px.
+     *    This creates the BOTTOM-RIGHT quadrant of the sphere void.
+     *    Padding-top: 100px + padding-left: 40px protects text.
+     */
+    .bento-br-tile {
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+      overflow: visible !important;
+      border-radius: 0 0 20px 0;
+      padding-top: 100px !important;
+      padding-left: 40px !important;
+      -webkit-mask-image: radial-gradient(circle at 0% 0%, transparent 140px, black 141px);
+      mask-image: radial-gradient(circle at 0% 0%, transparent 140px, black 141px);
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   *  SPHERE CUTOUT MASKS  — Figma exact geometry
+   *  Sphere: 240px ⌀ = 120px radius. Masks transparent at 130px = 10px buffer.
+   * ════════════════════════════════════════════════════════════════════════ */
+
+  /* Top-center card: scavo circolare in basso al centro */
+  .mask-top-card {
+    -webkit-mask-image: radial-gradient(circle at bottom center, transparent 130px, black 132px);
+    mask-image: radial-gradient(circle at bottom center, transparent 130px, black 132px);
+    overflow: visible !important;
+  }
+
+  /* Bottom-left card: scavo circolare in alto a destra */
+  .mask-bottom-left-card {
+    -webkit-mask-image: radial-gradient(circle at top right, transparent 130px, black 132px);
+    mask-image: radial-gradient(circle at top right, transparent 130px, black 132px);
+    overflow: visible !important;
+  }
+
+  /* Bottom-right card: scavo circolare in alto a sinistra */
+  .mask-bottom-right-card {
+    -webkit-mask-image: radial-gradient(circle at top left, transparent 130px, black 132px);
+    mask-image: radial-gradient(circle at top left, transparent 130px, black 132px);
+    overflow: visible !important;
+  }
+
+  /* Sphere wrapper: ambient glow pseudo-element */
+  .sphere-wrapper::after {
+    content: "";
+    position: absolute;
+    inset: -20px;
+    border-radius: 50%;
+    box-shadow:
+      0 0 80px 30px rgba(124, 58, 237, 0.50),
+      0 0 160px 60px rgba(99, 102, 241, 0.22),
+      0 0 260px 80px rgba(59, 130, 246, 0.10);
+    z-index: -1;
+    animation: sphereGlowPulse 5s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes sphereGlowPulse {
+
+    0%,
+    100% {
+      opacity: 0.8;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 1;
+      transform: scale(1.08);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   *  CUTOUT MASKS — Figma exact geometry (sphere 240px / radius 120px)
+   *  Transparent zone: 130px = 10px visual buffer around sphere edge.
+   * ═══════════════════════════════════════════════════════════════════ */
+
+  /* Maschere esatte per il Cutout - NIENTE BAGLIORI */
+  .cutout-top {
+    -webkit-mask-image: radial-gradient(circle at 50% calc(100% + 12px), transparent 130px, black 132px);
+    mask-image: radial-gradient(circle at 50% calc(100% + 12px), transparent 130px, black 132px);
+  }
+
+  .cutout-bottom-left {
+    -webkit-mask-image: radial-gradient(circle at calc(100% + 12px) -12px, transparent 130px, black 132px);
+    mask-image: radial-gradient(circle at calc(100% + 12px) -12px, transparent 130px, black 132px);
+  }
+
+  .cutout-bottom-right {
+    -webkit-mask-image: radial-gradient(circle at -12px -12px, transparent 130px, black 132px);
+    mask-image: radial-gradient(circle at -12px -12px, transparent 130px, black 132px);
+  }
+
+  /* Rimuovi scrollbar antiestetiche */
+  .thin-scroll::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
   }
 }

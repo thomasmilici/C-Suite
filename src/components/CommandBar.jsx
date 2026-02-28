@@ -82,10 +82,7 @@ export const CommandBar = ({ onSend, isProcessing = false, isLiveActive = false,
                     : 'border-white/[0.08] hover:border-white/[0.15] focus-within:border-indigo-500/40 focus-within:bg-white/[0.06]'
                 }
             `}>
-                {/* SphereAI badge */}
-                <div className="flex-shrink-0 mr-1">
-                    <SphereAI size={36} state={sphereState} />
-                </div>
+                {/* SphereAI badge removed */}
                 {contextId && (
                     <>
                         <span className="hidden sm:flex items-center gap-1 text-[9px] font-mono text-zinc-600 uppercase tracking-widest whitespace-nowrap flex-shrink-0">

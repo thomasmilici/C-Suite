@@ -9,11 +9,10 @@ export const WorkspaceNav = () => {
 
     // Helper for active state style
     const getNavLinkClass = ({ isActive }) => `
-        relative px-3 py-1.5 rounded-lg text-[11px] font-mono font-medium uppercase tracking-wide transition-all duration-200
-        flex items-center gap-2 group
+        px-3 py-1.5 rounded-md transition-colors 
         ${isActive
             ? 'bg-white/10 text-white shadow-[0_1px_8px_rgba(0,0,0,0.2)] border border-white/10'
-            : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent'}
+            : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'}
     `;
 
     return (
@@ -21,52 +20,40 @@ export const WorkspaceNav = () => {
             <div className="max-w-screen-2xl mx-auto px-4 h-12 flex items-center justify-between overflow-x-auto no-scrollbar">
 
                 {/* Navigation Groups */}
-                <div className="flex items-center gap-6 min-w-max">
+                <div className="flex items-center gap-6 min-w-max text-sm">
 
-                    {/* HOME: Cockpit */}
-                    <NavLink to="/dashboard" className={getNavLinkClass}>
+                    {/* Cockpit / Home */}
+                    <NavLink to="/dashboard" className="px-3 py-1.5 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors uppercase font-mono tracking-wide text-[11px] flex items-center gap-2">
                         <LayoutDashboard className="w-3.5 h-3.5 opacity-70" />
                         <span>Cockpit</span>
                     </NavLink>
 
-                    {/* Divider */}
-                    <div className="w-px h-4 bg-white/10 transform rotate-12" />
+                    <div className="w-px h-4 bg-white/10" />
 
-                    {/* GROUP: OPERATIVITÀ */}
+                    {/* Viste */}
                     <div className="flex items-center gap-2">
-                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mr-1">Operatività</span>
-
+                        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Viste:</span>
                         <NavLink to={`/steering/daily/${todayId()}`} className={getNavLinkClass}>
-                            <CalendarDays className="w-3.5 h-3.5 opacity-70" />
-                            <span>Giornaliero</span>
+                            Giornaliero
                         </NavLink>
-
                         <NavLink to={`/steering/weekly/${currentWeekId()}`} className={getNavLinkClass}>
-                            <LayoutList className="w-3.5 h-3.5 opacity-70" />
-                            <span>Settimanale</span>
+                            Settimanale
                         </NavLink>
                     </div>
 
-                    {/* Divider */}
-                    <div className="w-px h-4 bg-white/10 transform rotate-12" />
+                    <div className="w-px h-4 bg-white/10" />
 
-                    {/* GROUP: STRATEGIA */}
+                    {/* Moduli */}
                     <div className="flex items-center gap-2">
-                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mr-1">Strategia</span>
-
+                        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Moduli:</span>
                         <NavLink to="/themes" className={getNavLinkClass}>
-                            <Layers className="w-3.5 h-3.5 opacity-70" />
-                            <span>Temi</span>
+                            Strategia
                         </NavLink>
-
                         <NavLink to="/stakeholder" className={getNavLinkClass}>
-                            <Users className="w-3.5 h-3.5 opacity-70" />
-                            <span>Stakeholder</span>
+                            Stakeholder
                         </NavLink>
-
                         <NavLink to="/toolbox" className={getNavLinkClass}>
-                            <Wrench className="w-3.5 h-3.5 opacity-70" />
-                            <span>Strumenti</span>
+                            Strumenti
                         </NavLink>
                     </div>
 

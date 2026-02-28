@@ -1,179 +1,176 @@
-import React, { useEffect, useState, useMemo } from 'react';
+﻿import React, { useEffect, useState, useContext } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, Link } from 'react-router-dom';
-import { AuthService } from '../services/authService';
-import { LogOut, Shield, Sparkles, Archive, CalendarDays, LayoutList, Layers, Users, Wrench } from 'lucide-react';
-import { todayId } from '../services/dailyPlanService';
-import { currentWeekId, formatWeekId } from '../services/weeklyPlanService';
-import { AppCredits } from '../components/ui/AppCredits';
 import { TileCompass } from '../components/tiles/TileCompass';
 import { TilePulse } from '../components/tiles/TilePulse';
-import { TileTeam } from '../components/tiles/TileTeam';
 import { TileRadar } from '../components/tiles/TileRadar';
 import { TileIntelligence, ReportsArchiveModal } from '../components/tiles/TileIntelligence';
 import { TileDecisionLog } from '../components/tiles/TileDecisionLog';
-import { GlassTile } from '../components/ui/GlassTile';
-import { ContextHeader } from '../components/ui/ContextHeader';
+import { ShadowCosSphere } from '../components/ui/ShadowCosSphere';
 import { ProactiveAlerts } from '../components/modules/Intelligence/ProactiveAlerts';
 import { BriefingRoom } from '../components/modules/Briefing/BriefingRoom';
 import { OKRManager } from '../components/modals/OKRManager';
 import { SignalInput } from '../components/modals/SignalInput';
 import { EventsList } from '../components/EventsList';
 import { AiPendingActionTile } from '../components/AiPendingActionTile';
-import { subscribeToActiveEvents } from '../services/eventService';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
+import { AiStateContext } from '../components/layout/AppShell';
 import { db } from '../firebase';
 
 export const Dashboard = ({ user }) => {
-    const navigate = useNavigate();
+    const { isThinking, isSpeaking, isLiveActive } = useContext(AiStateContext);
     const [isAdmin, setIsAdmin] = useState(false);
-    // const [showNeural, setShowNeural] = useState(false); // Moved to AppShell
     const [showArchive, setShowArchive] = useState(false);
     const [showSignalModal, setShowSignalModal] = useState(false);
     const [showOKRModal, setShowOKRModal] = useState(false);
     const [selectedOKR, setSelectedOKR] = useState(null);
-    const [okrs, setOkrs] = useState([]);
     const [signals, setSignals] = useState([]);
-    const [events, setEvents] = useState([]);
     const [alertCount, setAlertCount] = useState(0);
 
     useEffect(() => {
         const checkRole = async () => {
             if (user) {
-                const snap = await getDoc(doc(db, "users", user.uid));
-                if (snap.exists() && snap.data().role === 'ADMIN') {
-                    setIsAdmin(true);
-                }
+                const snap = await getDoc(doc(db, 'users', user.uid));
+                if (snap.exists() && snap.data().role === 'ADMIN') setIsAdmin(true);
             }
         };
         checkRole();
     }, [user]);
 
-    // Fetch OKRs, signals, events
     useEffect(() => {
-        const unsubOkrs = onSnapshot(collection(db, 'okrs'), snap => {
-            setOkrs(snap.docs.map(d => d.data()));
-        });
         const unsubSignals = onSnapshot(collection(db, 'signals'), snap => {
-            setSignals(snap.docs.map(d => d.data()));
+            setSignals(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         });
-        const unsubEvents = subscribeToActiveEvents(
-            (data) => setEvents(data),
-            (err) => console.error('[Dashboard] events error:', err)
-        );
-        return () => { unsubOkrs(); unsubSignals(); unsubEvents(); };
+        return () => { unsubSignals(); };
     }, []);
 
-    // Calcola health score (0-100) basato su OKR e segnali
-    const healthScore = useMemo(() => {
-        if (okrs.length === 0 && signals.length === 0) return null;
-        let score = 100;
-        // Penalizza OKR a rischio o con progress bassa
-        okrs.forEach(okr => {
-            if (okr.status === 'risk') score -= 15;
-            else if ((okr.progress || 0) < 30) score -= 10;
-        });
-        // Penalizza segnali HIGH
-        const highSignals = signals.filter(s => s.level === 'high').length;
-        const medSignals = signals.filter(s => s.level === 'medium').length;
-        score -= highSignals * 12;
-        score -= medSignals * 4;
-        return Math.max(0, Math.min(100, score));
-    }, [okrs, signals]);
+    const hasHighSignals = signals.some(s => s.level === 'high');
 
-    const handleLogout = async () => {
-        await AuthService.logout();
-        navigate('/login');
-    };
+    // Stile condiviso per l'effetto 3D / Dark Neumorphism
+    const cardStyleClass = "bg-[#161b2b] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),_0_8px_20px_rgba(0,0,0,0.5)]";
 
     return (
-        <div className="min-h-screen p-3 sm:p-4 md:p-6 font-sans selection:bg-zinc-800 relative text-gray-200 overflow-x-hidden">
-            {/* Header and Nav moved to AppShell */}
-
-            {/* Main Content */}
-            <main className="max-w-screen-2xl mx-auto pb-24 relative z-10">
-
-                {/* Portfolio Context Header */}
-                <div className="px-3 sm:px-0">
-                    <ContextHeader
-                        context="PORTFOLIO"
-                        title="Cockpit Operativo"
-                        subtitle={<span className="text-sm text-zinc-400 font-mono">Panoramica strategica e operativa</span>}
-                    />
-                </div>
-
-                {/* Proactive Alerts - High Priority */}
-                <ProactiveAlerts onAlertsChange={(count) => setAlertCount(count)} />
-
-                {/* Active Dossiers (Projects) */}
-                <div className="mb-8">
+        <>
+            <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 grid grid-cols-[320px_1fr_320px] gap-6 bg-[#0d111c]">
+              
+              {/* 1. COLONNA SINISTRA */}
+              <div className="flex flex-col gap-6 h-full overflow-hidden text-gray-200">
+                <div className={`flex-shrink-0 rounded-2xl overflow-hidden p-4 ${cardStyleClass}`}>
+                  <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-3 shrink-0">Dossier Attivi</p>
+                  <div className="max-h-48 overflow-y-auto thin-scroll">
                     <EventsList isAdmin={isAdmin} currentUser={user} />
+                  </div>
+                </div>
+                
+                <div className={`flex-shrink-0 rounded-2xl overflow-hidden p-4 ${cardStyleClass}`}>
+                  <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2 shrink-0">System Alerts</p>
+                  <div className="max-h-48 overflow-y-auto thin-scroll">
+                    <ProactiveAlerts onAlertsChange={(count) => setAlertCount(count)} />
+                  </div>
+                </div>
+                
+                <div className={`flex-1 min-h-0 rounded-2xl overflow-hidden flex flex-col ${cardStyleClass}`}>
+                  <div className="flex-1 overflow-y-auto thin-scroll p-4">
+                    <BriefingRoom isAdmin={isAdmin} />
+                  </div>
+                </div>
+                <div className={`flex-1 min-h-0 rounded-2xl overflow-hidden flex flex-col ${cardStyleClass}`}>
+                  <div className="flex-1 overflow-y-auto thin-scroll p-4">
+                    <TileDecisionLog isAdmin={isAdmin} />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. COLONNA CENTRALE - SPACCATURA MATEMATICA 50/50 */}
+              <div className="relative flex flex-col w-full h-full text-gray-200">
+                
+                {/* LA SFERA (Assoluta, centrata esattamente sulla spaccatura) */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none w-[240px] h-[240px] flex items-center justify-center">
+                  <ShadowCosSphere isSpeaking={isSpeaking || isLiveActive} isThinking={isThinking} />
                 </div>
 
-                {/* HITL: AI Pending Actions — banner fuori dalla grid per evitare layout shift */}
-                <div className="mb-4">
-                    <AiPendingActionTile />
+                {/* METÀ SUPERIORE: ESATTAMENTE 50% */}
+                <div className="h-[50%] w-full flex flex-col">
+                  <div 
+                    className={`${cardStyleClass} rounded-t-2xl w-full h-full p-6 pb-[140px] flex flex-col overflow-hidden`}
+                    style={{ 
+                      WebkitMaskImage: 'radial-gradient(circle at 50% calc(100% + 8px), transparent 135px, black 136px)',
+                      maskImage: 'radial-gradient(circle at 50% calc(100% + 8px), transparent 135px, black 136px)'
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 mb-3 shrink-0">
+                        <span className="relative flex h-1.5 w-1.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-60" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500" />
+                        </span>
+                        <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
+                            Azioni Proposte
+                        </span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto thin-scroll">
+                      <AiPendingActionTile position="top" />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Mobile-First Grid: 1 col (mobile) -> 2 col (md) -> 3 col (lg) -> 4 col (2xl) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-6 auto-rows-min">
+                {/* METÀ INFERIORE: ESATTAMENTE 50% */}
+                <div className="h-[50%] w-full flex gap-4">
+                  <div 
+                    className={`${cardStyleClass} rounded-bl-2xl rounded-br-lg flex-1 h-full p-6 pt-[140px] flex flex-col overflow-hidden`}
+                    style={{ 
+                      WebkitMaskImage: 'radial-gradient(circle at calc(100% + 8px) -8px, transparent 135px, black 136px)',
+                      maskImage: 'radial-gradient(circle at calc(100% + 8px) -8px, transparent 135px, black 136px)'
+                    }}
+                  >
+                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2 shrink-0">Priorità</p>
+                    <div className="flex-1 overflow-y-auto thin-scroll">
+                      <AiPendingActionTile position="bottom" />
+                    </div>
+                  </div>
 
-                    {/* 1. Daily Briefing — tile primario, bordo accent indigo */}
-                    <GlassTile className="md:col-span-2 lg:col-span-3 min-h-[340px] border-indigo-500/20 bg-indigo-950/5" padding="p-0">
-                        <BriefingRoom isAdmin={isAdmin} />
-                    </GlassTile>
-
-                    {/* 2. Decision Log - Quick Actions */}
-                    <GlassTile className="min-h-[340px]" padding="p-0">
-                        <TileDecisionLog isAdmin={isAdmin} adminName={user?.displayName} />
-                    </GlassTile>
-
-                    {/* 3. Risk Radar — bordo accent rosso se segnali HIGH */}
-                    <GlassTile
-                        className={`md:col-span-2 lg:col-span-1 min-h-[320px] ${signals.filter(s => s.level === 'high').length > 0 ? 'border-red-500/30 bg-red-950/5' : ''}`}
-                        padding="p-0"
-                    >
-                        <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
-                    </GlassTile>
-
-                    {/* 4. Pulse Compass - OKRs */}
-                    <GlassTile className="min-h-[280px]">
-                        <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} />
-                    </GlassTile>
-
-                    {/* 5. Team Status */}
-                    <GlassTile className="min-h-[280px]">
-                        <TileTeam isAdmin={isAdmin} />
-                    </GlassTile>
-
-                    {/* 6. System Pulse (Health) */}
-                    <GlassTile className="min-h-[280px]">
-                        <TilePulse />
-                    </GlassTile>
-
-                    {/* 7. Intelligence Reports - Full Width on Mobile, compact on Desktop */}
-                    <GlassTile className="min-h-[320px] relative overflow-hidden" padding="p-0">
-                        <TileIntelligence adminName={user?.displayName} />
-                    </GlassTile>
-
+                  <div 
+                    className={`${cardStyleClass} rounded-br-2xl rounded-bl-lg flex-1 h-full p-6 pt-[140px] flex flex-col overflow-hidden`}
+                    style={{ 
+                      WebkitMaskImage: 'radial-gradient(circle at -8px -8px, transparent 135px, black 136px)',
+                      maskImage: 'radial-gradient(circle at -8px -8px, transparent 135px, black 136px)'
+                    }}
+                  >
+                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2 shrink-0">Daily Pulse</p>
+                    <div className="flex-1 overflow-y-auto thin-scroll">
+                      <TilePulse />
+                    </div>
+                  </div>
                 </div>
-            </main>
 
-            {/* NeuralInterface moved to AppShell */}
-            {/* showNeural && <NeuralInterface onClose={() => setShowNeural(false)} events={events} isAdmin={isAdmin} /> */}
+              </div>
+
+              {/* 3. COLONNA DESTRA */}
+              <div className="flex flex-col gap-6 h-full overflow-hidden text-gray-200">
+                <div className={`flex-1 min-h-0 rounded-2xl overflow-hidden flex flex-col ${cardStyleClass}`}>
+                  <div className="flex-1 overflow-y-auto thin-scroll p-4">
+                    <TileCompass isAdmin={isAdmin} onOpenModal={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }} />
+                  </div>
+                </div>
+                <div className={`flex-1 min-h-0 rounded-2xl overflow-hidden flex flex-col ${cardStyleClass} ${hasHighSignals ? ' ring-1 ring-red-500/30' : ''}`}>
+                  <div className="flex-1 overflow-y-auto thin-scroll p-4">
+                    <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
+                  </div>
+                </div>
+                <div className={`flex-1 min-h-0 rounded-2xl overflow-hidden flex flex-col ${cardStyleClass}`}>
+                  <div className="flex-1 overflow-y-auto thin-scroll p-4">
+                    <TileIntelligence adminName={user?.displayName} />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Portals */}
             {showSignalModal && createPortal(<SignalInput onClose={() => setShowSignalModal(false)} />, document.body)}
             {showOKRModal && createPortal(<OKRManager onClose={() => setShowOKRModal(false)} existingOKR={selectedOKR} />, document.body)}
             {showArchive && createPortal(
-                <ReportsArchiveModal
-                    onClose={() => setShowArchive(false)}
-                    adminName={user?.displayName}
-                    onOpenReport={() => { }}
-                />,
+                <ReportsArchiveModal onClose={() => setShowArchive(false)} adminName={user?.displayName} onOpenReport={() => { }} />,
                 document.body
             )}
-
-
-
-        </div>
+        </>
     );
 };

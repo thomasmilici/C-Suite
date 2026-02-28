@@ -43,41 +43,36 @@ const EventCard = ({ event, onClick, isAdmin, onDelete }) => {
     };
 
     return (
-        <button
-            onClick={onClick}
-            className="glass-tile rounded-2xl p-5 text-left w-full group
-                hover:border-indigo-500/30 hover:bg-indigo-500/5
-                transition-all duration-200 active:scale-[0.98] relative"
-        >
-            <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col mb-1 relative group">
+            {/* Elemento Lista Dossier */}
+            <div 
+                onClick={onClick}
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+            >
                 <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-500/20 transition-colors">
-                        <Folder className="w-4 h-4 text-indigo-400" />
-                    </div>
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${status.dot} ${status.dot === 'bg-green-500' ? 'shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'shadow-[0_0_8px_rgba(255,255,255,0.2)]'}`} />
                     <div className="min-w-0">
-                        <h3 className="text-sm font-semibold text-white truncate leading-snug">
+                        <h4 className="text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors truncate">
                             {event.title}
-                        </h3>
-                        {event.description && (
-                            <p className="text-xs text-zinc-500 truncate mt-0.5 leading-snug">
-                                {event.description}
-                            </p>
-                        )}
+                        </h4>
+                        <p className="text-xs text-white/40 truncate">
+                            Aggiornato {createdDate}
+                        </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-3 flex-shrink-0">
                     {/* Admin delete button */}
                     {isAdmin && !confirmDelete && (
                         <button
                             onClick={handleDeleteClick}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
                             title="Elimina dossier"
                         >
                             <Trash2 className="w-3.5 h-3.5" />
                         </button>
                     )}
-                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all mt-0.5" />
+                    <span className="opacity-0 group-hover:opacity-100 text-indigo-400 font-bold transition-all transform group-hover:translate-x-1">→</span>
                 </div>
             </div>
 
@@ -85,7 +80,7 @@ const EventCard = ({ event, onClick, isAdmin, onDelete }) => {
             {confirmDelete && (
                 <div
                     onClick={(e) => e.stopPropagation()}
-                    className="mt-3 pt-3 border-t border-red-500/20 flex items-center justify-between gap-3"
+                    className="mt-2 p-3 bg-black/40 rounded-lg border border-red-500/20 flex items-center justify-between gap-3"
                 >
                     <span className="text-[10px] font-mono text-red-400 uppercase tracking-wider">
                         Eliminare definitivamente?
@@ -108,27 +103,7 @@ const EventCard = ({ event, onClick, isAdmin, onDelete }) => {
                     </div>
                 </div>
             )}
-
-            {/* Footer metadata */}
-            {!confirmDelete && (
-                <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/[0.05]">
-                    <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                        <span className={`text-[10px] font-mono uppercase tracking-wider ${status.text}`}>
-                            {status.label}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-zinc-600">
-                        <Calendar className="w-3 h-3" />
-                        <span className="text-[10px] font-mono">{createdDate}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-zinc-600">
-                        <Users className="w-3 h-3" />
-                        <span className="text-[10px] font-mono">{event.teamMembers?.length ?? 1}</span>
-                    </div>
-                </div>
-            )}
-        </button>
+        </div>
     );
 };
 

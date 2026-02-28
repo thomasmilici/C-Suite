@@ -416,25 +416,26 @@ const DecisionModal = ({ entry, onClose, adminName, isAdmin }) => {
                             placeholder="Testo analisi..."
                         />
                     ) : (
-                        <ReactMarkdown
-                            className="prose prose-invert prose-sm max-w-none"
-                            components={{
-                                h2: ({ children }) => (
-                                    <h2 className="text-[11px] font-mono font-bold text-indigo-300 uppercase tracking-widest border-b border-white/[0.05] pb-1 mb-2 mt-5 first:mt-0">{children}</h2>
-                                ),
-                                p: ({ children }) => (
-                                    <p className="text-xs text-zinc-300 leading-relaxed mb-2">{children}</p>
-                                ),
-                                li: ({ children }) => (
-                                    <li className="text-xs text-zinc-300 leading-relaxed">{children}</li>
-                                ),
-                                strong: ({ children }) => (
-                                    <strong className="text-zinc-100 font-semibold">{children}</strong>
-                                ),
-                            }}
-                        >
-                            {entry.analysis}
-                        </ReactMarkdown>
+                        <div className="prose prose-invert prose-sm max-w-none">
+                            <ReactMarkdown
+                                components={{
+                                    h2: ({ children }) => (
+                                        <h2 className="text-[11px] font-mono font-bold text-indigo-300 uppercase tracking-widest border-b border-white/[0.05] pb-1 mb-2 mt-5 first:mt-0">{children}</h2>
+                                    ),
+                                    p: ({ children }) => (
+                                        <p className="text-xs text-zinc-300 leading-relaxed mb-2">{children}</p>
+                                    ),
+                                    li: ({ children }) => (
+                                        <li className="text-xs text-zinc-300 leading-relaxed">{children}</li>
+                                    ),
+                                    strong: ({ children }) => (
+                                        <strong className="text-zinc-100 font-semibold">{children}</strong>
+                                    ),
+                                }}
+                            >
+                                {entry.analysis}
+                            </ReactMarkdown>
+                        </div>
                     )}
                 </div>
             </motion.div>

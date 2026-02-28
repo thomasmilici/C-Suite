@@ -164,10 +164,7 @@ export const CopilotDialogue = ({
                             ref={scrollRef}
                             className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin scrollbar-thumb-white/5"
                         >
-                            {/* SphereAI in top of drawer */}
-                            <div className="flex justify-center my-6">
-                                <SphereAI size={80} state={sphereState} />
-                            </div>
+                            {/* SphereAI in top of drawer removed */}
                             {messages.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
                                     <Sparkles className="w-6 h-6 text-zinc-700" />
@@ -198,9 +195,11 @@ export const CopilotDialogue = ({
                                                 }
                                             `}>
                                                 {msg.type === 'ai' ? (
-                                                    <ReactMarkdown className="prose prose-invert prose-sm max-w-none prose-p:text-zinc-300 prose-strong:text-white prose-headings:text-zinc-200 prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
-                                                        {msg.text}
-                                                    </ReactMarkdown>
+                                                    <div className="prose prose-invert prose-sm max-w-none prose-p:text-zinc-300 prose-strong:text-white prose-headings:text-zinc-200 prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
+                                                        <ReactMarkdown>
+                                                            {msg.text}
+                                                        </ReactMarkdown>
+                                                    </div>
                                                 ) : (
                                                     <p className="font-mono text-xs">{msg.text}</p>
                                                 )}

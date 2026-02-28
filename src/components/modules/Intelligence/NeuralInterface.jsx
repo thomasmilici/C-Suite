@@ -404,9 +404,11 @@ export const NeuralInterface = ({ onClose, events = [], isAdmin = false }) => {
                                         : "bg-indigo-900/10 border border-indigo-500/10 text-zinc-300 rounded-tl-sm"
                                         }`}>
                                         {msg.type === 'ai' ? (
-                                            <ReactMarkdown className="prose prose-invert prose-sm max-w-none prose-p:text-zinc-300 prose-strong:text-white prose-headings:text-zinc-200">
-                                                {msg.text}
-                                            </ReactMarkdown>
+                                            <div className="prose prose-invert prose-sm max-w-none prose-p:text-zinc-300 prose-strong:text-white prose-headings:text-zinc-200">
+                                                <ReactMarkdown>
+                                                    {msg.text}
+                                                </ReactMarkdown>
+                                            </div>
                                         ) : (
                                             msg.text
                                         )}

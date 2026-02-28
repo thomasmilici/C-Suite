@@ -1,5 +1,13 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, createContext } from 'react';
 import { useLocation } from 'react-router-dom';
+
+// Esportiamo il Context globale per l'IA
+export const AiStateContext = createContext({
+    isThinking: false,
+    isLiveActive: false,
+    isSpeaking: false,
+    volume: 0,
+});
 import { AppHeader } from './AppHeader';
 import { WorkspaceNav } from './WorkspaceNav';
 import { AiFab } from '../ui/AiFab';
@@ -157,7 +165,9 @@ export const AppShell = ({ children, user, isAdmin }) => {
 
             {/* Main Content Area — shifted right when copilot open on desktop */}
             <div className={`relative z-10 transition-all duration-300 ${showCopilot ? 'md:mr-[420px]' : ''}`}>
-                {children}
+                <AiStateContext.Provider value={{ isThinking, isLiveActive, isSpeaking, volume }}>
+                    {children}
+                </AiStateContext.Provider>
             </div>
 
             {/* CopilotDialogue — slide-in drawer */}
