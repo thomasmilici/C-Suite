@@ -163,11 +163,13 @@ export const AppShell = ({ children, user, isAdmin }) => {
                 }}
             />
 
-            {/* Legacy AI FAB (desktop) — opens NeuralInterface modal for advanced use */}
-            <AiFab
-                onClick={() => setShowLegacyAi(true)}
-                isProcessing={isThinking}
-            />
+            {/* Legacy AI FAB — nascosto su desktop, il CommandBar è il punto di ingresso primario */}
+            <div className="hidden">
+                <AiFab
+                    onClick={() => setShowLegacyAi(true)}
+                    isProcessing={isThinking}
+                />
+            </div>
 
             {/* Legacy NeuralInterface Modal */}
             {showLegacyAi && (

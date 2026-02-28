@@ -117,14 +117,16 @@ export const Dashboard = ({ user }) => {
                     <EventsList isAdmin={isAdmin} currentUser={user} />
                 </div>
 
+                {/* HITL: AI Pending Actions — banner fuori dalla grid per evitare layout shift */}
+                <div className="mb-4">
+                    <AiPendingActionTile />
+                </div>
+
                 {/* Mobile-First Grid: 1 col (mobile) -> 2 col (md) -> 3 col (lg) -> 4 col (2xl) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-6">
 
-                    {/* HITL: AI Pending Actions — shown only when AI proposes actions */}
-                    <AiPendingActionTile />
-
-                    {/* 1. Daily Briefing (Global) - Priority on Mobile */}
-                    <GlassTile className="md:col-span-2 lg:col-span-2 min-h-[340px]" padding="p-0">
+                    {/* 1. Daily Briefing — tile primario, bordo accent indigo */}
+                    <GlassTile className="md:col-span-2 lg:col-span-2 min-h-[340px] border-indigo-500/20 bg-indigo-950/5" padding="p-0">
                         <BriefingRoom isAdmin={isAdmin} />
                     </GlassTile>
 
@@ -133,8 +135,11 @@ export const Dashboard = ({ user }) => {
                         <TileDecisionLog isAdmin={isAdmin} adminName={user?.displayName} />
                     </GlassTile>
 
-                    {/* 3. Risk Radar - Strategic Overview */}
-                    <GlassTile className="md:col-span-2 lg:col-span-1 min-h-[320px]" padding="p-0">
+                    {/* 3. Risk Radar — bordo accent rosso se segnali HIGH */}
+                    <GlassTile
+                        className={`md:col-span-2 lg:col-span-1 min-h-[320px] ${signals.filter(s => s.level === 'high').length > 0 ? 'border-red-500/30 bg-red-950/5' : ''}`}
+                        padding="p-0"
+                    >
                         <TileRadar isAdmin={isAdmin} onOpenModal={() => setShowSignalModal(true)} />
                     </GlassTile>
 

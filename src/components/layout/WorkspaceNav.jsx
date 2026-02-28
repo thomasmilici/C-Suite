@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { CalendarDays, LayoutList, Layers, Users, Wrench } from 'lucide-react';
+import { CalendarDays, LayoutList, Layers, Users, Wrench, LayoutDashboard } from 'lucide-react';
 import { todayId } from '../../services/dailyPlanService';
 import { currentWeekId } from '../../services/weeklyPlanService';
 
@@ -23,31 +23,40 @@ export const WorkspaceNav = () => {
                 {/* Navigation Groups */}
                 <div className="flex items-center gap-6 min-w-max">
 
-                    {/* GROUP: STEERING */}
+                    {/* HOME: Cockpit */}
+                    <NavLink to="/dashboard" className={getNavLinkClass}>
+                        <LayoutDashboard className="w-3.5 h-3.5 opacity-70" />
+                        <span>Cockpit</span>
+                    </NavLink>
+
+                    {/* Divider */}
+                    <div className="w-px h-4 bg-white/10 transform rotate-12" />
+
+                    {/* GROUP: OPERATIVITÀ */}
                     <div className="flex items-center gap-2">
-                        <span className="text-[9px] text-zinc-700 font-bold uppercase tracking-widest mr-1">Steering</span>
+                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mr-1">Operatività</span>
 
                         <NavLink to={`/steering/daily/${todayId()}`} className={getNavLinkClass}>
                             <CalendarDays className="w-3.5 h-3.5 opacity-70" />
-                            <span>Daily</span>
+                            <span>Giornaliero</span>
                         </NavLink>
 
                         <NavLink to={`/steering/weekly/${currentWeekId()}`} className={getNavLinkClass}>
                             <LayoutList className="w-3.5 h-3.5 opacity-70" />
-                            <span>Weekly</span>
+                            <span>Settimanale</span>
                         </NavLink>
                     </div>
 
                     {/* Divider */}
-                    <div className="w-px h-4 bg-white/10 transform rotate-12 mx-1" />
+                    <div className="w-px h-4 bg-white/10 transform rotate-12" />
 
-                    {/* GROUP: BUILD */}
+                    {/* GROUP: STRATEGIA */}
                     <div className="flex items-center gap-2">
-                        <span className="text-[9px] text-zinc-700 font-bold uppercase tracking-widest mr-1">Build</span>
+                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mr-1">Strategia</span>
 
                         <NavLink to="/themes" className={getNavLinkClass}>
                             <Layers className="w-3.5 h-3.5 opacity-70" />
-                            <span>Themes</span>
+                            <span>Temi</span>
                         </NavLink>
 
                         <NavLink to="/stakeholder" className={getNavLinkClass}>
@@ -57,7 +66,7 @@ export const WorkspaceNav = () => {
 
                         <NavLink to="/toolbox" className={getNavLinkClass}>
                             <Wrench className="w-3.5 h-3.5 opacity-70" />
-                            <span>Toolbox</span>
+                            <span>Strumenti</span>
                         </NavLink>
                     </div>
 

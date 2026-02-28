@@ -30,8 +30,8 @@ const IMPACT_OPTIONS = ['High', 'Medium', 'Low'];
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function SectionCard({ icon: Icon, iconColor = 'text-indigo-400', title, badge, children, collapsible = false }) {
-    const [open, setOpen] = useState(true);
+function SectionCard({ icon: Icon, iconColor = 'text-indigo-400', title, badge, children, collapsible = false, defaultOpen = true }) {
+    const [open, setOpen] = useState(defaultOpen);
     return (
         <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
             <div
@@ -316,7 +316,7 @@ export const DailyPage = ({ user }) => {
                 </SectionCard>
 
                 {/* ── 2. Dossier caldi ──────────────────────────────────── */}
-                <SectionCard icon={Layers} iconColor="text-blue-400" title="Dossier per la C-Suite" badge={plan?.dossier_ids?.length || 0} collapsible>
+                <SectionCard icon={Layers} iconColor="text-blue-400" title="Dossier per la C-Suite" badge={plan?.dossier_ids?.length || 0} collapsible defaultOpen={false}>
                     {activeEvents.length === 0 ? (
                         <p className="text-xs text-zinc-700 py-2">Nessun dossier attivo. <Link to="/dashboard" className="underline text-zinc-500">Creane uno</Link>.</p>
                     ) : (
@@ -338,7 +338,7 @@ export const DailyPage = ({ user }) => {
                 </SectionCard>
 
                 {/* ── 3. Decisioni da orchestrare ───────────────────────── */}
-                <SectionCard icon={Gavel} iconColor="text-purple-400" title="Decisioni da Orchestrare" badge={plan?.decisions_to_orchestrate?.length || 0} collapsible>
+                <SectionCard icon={Gavel} iconColor="text-purple-400" title="Decisioni da Orchestrare" badge={plan?.decisions_to_orchestrate?.length || 0} collapsible defaultOpen={false}>
                     <div className="space-y-4">
                         <AnimatePresence>
                             {(plan?.decisions_to_orchestrate || []).map((item) => (
@@ -374,7 +374,7 @@ export const DailyPage = ({ user }) => {
                 </SectionCard>
 
                 {/* ── 4. Stakeholder & Alliance Building ────────────────── */}
-                <SectionCard icon={Users} iconColor="text-teal-400" title="Stakeholder & Alliance Building" badge={plan?.stakeholder_actions?.length || 0} collapsible>
+                <SectionCard icon={Users} iconColor="text-teal-400" title="Stakeholder & Alliance Building" badge={plan?.stakeholder_actions?.length || 0} collapsible defaultOpen={false}>
                     <div className="space-y-3">
                         <AnimatePresence>
                             {(plan?.stakeholder_actions || []).map((item) => (
@@ -403,7 +403,7 @@ export const DailyPage = ({ user }) => {
                 </SectionCard>
 
                 {/* ── 5. Rischi / Tensioni / Issue ──────────────────────── */}
-                <SectionCard icon={AlertTriangle} iconColor="text-red-400" title="Rischi / Tensioni / Issue" badge={plan?.risks_issues?.length || 0} collapsible>
+                <SectionCard icon={AlertTriangle} iconColor="text-red-400" title="Rischi / Tensioni / Issue" badge={plan?.risks_issues?.length || 0} collapsible defaultOpen={false}>
                     <div className="space-y-3">
                         <AnimatePresence>
                             {(plan?.risks_issues || []).map((item) => (
@@ -433,7 +433,7 @@ export const DailyPage = ({ user }) => {
                 </SectionCard>
 
                 {/* ── 6. Follow-up & Deleghe ────────────────────────────── */}
-                <SectionCard icon={ArrowRight} iconColor="text-orange-400" title="Follow-up & Deleghe" badge={plan?.followups?.length || 0} collapsible>
+                <SectionCard icon={ArrowRight} iconColor="text-orange-400" title="Follow-up & Deleghe" badge={plan?.followups?.length || 0} collapsible defaultOpen={false}>
                     <div className="space-y-3">
                         <AnimatePresence>
                             {(plan?.followups || []).map((item) => (

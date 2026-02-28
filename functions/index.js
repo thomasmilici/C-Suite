@@ -189,6 +189,19 @@ const TOOL_SCHEMAS = {
         objective: { type: "string", required: false, maxLength: 300 },
         status: { type: "string", required: false, enum: ["scheduled", "completed", "cancelled"] },
     },
+    // ── SEMANTIC ROUTING — Update tools ───────────────────────────────────────
+    updateRiskSignal: {
+        id: { type: "string", required: true },
+        text: { type: "string", required: false, maxLength: 300 },
+        level: { type: "string", required: false, enum: ["high", "medium", "low"] },
+        category: { type: "string", required: false, maxLength: 100 },
+    },
+    updateOKR: {
+        id: { type: "string", required: true },
+        title: { type: "string", required: false, maxLength: 200 },
+        status: { type: "string", required: false, enum: ["on_track", "risk", "completed"] },
+        progress: { type: "number", required: false },
+    },
 };
 
 // ── AI ACTION POLICY ─────────────────────────────────────────────────────────
@@ -205,6 +218,9 @@ const AI_ACTION_POLICY = {
     createStrategicTheme: { minRole: "ADMIN", collection: "strategic_themes" },
     addStakeholder: { minRole: "COS", collection: "stakeholders" },
     addMeeting: { minRole: "COS", collection: "meetings" },
+    // ── Semantic Routing — Update tools ───────────────────────────────────────
+    updateRiskSignal: { minRole: "COS", collection: "signals" },
+    updateOKR: { minRole: "ADMIN", collection: "okrs" },
 };
 
 // ── INTELLIGENCE ARCHIVE FETCHER (RAG) ───────────────────────────────────────
@@ -241,11 +257,11 @@ async function fetchContext() {
 
     try {
         const snap = await db.collection("okrs").orderBy("createdAt", "desc").get();
-        okrs = snap.docs.map(d => ({ title: d.data().title, status: d.data().status, progress: d.data().progress, keyResults: (d.data().keyResults || []).map(kr => ({ title: kr.title, completed: kr.completed })) }));
+        okrs = snap.docs.map(d => ({ id: d.id, title: d.data().title, status: d.data().status, progress: d.data().progress, keyResults: (d.data().keyResults || []).map(kr => ({ title: kr.title, completed: kr.completed })) }));
     } catch (e) { logger.warn("Failed to fetch OKRs:", e.message); }
     try {
         const snap = await db.collection("signals").orderBy("createdAt", "desc").limit(8).get();
-        signals = snap.docs.map(d => ({ text: d.data().text, level: d.data().level }));
+        signals = snap.docs.map(d => ({ id: d.id, text: d.data().text, level: d.data().level }));
     } catch (e) { logger.warn("Failed to fetch Signals:", e.message); }
     try {
         const today = new Date().toISOString().split("T")[0];
@@ -317,7 +333,7 @@ const SHADOW_COS_TOOLS = [
         functionDeclarations: [
             {
                 name: "createRiskSignal",
-                description: "Crea un nuovo segnale di rischio nel Risk Radar. Usalo quando l'utente vuole registrare una minaccia, un problema o un rischio strategico.",
+                description: "Crea un NUOVO segnale di rischio nel Risk Radar. Usalo SOLO quando l'input descrive un rischio genuinamente nuovo, non già presente nel contesto.",
                 parameters: {
                     type: "OBJECT",
                     properties: {
@@ -330,8 +346,22 @@ const SHADOW_COS_TOOLS = [
                 },
             },
             {
+                name: "updateRiskSignal",
+                description: "Aggiorna un segnale di rischio ESISTENTE nel Risk Radar. Usalo quando l'utente fornisce un aggiornamento su un rischio già registrato (es. cambia la severità, corregge la descrizione). Usa l'ID dal contesto operativo.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        id: { type: "STRING", description: "ID del documento segnale esistente (dall'elenco segnali nel contesto)" },
+                        text: { type: "STRING", description: "Nuova descrizione del segnale (opzionale)" },
+                        level: { type: "STRING", enum: ["high", "medium", "low"], description: "Nuovo livello di severità (opzionale)" },
+                        category: { type: "STRING", description: "Nuova categoria (opzionale)" },
+                    },
+                    required: ["id"],
+                },
+            },
+            {
                 name: "createOKR",
-                description: "Crea un nuovo OKR nei Strategic Themes. Richiede ruolo ADMIN.",
+                description: "Crea un NUOVO OKR. Usalo SOLO per obiettivi genuinamente nuovi, non già presenti nel contesto. Richiede ruolo ADMIN.",
                 parameters: {
                     type: "OBJECT",
                     properties: {
@@ -340,6 +370,20 @@ const SHADOW_COS_TOOLS = [
                         keyResult: { type: "STRING", description: "Primo Key Result misurabile (opzionale)" },
                     },
                     required: ["title"],
+                },
+            },
+            {
+                name: "updateOKR",
+                description: "Aggiorna un OKR ESISTENTE. Usalo quando l'utente aggiorna lo stato di avanzamento o modifica un obiettivo già esistente. Usa l'ID dal contesto operativo. Richiede ruolo ADMIN.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        id: { type: "STRING", description: "ID dell'OKR esistente (dall'elenco OKR nel contesto)" },
+                        title: { type: "STRING", description: "Nuovo titolo (opzionale)" },
+                        status: { type: "STRING", enum: ["on_track", "risk", "completed"], description: "Nuovo stato dell'OKR (opzionale)" },
+                        progress: { type: "NUMBER", description: "Percentuale di avanzamento 0-100 (opzionale)" },
+                    },
+                    required: ["id"],
                 },
             },
             {
@@ -515,21 +559,42 @@ const BRIDGE_TOOLS = [
 async function createPendingAction({ name, args, uid, email, role, aiRunId, sessionId, contextId = null }) {
     const db = admin.firestore();
 
-    // Human-readable summaries per tool
+    // Human-readable summaries in linguaggio naturale
     const SUMMARIES = {
-        createRiskSignal: (a) => `Crea segnale [${(a.level || "?").toUpperCase()}]: "${(a.text || "").slice(0, 80)}"`,
-        createOKR: (a) => `Crea OKR: "${(a.title || "").slice(0, 80)}"`,
-        updateDailyPulse: (a) => `Aggiorna Daily Pulse con ${(a.items || []).length} item`,
-        logDecision: (a) => `Registra decisione: "${(a.decision || "").slice(0, 80)}"`,
-        updateDailyFocus: (a) => `Aggiorna Focus giornaliero con ${(a.items || []).length} item`,
-        addWeeklyOutcome: (a) => `Aggiunge outcome settimanale: "${(a.outcome || "").slice(0, 80)}"`,
-        addWeeklyStakeholderMove: (a) => `Mossa stakeholder: "${(a.stakeholder || "")}" — ${(a.concrete_move || "").slice(0, 60)}`,
-        createStrategicTheme: (a) => `Crea tema strategico: "${(a.title || "").slice(0, 80)}"`,
-        addStakeholder: (a) => `Aggiungi stakeholder: "${(a.name || "")}" [${a.influence || "?"}/${a.alignment || "?"}]`,
-        addMeeting: (a) => `Registra meeting: "${(a.title || "").slice(0, 80)}" — ${a.date || "data da definire"}`,
+        createRiskSignal: (a) => `Ho individuato un nuovo rischio da registrare [${(a.level || "?").toUpperCase()}]: "${(a.text || "").slice(0, 80)}"`,
+        createOKR: (a) => `Ho preparato un nuovo obiettivo strategico: "${(a.title || "").slice(0, 80)}"`,
+        updateDailyPulse: (a) => `Ho aggiornato il Daily Pulse con ${(a.items || []).length} nuovi item`,
+        logDecision: (a) => `Ho registrato la tua decisione: "${(a.decision || "").slice(0, 80)}"`,
+        updateDailyFocus: (a) => `Ho aggiornato le tue priorità di oggi con ${(a.items || []).length} item`,
+        addWeeklyOutcome: (a) => `Ho aggiunto un outcome settimanale: "${(a.outcome || "").slice(0, 80)}"`,
+        addWeeklyStakeholderMove: (a) => `Mossa stakeholder pianificata: "${(a.stakeholder || "")}" — ${(a.concrete_move || "").slice(0, 60)}`,
+        createStrategicTheme: (a) => `Ho individuato un nuovo tema di lavoro per te: "${(a.title || "").slice(0, 80)}"`,
+        addStakeholder: (a) => `Nuovo stakeholder da aggiungere al registro: "${(a.name || "")}" [${a.influence || "?"} / ${a.alignment || "?"}]`,
+        addMeeting: (a) => `Meeting da registrare: "${(a.title || "").slice(0, 80)}" — ${a.date || "data da definire"}`,
+        // Semantic Routing — Update tools
+        updateRiskSignal: (a) => `Propongo un aggiornamento su un segnale di rischio esistente (severità → ${(a.level || "invariata").toUpperCase()})`,
+        updateOKR: (a) => `Propongo un aggiornamento a un OKR esistente${a.status ? ` — stato → ${a.status}` : ""}${a.progress !== undefined ? ` — avanzamento → ${a.progress}%` : ""}`,
     };
 
     const summary = SUMMARIES[name] ? SUMMARIES[name](args) : `Esegui: ${name}`;
+
+    // ── SEMANTIC ROUTING: determina intent (UPDATE vs NEW_ENTITY) ─────────────
+    const actionIntent = args.id ? "UPDATE" : "NEW_ENTITY";
+    const linkedEntityId = args.id || null;
+    let linkedEntityTitle = null;
+
+    if (linkedEntityId) {
+        try {
+            const collection = name === "updateRiskSignal" ? "signals" : name === "updateOKR" ? "okrs" : null;
+            if (collection) {
+                const snap = await db.collection(collection).doc(linkedEntityId).get();
+                if (snap.exists) {
+                    const d = snap.data();
+                    linkedEntityTitle = d.title || d.text?.slice(0, 60) || linkedEntityId;
+                }
+            }
+        } catch (_) { /* non-blocking */ }
+    }
 
     const ref = await db.collection("pending_ai_actions").add({
         proposedAction: name,
@@ -537,6 +602,9 @@ async function createPendingAction({ name, args, uid, email, role, aiRunId, sess
         contextId: contextId || null,
         status: "pending",
         summary,
+        actionIntent,
+        linkedEntityId,
+        linkedEntityTitle,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         createdBy: uid,
         createdByEmail: email || null,
@@ -799,6 +867,37 @@ async function executeToolSecure(name, args, { uid, email, role, aiRunId, sessio
             diff = `title:"${payload.title.slice(0, 80)}", date:${payload.date}, status:${payload.status}`;
         }
 
+        // ── SEMANTIC ROUTING — Update handlers ───────────────────────────────
+
+        if (name === "updateRiskSignal") {
+            const ref = db.collection("signals").doc(args.id);
+            const updates = {};
+            if (args.text !== undefined) updates.text = args.text;
+            if (args.level !== undefined) updates.level = args.level;
+            if (args.category !== undefined) updates.category = args.category;
+            updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+            updates.updatedBy = uid;
+            updates.lastAiRunId = aiRunId;
+            updates.source = "shadow_cos";
+            await ref.update(updates);
+            newDocId = args.id;
+            diff = `id:${args.id}, updates:${JSON.stringify(updates).slice(0, 100)}`;
+        }
+
+        if (name === "updateOKR") {
+            const ref = db.collection("okrs").doc(args.id);
+            const updates = {};
+            if (args.title !== undefined) updates.title = args.title;
+            if (args.status !== undefined) updates.status = args.status;
+            if (args.progress !== undefined) updates.progress = args.progress;
+            updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+            updates.updatedBy = uid;
+            updates.lastAiRunId = aiRunId;
+            await ref.update(updates);
+            newDocId = args.id;
+            diff = `id:${args.id}, updates:${JSON.stringify(updates).slice(0, 100)}`;
+        }
+
         // 5. Audit log — SUCCESS
         await writeAuditLog({
             uid, email, role,
@@ -915,15 +1014,23 @@ Dopo aver chiamato una funzione, comunica all'utente: "Ho proposto l'azione per 
 
 RUOLO UTENTE CORRENTE: ${role}
 FUNZIONI DISPONIBILI:
-${hasMinRole(role, "COS") ? `- createRiskSignal: propone un segnale di rischio nel Risk Radar
-- updateDailyPulse: propone aggiornamento al Daily Pulse
-- logDecision: propone registrazione di una decisione nel Decision Log
-- updateDailyFocus: propone aggiornamento focus items Daily Steering
-- addWeeklyOutcome: propone un outcome al Weekly Steering
-- addWeeklyStakeholderMove: propone una mossa stakeholder settimanale
-- addStakeholder: propone un nuovo stakeholder nel registro
-- addMeeting: propone un meeting nel Meeting Log` : "- Nessuna funzione operativa disponibile per il tuo ruolo."}
-${hasMinRole(role, "ADMIN") ? "- createOKR: propone un nuovo obiettivo strategico\n- createStrategicTheme: propone un tema strategico di lungo periodo" : ""}
+${hasMinRole(role, "COS") ? `- createRiskSignal / updateRiskSignal: registra un nuovo rischio o aggiorna uno esistente nel Risk Radar
+- updateDailyPulse: aggiorna il Daily Pulse
+- logDecision: registra una decisione nel Decision Log
+- updateDailyFocus: aggiorna i focus items del Daily Steering
+- addWeeklyOutcome: aggiunge un outcome al Weekly Steering
+- addWeeklyStakeholderMove: registra una mossa stakeholder settimanale
+- addStakeholder: aggiunge uno stakeholder al registro
+- addMeeting: registra un meeting nel Meeting Log` : "- Nessuna funzione operativa disponibile per il tuo ruolo."}
+${hasMinRole(role, "ADMIN") ? "- createOKR / updateOKR: propone un nuovo obiettivo strategico o ne aggiorna uno esistente\n- createStrategicTheme: propone un tema strategico di lungo periodo" : ""}
+
+## ROUTING SEMANTICO (IMPORTANTE)
+Prima di proporre qualsiasi azione di scrittura, applica questa logica:
+1. Esamina il CONTESTO OPERATIVO qui sotto — contiene OKR, segnali e dossier con i loro ID Firestore.
+2. Valuta se l'input dell'utente si riferisce a qualcosa GIÀ PRESENTE (stesso rischio, stesso OKR, continuazione di una situazione già registrata).
+3. CASO UPDATE: se trovi una corrispondenza pertinente per tema/area/progetto → usa il tool di UPDATE (updateRiskSignal o updateOKR) con l'ID del documento esistente. Comunicalo chiaramente: "Ho trovato un segnale simile già registrato — propongo un aggiornamento."
+4. CASO NEW_ENTITY: se il contenuto è genuinamente nuovo → usa il tool di CREATE. Comunicalo: "Questo è un tema nuovo — ho preparato una nuova voce per te."
+5. In caso di dubbio, preferisci l'UPDATE per evitare duplicati. Sii sempre trasparente sulla tua scelta.
 
 ## LIMITI DI CAPACITÀ (IMPORTANTE)
 Se l'utente chiede un'azione che NON rientra nelle funzioni elencate sopra, rispondi in modo naturale e utile, ad esempio:

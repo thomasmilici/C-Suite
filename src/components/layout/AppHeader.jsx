@@ -15,25 +15,29 @@ export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
         <header className="sticky top-0 z-30 w-full border-b border-white/5 bg-[#050508]/80 backdrop-blur-xl">
             <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center gap-3">
 
-                {/* Brand / Status */}
-                <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Brand / Status — cliccabile per tornare al Cockpit */}
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    title="Torna al Cockpit"
+                    className="flex items-center gap-3 flex-shrink-0 hover:opacity-80 transition-opacity"
+                >
                     <img
                         src="/logo.png"
                         alt="C-Suite OS"
                         className="w-8 h-8 rounded-xl object-contain"
                     />
-                    <div className="hidden sm:block">
+                    <div className="hidden sm:block text-left">
                         <h1 className="text-sm font-mono font-bold tracking-tighter text-white leading-none">
                             C-Suite <span className="text-zinc-600">OS</span>
                         </h1>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                             <span className="text-[9px] text-zinc-500 font-mono uppercase tracking-wider">
-                                Execution Layer • Active
+                                Sistema Attivo
                             </span>
                         </div>
                     </div>
-                </div>
+                </button>
 
                 {/* CommandBar slot — center of header, takes remaining space */}
                 {commandBarSlot && (

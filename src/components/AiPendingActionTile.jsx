@@ -19,7 +19,9 @@ import { CheckCircle, XCircle, Zap, Loader2, Clock } from 'lucide-react';
 
 const TOOL_COLORS = {
     createRiskSignal:        'border-red-500/20 bg-red-500/5 text-red-300',
+    updateRiskSignal:        'border-amber-500/20 bg-amber-500/5 text-amber-300',
     createOKR:               'border-emerald-500/20 bg-emerald-500/5 text-emerald-300',
+    updateOKR:               'border-amber-500/20 bg-amber-500/5 text-amber-300',
     updateDailyPulse:        'border-yellow-500/20 bg-yellow-500/5 text-yellow-300',
     logDecision:             'border-blue-500/20 bg-blue-500/5 text-blue-300',
     updateDailyFocus:        'border-yellow-500/20 bg-yellow-500/5 text-yellow-300',
@@ -32,7 +34,9 @@ const TOOL_COLORS = {
 
 const TOOL_LABELS = {
     createRiskSignal:        'Segnale di Rischio',
+    updateRiskSignal:        'Aggiornamento Segnale',
     createOKR:               'Nuovo OKR',
+    updateOKR:               'Aggiornamento OKR',
     updateDailyPulse:        'Daily Pulse',
     logDecision:             'Decisione',
     updateDailyFocus:        'Daily Focus',
@@ -108,15 +112,25 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center flex-wrap gap-1.5 mb-1.5">
                     <span className="text-[9px] font-mono uppercase tracking-widest opacity-60">{label}</span>
+                    {/* Semantic routing badge */}
+                    {action.actionIntent === 'UPDATE' ? (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 uppercase tracking-wider">
+                            {action.linkedEntityTitle ? `Collegato a: ${action.linkedEntityTitle.slice(0, 30)}` : 'Aggiornamento'}
+                        </span>
+                    ) : action.actionIntent === 'NEW_ENTITY' ? (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 uppercase tracking-wider">
+                            Nuova Iniziativa
+                        </span>
+                    ) : null}
                     {timeAgo && (
-                        <span className="text-[9px] font-mono text-zinc-600 flex items-center gap-0.5">
+                        <span className="text-[9px] font-mono text-zinc-600 flex items-center gap-0.5 ml-auto">
                             <Clock className="w-2.5 h-2.5" />{timeAgo}
                         </span>
                     )}
                 </div>
-                <p className="text-xs font-mono leading-snug">{action.summary}</p>
+                <p className="text-sm leading-snug text-white/90">{action.summary}</p>
 
                 {/* Error */}
                 {error && (
