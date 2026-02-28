@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { subscribeToActiveEvents, createEvent, deleteEvent } from '../services/eventService';
 import { Plus, Folder, ArrowRight, Calendar, Users, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const STATUS_COLORS = {
     active: { dot: 'bg-green-500', text: 'text-green-400', label: 'Attivo' },
@@ -150,6 +151,7 @@ const NewEventModal = ({ currentUser, onClose, onCreated }) => {
                 description: description.trim(),
                 createdBy: currentUser.uid,
             });
+            toast.success('✓ Dossier aggiunto');
             onCreated(id);
         } catch (err) {
             console.error('[EventsList] createEvent error:', err);

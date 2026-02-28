@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vite-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
+      "port": 5173
+    },
+    {
+      "name": "vite-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "preview"],
+      "port": 4173
+    },
+    {
+      "name": "firebase-emulators",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/.bin/firebase", "emulators:start"],
+      "port": 5000
+    },
+    {
+      "name": "firebase-functions-emulator",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/.bin/firebase", "emulators:start", "--only", "functions"],
+      "port": 5001
+    }
+  ]
+}

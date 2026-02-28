@@ -4,6 +4,8 @@ import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestor
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
 import { CheckCircle, XCircle, Zap, Loader2, Clock } from 'lucide-react';
+import SphereAI from './SphereAI';
+import toast from 'react-hot-toast';
 
 /**
  * AiPendingActionTile — Human-in-the-Loop approval tile.
@@ -64,6 +66,7 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
             const result = await fn({ pendingId: action.id });
             if (result.data?.data?.success) {
                 setDone(true);
+                toast.success('✓ Azione eseguita e registrata');
                 setTimeout(() => onApproved(action.id), 600);
             } else {
                 setError(result.data?.error || 'Errore durante l\'esecuzione.');
@@ -81,6 +84,7 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
             const fn = httpsCallable(functions, 'rejectPendingAction');
             await fn({ pendingId: action.id });
             setDone(true);
+            toast('Azione scartata', { icon: '✖' });
             setTimeout(() => onRejected(action.id), 400);
         } catch (e) {
             setError(e.message);
@@ -213,7 +217,12 @@ export const AiPendingActionTile = ({ contextId = null }) => {
             exit={{ opacity: 0, y: -16 }}
             className="col-span-full mb-2"
         >
-            <div className="glass-tile rounded-2xl border border-white/[0.07] p-4">
+            <div className="glass-card p-4">
+                {/* SphereAI Header */}
+                <div className="flex flex-col items-center justify-center mb-4">
+                    <SphereAI size={100} state="idle" />
+                </div>
+
                 {/* Tile Header */}
                 <div className="flex items-center gap-2 mb-3">
                     <div className="flex items-center gap-1.5">
@@ -222,7 +231,7 @@ export const AiPendingActionTile = ({ contextId = null }) => {
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
                         </span>
                         <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">
-                            Azioni Proposte — Shadow CoS
+                            Azioni Proposte
                         </span>
                     </div>
                     <span className="ml-auto text-[9px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">

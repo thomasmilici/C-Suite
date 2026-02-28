@@ -15,12 +15,12 @@ export const GlassTile = ({
 
         switch (variant) {
             case 'dense':
-                return `${base} bg-zinc-900/40 border-white/[0.05] ${padding || 'p-3'}`;
+                return `${base} glass-card bg-zinc-900/40 border-white/[0.05] ${padding || 'p-3'}`;
             case 'actionable':
-                return `${base} glass-tile actionable cursor-pointer hover:border-white/20 active:scale-[0.99] ${padding || 'p-4 sm:p-6'}`;
+                return `${base} glass-card actionable cursor-pointer hover:border-white/20 active:scale-[0.99] ${padding || 'p-4 sm:p-6'}`;
             case 'default':
             default:
-                return `${base} glass-tile ${padding || 'p-4 sm:p-6'}`;
+                return `${base} glass-card ${padding || 'p-4 sm:p-6'}`;
         }
     };
 

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, BrainCircuit, Sparkles, Trash2, PhoneOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { AudioWaveform } from './ui/AudioWaveform';
+import SphereAI from './SphereAI';
 
 /**
  * CopilotDialogue — Slide-in panel for Shadow CoS conversational output.
@@ -43,6 +44,22 @@ export const CopilotDialogue = ({
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isThinking, transcript]);
+
+    const prevThinking = useRef(isThinking);
+    const [isSpeakingText, setIsSpeakingText] = useState(false);
+
+    useEffect(() => {
+        if (prevThinking.current && !isThinking) {
+            setIsSpeakingText(true);
+            const t = setTimeout(() => setIsSpeakingText(false), 2000);
+            return () => clearTimeout(t);
+        }
+        prevThinking.current = isThinking;
+    }, [isThinking]);
+
+    let sphereState = 'idle';
+    if (isThinking) sphereState = 'thinking';
+    else if (isSpeaking || isSpeakingText) sphereState = 'speaking';
 
     return (
         <AnimatePresence>
@@ -147,6 +164,10 @@ export const CopilotDialogue = ({
                             ref={scrollRef}
                             className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin scrollbar-thumb-white/5"
                         >
+                            {/* SphereAI in top of drawer */}
+                            <div className="flex justify-center my-6">
+                                <SphereAI size={80} state={sphereState} />
+                            </div>
                             {messages.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
                                     <Sparkles className="w-6 h-6 text-zinc-700" />

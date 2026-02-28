@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 @theme {
-  --color-black: #050508;
   --color-technical: #E0E0E0;
 
   --font-sans: "Inter", sans-serif;
@@ -57,7 +56,12 @@
 
   html,
   body {
-    background-color: var(--color-black);
+    background: radial-gradient(ellipse 80% 60% at 20% 10%,
+        #1e1b4b 0%,
+        #0f0d2e 45%,
+        #080718 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
     color: var(--text-2);
     /* Default to secondary for less eye strain */
     font-family: var(--font-sans);
@@ -101,6 +105,18 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* ── GLASS CARD (NEW) ───────────────────────────────────────────────────── */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
   }
 
   /* ── GLASSMORPHISM TILE (REFINED) ───────────────────────────────────────── */

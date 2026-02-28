@@ -44,7 +44,16 @@
       "Bash(npx firebase deploy:*)",
       "Bash(ls \"C:\\\\Users\\\\thoma\\\\Documents\\\\COS App\\\\node_modules\\\\firebase\\\\ai\"\" 2>/dev/null || dir \"C:UsersthomaDocumentsCOS Appnode_modulesfirebaseai\"\")",
       "Bash(ls \"C:\\\\Users\\\\thoma\\\\Documents\\\\COS App\\\\node_modules\\\\@firebase\\\\ai\\\\dist\"\" 2>/dev/null || dir \"C:UsersthomaDocumentsCOS Appnode_modules@firebaseaidist\"\")",
-      "WebFetch(domain:firebase.google.com)"
+      "WebFetch(domain:firebase.google.com)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(gcloud projects get-iam-policy:*)",
+      "Bash(gcloud functions list:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl:*)",
+      "Bash(find \"C:\\\\Users\\\\thoma\\\\Documents\\\\COS App/src/components\" -type f -name \"*.jsx\" -exec wc -l {} +)",
+      "Bash(find \"C:\\\\Users\\\\thoma\\\\Documents\\\\COS App/src/pages\" -type f -name \"*.jsx\" -exec wc -l {} +)"
     ]
   }
 }

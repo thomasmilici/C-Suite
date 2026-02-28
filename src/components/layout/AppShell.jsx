@@ -8,6 +8,7 @@ import { BottomNav } from '../ui/BottomNav';
 import { AppCredits } from '../ui/AppCredits';
 import { CommandBar } from '../CommandBar';
 import { CopilotDialogue } from '../CopilotDialogue';
+import { Toaster } from 'react-hot-toast';
 import { useLiveSession } from '../../hooks/useLiveSession';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
@@ -122,7 +123,20 @@ export const AppShell = ({ children, user, isAdmin }) => {
     }, []);
 
     return (
-        <div className="min-h-screen bg-[#050508] text-gray-200 font-sans selection:bg-zinc-800 relative">
+        <div className="min-h-screen text-gray-200 font-sans selection:bg-zinc-800 relative">
+            <Toaster 
+                position="bottom-right"
+                toastOptions={{
+                    className: 'glass-card',
+                    style: {
+                        background: 'rgba(30, 27, 75, 0.6)', 
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        color: '#fff',
+                        backdropFilter: 'blur(12px)',
+                    },
+                    duration: 2500,
+                }} 
+            />
 
             {/* Level 1 Header: Global — includes CommandBar */}
             <AppHeader

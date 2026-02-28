@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, X, Sparkles, Phone, PhoneOff } from 'lucide-react';
+import SphereAI from './SphereAI';
 
 /**
  * CommandBar — Voice-First Copilot input component.
@@ -30,6 +31,22 @@ function resolveContextId(pathname) {
 export const CommandBar = ({ onSend, isProcessing = false, isLiveActive = false, onLiveToggle }) => {
     const [input, setInput] = useState('');
     const inputRef = useRef(null);
+    const prevProcessing = useRef(isProcessing);
+    const [isSpeakingText, setIsSpeakingText] = useState(false);
+
+    // Gestione stato speaking per 2 secondi dopo finish
+    useEffect(() => {
+        if (prevProcessing.current && !isProcessing) {
+            setIsSpeakingText(true);
+            const t = setTimeout(() => setIsSpeakingText(false), 2000);
+            return () => clearTimeout(t);
+        }
+        prevProcessing.current = isProcessing;
+    }, [isProcessing]);
+
+    let sphereState = 'idle';
+    if (isProcessing) sphereState = 'thinking';
+    else if (isSpeakingText) sphereState = 'speaking';
 
     const contextId = resolveContextId(window.location.pathname);
     const contextLabel = contextId ? 'Dossier' : 'Portfolio';
@@ -65,12 +82,18 @@ export const CommandBar = ({ onSend, isProcessing = false, isLiveActive = false,
                     : 'border-white/[0.08] hover:border-white/[0.15] focus-within:border-indigo-500/40 focus-within:bg-white/[0.06]'
                 }
             `}>
-                {/* Context badge */}
-                <span className="hidden sm:flex items-center gap-1 text-[9px] font-mono text-zinc-600 uppercase tracking-widest whitespace-nowrap flex-shrink-0">
-                    <span className={`w-1.5 h-1.5 rounded-full ${contextId ? 'bg-indigo-400' : 'bg-zinc-600'}`} />
-                    {contextLabel}
-                </span>
-                <div className="hidden sm:block w-px h-3 bg-white/[0.06]" />
+                {/* SphereAI badge */}
+                <div className="flex-shrink-0 mr-1">
+                    <SphereAI size={36} state={sphereState} />
+                </div>
+                {contextId && (
+                    <>
+                        <span className="hidden sm:flex items-center gap-1 text-[9px] font-mono text-zinc-600 uppercase tracking-widest whitespace-nowrap flex-shrink-0">
+                            {contextLabel}
+                        </span>
+                        <div className="hidden sm:block w-px h-3 bg-white/[0.06] mx-1" />
+                    </>
+                )}
 
                 {/* Text input */}
                 <input

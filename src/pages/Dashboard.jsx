@@ -87,14 +87,7 @@ export const Dashboard = ({ user }) => {
     };
 
     return (
-        <div className="min-h-screen bg-[#050508] p-3 sm:p-4 md:p-6 font-sans selection:bg-zinc-800 relative text-gray-200 overflow-x-hidden">
-            {/* Background Decor */}
-            <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(99,102,241,0.07)_0%,transparent_60%)]" />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_80%,rgba(20,184,166,0.05)_0%,transparent_60%)]" />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.02)_0%,transparent_50%)]" />
-            </div>
-
+        <div className="min-h-screen p-3 sm:p-4 md:p-6 font-sans selection:bg-zinc-800 relative text-gray-200 overflow-x-hidden">
             {/* Header and Nav moved to AppShell */}
 
             {/* Main Content */}
@@ -123,10 +116,10 @@ export const Dashboard = ({ user }) => {
                 </div>
 
                 {/* Mobile-First Grid: 1 col (mobile) -> 2 col (md) -> 3 col (lg) -> 4 col (2xl) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-6 auto-rows-min">
 
                     {/* 1. Daily Briefing — tile primario, bordo accent indigo */}
-                    <GlassTile className="md:col-span-2 lg:col-span-2 min-h-[340px] border-indigo-500/20 bg-indigo-950/5" padding="p-0">
+                    <GlassTile className="md:col-span-2 lg:col-span-3 min-h-[340px] border-indigo-500/20 bg-indigo-950/5" padding="p-0">
                         <BriefingRoom isAdmin={isAdmin} />
                     </GlassTile>
 
@@ -159,7 +152,7 @@ export const Dashboard = ({ user }) => {
                     </GlassTile>
 
                     {/* 7. Intelligence Reports - Full Width on Mobile, compact on Desktop */}
-                    <GlassTile className="md:col-span-2 lg:col-span-1 2xl:col-span-1 min-h-[320px] relative overflow-hidden" padding="p-0">
+                    <GlassTile className="min-h-[320px] relative overflow-hidden" padding="p-0">
                         <TileIntelligence adminName={user?.displayName} />
                     </GlassTile>
 

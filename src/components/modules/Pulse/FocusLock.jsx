@@ -3,6 +3,7 @@ import { Plus, Check, Trash2, Lock } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { db } from '../../../firebase';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 
 export const FocusLock = () => {
     const [focusItems, setFocusItems] = useState([]);
@@ -43,6 +44,7 @@ export const FocusLock = () => {
             } else {
                 await updateDoc(pulseRef, { focus_items: arrayUnion(newItem) });
             }
+            toast.success('✓ Focus salvato');
         } catch (e) {
             console.error("Error adding pulse item:", e);
             // Revert on fail

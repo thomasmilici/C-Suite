@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { DecisionInput } from '../../modals/DecisionInput';
 import EventHealthBar from '../../ui/EventHealthBar';
 import EventTimeline from '../../ui/EventTimeline';
+import toast from 'react-hot-toast';
 
 const getBriefingDocKey = (eventId) => {
   const date = new Date().toISOString().split('T')[0];
@@ -96,6 +97,7 @@ export const BriefingRoom = ({ isAdmin, eventId, event }) => {
           date: briefingDocKey,
           ...(eventId && { eventId }),
         });
+        toast.success('✓ Briefing generato');
       } else {
         setBriefingError('Generation failed. Check function logs.');
       }

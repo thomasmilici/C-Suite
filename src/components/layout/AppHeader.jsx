@@ -16,8 +16,8 @@ export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
             <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center gap-3">
 
                 {/* Brand / Status — cliccabile per tornare al Cockpit */}
-                <button
-                    onClick={() => navigate('/dashboard')}
+                <Link
+                    to="/dashboard"
                     title="Torna al Cockpit"
                     className="flex items-center gap-3 flex-shrink-0 hover:opacity-80 transition-opacity"
                 >
@@ -37,7 +37,7 @@ export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
                             </span>
                         </div>
                     </div>
-                </button>
+                </Link>
 
                 {/* CommandBar slot — center of header, takes remaining space */}
                 {commandBarSlot && (
