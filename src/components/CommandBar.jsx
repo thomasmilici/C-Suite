@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, X, Sparkles, Phone, PhoneOff } from 'lucide-react';
 import SphereAI from './SphereAI';

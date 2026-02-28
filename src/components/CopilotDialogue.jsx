@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, BrainCircuit, Sparkles, Trash2, PhoneOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
