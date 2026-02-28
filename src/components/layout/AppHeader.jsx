@@ -1,7 +1,7 @@
 import React from 'react';
 import { Shield, User, LogOut } from 'lucide-react';
 import { AuthService } from '../../services/authService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
     const navigate = useNavigate();
