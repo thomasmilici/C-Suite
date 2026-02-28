@@ -2,61 +2,56 @@ import React from 'react';
 
 /**
  * ShadowCosSphere — Sfera animata del Shadow CoS.
- *
- * Stati visivi:
- *   idle     → rotazione lenta, viola, glow tenue
- *   thinking → rotazione media, ambra/arancio, pulse sottile
- *   speaking → rotazione veloce, viola brillante, ping rings
- *
  * Props:
- *   isSpeaking  — bool (AI sta emettendo audio o risposta in streaming)
- *   isThinking  — bool (AI sta elaborando la richiesta)
+ *   isSpeaking  — bool: AI parla (voce live o risposta streaming)
+ *   isThinking  — bool: AI sta elaborando (query testo)
  */
 export function ShadowCosSphere({ isSpeaking = false, isThinking = false }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center">
+      {/* Animazioni custom iniettate inline */}
       <style>{`
         @keyframes spin-slow {
           from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
+          to { transform: rotate(360deg); }
         }
         @keyframes spin-medium {
           from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
+          to { transform: rotate(360deg); }
         }
         @keyframes spin-fast {
           from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
+          to { transform: rotate(360deg); }
         }
         @keyframes pulse-glow {
-          0%, 100% { transform: scale(1);    opacity: 0.6; filter: brightness(1); }
-          50%       { transform: scale(1.1);  opacity: 1;   filter: brightness(1.5); }
+          0%, 100% { transform: scale(1); opacity: 0.6; filter: brightness(1); }
+          50% { transform: scale(1.1); opacity: 1; filter: brightness(1.5); }
         }
         @keyframes pulse-think {
-          0%, 100% { transform: scale(1);    opacity: 0.5; filter: brightness(1); }
-          50%       { transform: scale(1.08); opacity: 0.9; filter: brightness(1.3); }
+          0%, 100% { transform: scale(1); opacity: 0.5; }
+          50% { transform: scale(1.06); opacity: 0.9; }
         }
         .animate-spin-slow   { animation: spin-slow   25s linear infinite; }
-        .animate-spin-medium { animation: spin-medium  8s linear infinite; }
-        .animate-spin-fast   { animation: spin-fast    5s linear infinite; }
-        .animate-pulse-glow  { animation: pulse-glow   1.5s ease-in-out infinite; }
-        .animate-pulse-think { animation: pulse-think  1.8s ease-in-out infinite; }
+        .animate-spin-medium { animation: spin-medium   8s linear infinite; }
+        .animate-spin-fast   { animation: spin-fast     5s linear infinite; }
+        .animate-pulse-glow  { animation: pulse-glow  1.5s ease-in-out infinite; }
+        .animate-pulse-think { animation: pulse-think 1.8s ease-in-out infinite; }
       `}</style>
 
-      {/* Contenitore principale — glow e scala cambiano per stato */}
+      {/* Contenitore principale Sfera */}
       <div
-        className={`relative w-[240px] h-[240px] rounded-full transition-all duration-700 ${
+        className={`relative w-[240px] h-[240px] rounded-full border border-white/10 transition-all duration-700 ${
           isSpeaking
-            ? 'border border-purple-400/20 shadow-[0_0_80px_20px_rgba(151,71,255,0.6)] scale-105'
+            ? 'shadow-[0_0_80px_20px_rgba(151,71,255,0.6)] scale-105'
             : isThinking
-            ? 'border border-amber-400/20 shadow-[0_0_60px_15px_rgba(251,146,60,0.35)] scale-100'
-            : 'border border-white/10 shadow-[0_0_40px_10px_rgba(151,71,255,0.2)] scale-100'
+            ? 'shadow-[0_0_60px_15px_rgba(251,146,60,0.4)] scale-100'
+            : 'shadow-[0_0_40px_10px_rgba(151,71,255,0.2)] scale-100'
         }`}
       >
         {/* Sfondo Base Oscuro */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#130b29] to-[#05050a] overflow-hidden" />
 
-        {/* Plasma Rotante 1 — colore e velocità cambiano per stato */}
+        {/* Plasma Rotante 1 — colore cambia in base allo stato */}
         <div
           className={`absolute inset-0 rounded-full mix-blend-screen opacity-70 blur-[8px] ${
             isSpeaking ? 'animate-spin-fast' : isThinking ? 'animate-spin-medium' : 'animate-spin-slow'
@@ -81,26 +76,22 @@ export function ShadowCosSphere({ isSpeaking = false, isThinking = false }) {
           }}
         />
 
-        {/* Nucleo Esterno */}
+        {/* Nucleo Centrale Luminoso */}
         <div
           className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full w-1/2 h-1/2 bg-white/20 blur-[20px] mix-blend-screen transition-all duration-300 ${
             isSpeaking ? 'animate-pulse-glow' : isThinking ? 'animate-pulse-think' : ''
           }`}
         />
-
-        {/* Nucleo Centrale — colore ambra per thinking */}
         <div
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full w-1/4 h-1/4 blur-[10px] mix-blend-screen transition-all duration-500 ${
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full w-1/4 h-1/4 blur-[10px] mix-blend-screen transition-all duration-300 ${
             isThinking && !isSpeaking ? 'bg-amber-200' : 'bg-blue-100'
-          } ${
-            isSpeaking ? 'animate-pulse-glow' : isThinking ? 'animate-pulse-think' : ''
-          }`}
+          } ${isSpeaking ? 'animate-pulse-glow' : isThinking ? 'animate-pulse-think' : ''}`}
         />
 
-        {/* Ombra Interna 3D */}
+        {/* Ombra interna 3D */}
         <div className="absolute inset-0 rounded-full shadow-[inset_-30px_-30px_60px_rgba(0,0,0,0.9),inset_10px_10px_30px_rgba(255,255,255,0.15)] pointer-events-none z-10" />
 
-        {/* Onde Sonore — solo in speaking */}
+        {/* Onde sonore — solo speaking */}
         {isSpeaking && (
           <>
             <div
@@ -114,10 +105,10 @@ export function ShadowCosSphere({ isSpeaking = false, isThinking = false }) {
           </>
         )}
 
-        {/* Onda Pensiero — solo in thinking */}
+        {/* Onda pensiero — solo thinking */}
         {isThinking && !isSpeaking && (
           <div
-            className="absolute inset-[-8px] rounded-full border border-amber-400/25 animate-ping"
+            className="absolute inset-0 rounded-full border border-amber-400/20 animate-ping"
             style={{ animationDuration: '2.5s' }}
           />
         )}
