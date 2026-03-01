@@ -45,7 +45,7 @@ const EventCard = ({ event, onClick, isAdmin, onDelete }) => {
     return (
         <div className="flex flex-col mb-1 relative group">
             {/* Elemento Lista Dossier */}
-            <div 
+            <div
                 onClick={onClick}
                 className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
             >
@@ -256,7 +256,7 @@ export const EventsList = ({ isAdmin, currentUser }) => {
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <div className="flex flex-col gap-2">
                         {events.map(event => (
                             <EventCard
                                 key={event.id}

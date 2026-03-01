@@ -48,6 +48,7 @@ export const BriefingRoom = ({ isAdmin, eventId, event }) => {
   const [briefingError, setBriefingError] = useState(null);
   const [decisions, setDecisions] = useState([]);
   const [showDecisionModal, setShowDecisionModal] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const briefingDocKey = getBriefingDocKey(eventId);
   const phases = buildPhasesFromEvent(event);
@@ -166,8 +167,21 @@ export const BriefingRoom = ({ isAdmin, eventId, event }) => {
               <p className="text-red-400">{briefingError}</p>
             )}
             {!loadingBriefing && !briefingError && briefing && (
-              <div className="prose prose-invert prose-sm max-w-none">
-                <ReactMarkdown>{briefing}</ReactMarkdown>
+              <div className="relative">
+                <div
+                  className={`prose prose-invert prose-sm max-w-none transition-all duration-300 ${!isExpanded ? 'max-h-32 overflow-hidden' : ''}`}
+                  style={!isExpanded ? { WebkitMaskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)', maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)' } : {}}
+                >
+                  <ReactMarkdown>{briefing}</ReactMarkdown>
+                </div>
+                <div className="flex justify-center mt-2 pb-1 border-t border-white/5 pt-2">
+                  <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="text-[10px] font-mono text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-wider"
+                  >
+                    {isExpanded ? '⌃ Riduci' : '⌄ Leggi tutto'}
+                  </button>
+                </div>
               </div>
             )}
             {!loadingBriefing && !briefingError && !briefing && (
