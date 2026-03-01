@@ -4,18 +4,26 @@ import { X, Send, CheckCircle, Loader2, Sparkles } from 'lucide-react';
 import { useMission } from '../../context/MissionContext';
 
 const functions = getFunctions();
+// Step 1: The AI interviewer — stateless, no missionId required.
 const startMissionOnboarding = httpsCallable(functions, 'startMissionOnboarding');
+// Step 2: Creates the mission atomically (archives old ones, creates new).
+const forceMissionSetup = httpsCallable(functions, 'forceMissionSetup');
 
 export function OnboardingModal({ onClose }) {
-    const { activeMissionId, mission } = useMission();
+    // We use setActiveMissionId from MissionContext to switch to the new mission
+    // once forceMissionSetup returns. We do NOT depend on activeMissionId here —
+    // we're creating the mission, so it doesn't exist yet.
+    const { setActiveMissionId } = useMission();
+
     const [messages, setMessages] = useState([]); // {role: 'ai'|'user', text: string}
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [done, setDone] = useState(false);
     const [questionNum, setQuestionNum] = useState(0);
+    const [committing, setCommitting] = useState(false); // forceMissionSetup in progress
     const bottomRef = useRef(null);
 
-    // Start the interview on mount
+    // Start the AI interview on mount — no missionId needed.
     useEffect(() => {
         sendToAI([]);
         // eslint-disable-next-line
@@ -23,49 +31,67 @@ export function OnboardingModal({ onClose }) {
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, loading]);
+    }, [messages, loading, committing]);
 
+    // ── Step 1: AI interview turn ──────────────────────────────────────────────
     async function sendToAI(history) {
-        // ── Fix 3: Block the call if missionId is missing ─────────────────────
-        // This can happen if MissionContext hasn't resolved yet (Auth race or no
-        // missions in Firestore). Show a clear error instead of sending a broken
-        // payload that would crash the backend with a 500.
-        if (!activeMissionId) {
-            setMessages(prev => [...prev, {
-                role: 'ai',
-                text: '⚠️ Errore: nessuna missione attiva trovata. Ricarica la pagina o crea prima una missione.',
-            }]);
-            setLoading(false);
-            return;
-        }
-
         setLoading(true);
         try {
-            const result = await startMissionOnboarding({
-                missionId: activeMissionId,
-                messages: history,
-            });
+            // No missionId sent — startMissionOnboarding is now a stateless interviewer.
+            const result = await startMissionOnboarding({ messages: history });
             const data = result.data;
 
             if (data.done) {
-                setDone(true);
-                setMessages(prev => [...prev, { role: 'ai', text: '✅ Mandato strategico calibrato. Il tuo Copilota AI è ora pronto.' }]);
+                // Interview complete: the AI returned masterPrompt + layoutPreferences.
+                // Hand off to Step 2 to atomically create the mission in Firestore.
+                await commitMission(data.masterPrompt, data.layoutPreferences);
             } else if (data.question) {
                 setMessages(prev => [...prev, { role: 'ai', text: data.question }]);
                 setQuestionNum(prev => prev + 1);
             }
         } catch (err) {
-            setMessages(prev => [...prev, {
-                role: 'ai',
-                text: `⚠️ Errore di comunicazione: ${err.message}. Riprova.`,
-            }]);
+            const msg = err?.code === 'functions/permission-denied'
+                ? '⚠️ Permessi insufficienti: serve il ruolo COS o superiore.'
+                : `⚠️ Errore di comunicazione: ${err.message}. Riprova.`;
+            setMessages(prev => [...prev, { role: 'ai', text: msg }]);
         } finally {
             setLoading(false);
         }
     }
 
+    // ── Step 2: Commit the mission to Firestore via forceMissionSetup ──────────
+    // This runs atomically: archives any existing active missions, creates the new one.
+    async function commitMission(masterPrompt, layoutPreferences) {
+        setCommitting(true);
+        setMessages(prev => [...prev, {
+            role: 'ai',
+            text: '⚙️ Mandato calibrato. Sto configurando la tua missione...',
+        }]);
+        try {
+            const result = await forceMissionSetup({ masterPrompt, layoutPreferences });
+            const { missionId } = result.data;
+
+            // Switch MissionContext to the newly created mission.
+            // The snapshot listener in MissionContext will pick up the new doc automatically.
+            setActiveMissionId(missionId);
+
+            setDone(true);
+            setMessages(prev => [...prev, {
+                role: 'ai',
+                text: '✅ Mandato strategico calibrato. Il tuo Copilota AI è ora pronto.',
+            }]);
+        } catch (err) {
+            const msg = err?.code === 'functions/permission-denied'
+                ? '⚠️ Permessi insufficienti per creare la missione.'
+                : `⚠️ Errore nella creazione della missione: ${err.message}. Riprova.`;
+            setMessages(prev => [...prev, { role: 'ai', text: msg }]);
+        } finally {
+            setCommitting(false);
+        }
+    }
+
     async function handleSend() {
-        if (!input.trim() || loading || done) return;
+        if (!input.trim() || loading || committing || done) return;
         const userText = input.trim();
         setInput('');
         const nextHistory = [...messages, { role: 'user', text: userText }];
@@ -79,6 +105,8 @@ export function OnboardingModal({ onClose }) {
             handleSend();
         }
     }
+
+    const isbusy = loading || committing;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
@@ -130,11 +158,22 @@ export function OnboardingModal({ onClose }) {
                         </div>
                     ))}
 
-                    {loading && (
+                    {/* Loading spinner (interview turn) */}
+                    {loading && !committing && (
                         <div className="flex justify-start">
                             <div className="bg-[#161b2b] border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
                                 <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
-                                <span className="text-[11px] font-mono text-white/30">Elaborazione...</span>
+                                <span className="text-[11px] font-mono text-white/30">Il Copilota sta elaborando...</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Committing spinner (forceMissionSetup) */}
+                    {committing && (
+                        <div className="flex justify-start">
+                            <div className="bg-[#161b2b] border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
+                                <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                                <span className="text-[11px] font-mono text-white/30">Configurazione missione in corso...</span>
                             </div>
                         </div>
                     )}
@@ -166,12 +205,12 @@ export function OnboardingModal({ onClose }) {
                             onKeyDown={handleKeyDown}
                             placeholder="Scrivi la tua risposta..."
                             rows={2}
-                            disabled={loading}
+                            disabled={isbusy}
                             className="flex-1 bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-colors font-mono resize-none disabled:opacity-50"
                         />
                         <button
                             onClick={handleSend}
-                            disabled={loading || !input.trim()}
+                            disabled={isbusy || !input.trim()}
                             className="p-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 disabled:opacity-40 text-white transition-colors flex-shrink-0"
                         >
                             <Send className="w-4 h-4" />

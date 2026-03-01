@@ -2090,15 +2090,11 @@ exports.startMissionOnboarding = onCall(async (request) => {
         );
     }
 
-    const { missionId, messages = [] } = data || {};
-
-    // ── Fix 2b: return a structured 400-equivalent instead of a 500 crash ────
-    if (!missionId) {
-        throw new HttpsError(
-            "invalid-argument",
-            "Il parametro missionId è obbligatorio."
-        );
-    }
+    // startMissionOnboarding is a STATELESS AI interviewer.
+    // It does NOT require a missionId and does NOT write to Firestore.
+    // The final masterPrompt + layoutPreferences are returned to the client,
+    // which then calls forceMissionSetup to atomically create the mission.
+    const { messages = [] } = data || {};
 
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -2159,23 +2155,10 @@ Ordina layoutPreferences in base all'urgenza e priorità emerse dall'intervista 
                 const parsed = JSON.parse(cleaned);
 
                 if (parsed.done && parsed.masterPrompt && parsed.layoutPreferences) {
-                    // Save to Firestore
-                    await admin.firestore().collection("missions").doc(missionId).update({
-                        masterPrompt: parsed.masterPrompt,
-                        layoutPreferences: parsed.layoutPreferences,
-                        isSetupComplete: true,
-                        onboardingCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
-                        onboardingCompletedBy: uid,
-                    });
-
-                    await writeAuditLog({
-                        uid, email, role,
-                        action: "MISSION_ONBOARDING_COMPLETE",
-                        targetDocRef: `missions/${missionId}`,
-                        result: "success",
-                        diff: `layoutPreferences: ${parsed.layoutPreferences.join(", ")}`,
-                    });
-
+                    // Do NOT write to Firestore here.
+                    // Return the data to the client; it will call forceMissionSetup
+                    // to atomically archive old missions and create a new one.
+                    logger.info("[startMissionOnboarding] Interview complete. Returning data to client.");
                     return {
                         done: true,
                         masterPrompt: parsed.masterPrompt,
@@ -2200,4 +2183,95 @@ Ordina layoutPreferences in base all'urgenza e priorità emerse dall'intervista 
             `Errore del Copilota: ${err.message}`
         );
     }
+});
+
+// ── FORCE MISSION SETUP ────────────────────────────────────────────────────
+// Called by OnboardingModal after the AI interview is complete.
+// Uses a WriteBatch to atomically:
+//   1. Archive ALL existing non-archived missions (conflict resolution).
+//   2. Create the new mission document with isSetupComplete: true.
+// Returns { missionId } to the client so MissionContext can switch to it.
+exports.forceMissionSetup = onCall({
+    cors: true,
+    invoker: "public",
+}, async (request) => {
+
+    const { data, auth: callAuth } = request;
+
+    if (!callAuth) {
+        throw new HttpsError("unauthenticated", "Autenticazione richiesta.");
+    }
+
+    const uid = callAuth.uid;
+    const email = callAuth.token?.email || null;
+    const role = await getUserRole(uid);
+
+    if (!hasMinRole(role, "COS")) {
+        throw new HttpsError(
+            "permission-denied",
+            "Permessi insufficienti: ruolo COS o superiore richiesto."
+        );
+    }
+
+    const { masterPrompt, layoutPreferences, missionName = "Missione Principale" } = data || {};
+
+    if (!masterPrompt || !Array.isArray(layoutPreferences) || layoutPreferences.length === 0) {
+        throw new HttpsError(
+            "invalid-argument",
+            "masterPrompt e layoutPreferences sono obbligatori."
+        );
+    }
+
+    const db = admin.firestore();
+
+    // 1. Fetch ALL existing missions to find those that need archiving.
+    //    We do NOT filter by a `status` field because older docs may not have it.
+    const allMissionsSnap = await db.collection("missions").get();
+    const toArchive = allMissionsSnap.docs.filter(d => d.data().status !== "archived");
+
+    // 2. Build an atomic WriteBatch:
+    //    - Archive old active/unset missions.
+    //    - Create the new mission in the same transaction.
+    const batch = db.batch();
+
+    toArchive.forEach(docSnap => {
+        batch.update(docSnap.ref, {
+            status: "archived",
+            archivedAt: admin.firestore.FieldValue.serverTimestamp(),
+            archivedBy: uid,
+        });
+    });
+
+    // 3. Create new mission document with a Firestore auto-id.
+    const newMissionRef = db.collection("missions").doc();
+    batch.set(newMissionRef, {
+        name: missionName,
+        description: "",
+        masterPrompt,
+        layoutPreferences,
+        status: "active",
+        isSetupComplete: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: uid,
+        onboardingCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
+        onboardingCompletedBy: uid,
+    });
+
+    // 4. Commit the batch atomically.
+    await batch.commit();
+
+    await writeAuditLog({
+        uid, email, role,
+        action: "FORCE_MISSION_SETUP",
+        targetDocRef: `missions/${newMissionRef.id}`,
+        result: "success",
+        diff: `archived: ${toArchive.length} missions, created: ${newMissionRef.id}`,
+    });
+
+    logger.info(
+        `[forceMissionSetup] Mission ${newMissionRef.id} created by ${email}. ` +
+        `Archived ${toArchive.length} previous mission(s).`
+    );
+
+    return { missionId: newMissionRef.id };
 });
