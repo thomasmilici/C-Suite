@@ -1531,6 +1531,8 @@ exports.delegaRagionamentoStrategico = onCall({
     cors: true,
     secrets: ["GOOGLE_API_KEY"],
     invoker: "public",
+    timeoutSeconds: 300,
+    memory: "512MiB",
 }, async (request) => {
 
     logger.info("--- DELEGA RAGIONAMENTO STRATEGICO (Bridge) ---");
@@ -1545,6 +1547,9 @@ exports.delegaRagionamentoStrategico = onCall({
     const role = await getUserRole(uid);
     const { query, contextId = null } = request.data;
     const aiRunId = `bridge_${Date.now()}_${uid.slice(0, 6)}`;
+
+    // [DEBUG] Log payload per rilevare schema mismatch tra LLM e tool
+    console.log("[TOOL PAYLOAD] Dati ricevuti dall'agente:", JSON.stringify(request.data, null, 2));
 
     if (!query) {
         return { sintesi: "Query mancante." };
@@ -1698,7 +1703,13 @@ ${archiveReports.length > 0
         return { sintesi };
 
     } catch (error) {
-        logger.error("[Bridge] FAILURE:", { error: error.message });
+        console.error("[TOOL ERROR] delegaRagionamentoStrategico fallito:", error.message, error.stack);
+        logger.error("[Bridge] FAILURE:", {
+            message: error.message,
+            stack: error.stack,
+            code: error.code || null,
+            status: error.status || error.httpErrorCode?.status || null,
+        });
         await writeAuditLog({ uid, email, role, action: "BRIDGE_CALL", aiRunId, result: "error", errorMessage: error.message });
         return { sintesi: "Analisi strategica temporaneamente non disponibile. Riprova tra un momento." };
     }
