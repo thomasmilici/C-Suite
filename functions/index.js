@@ -1616,23 +1616,43 @@ ${archiveReports.length > 0
                 }).join('\n\n')
                 : 'Nessun report archiviato.'}`;
 
-        // gemini-3.1-pro-preview-customtools: variant ufficiale ottimizzato per
-        // agentic workflows con custom functionDeclarations (BRIDGE_TOOLS).
-        // IMPORTANTE: combining built-in tools (google_search) + functionDeclarations
-        // non è supportato su nessun variant → tools: solo BRIDGE_TOOLS.
-        // La ricerca web viene gestita dall'LLM tramite conoscenza interna.
+        // google_search e functionDeclarations non possono coesistere nella stessa
+        // request su nessun variant Gemini → approccio a due fasi sequenziali:
+        // Fase 1: gemini-3.1-pro-preview + google_search → ricerca web live
+        // Fase 2: gemini-3.1-pro-preview-customtools + BRIDGE_TOOLS → ragionamento + azioni
         const genAI = new GoogleGenerativeAI(apiKey);
+
+        // ── FASE 1: RICERCA WEB LIVE ──────────────────────────────────────────
+        logger.info("[Bridge] Fase 1: ricerca web con gemini-3.1-pro-preview...");
+        const searchModel = genAI.getGenerativeModel({
+            model: "gemini-3.1-pro-preview",
+            tools: [{ google_search: {} }],
+        });
+        let researchContext = "";
+        try {
+            const searchResult = await searchModel.generateContent(
+                `Sei un assistente di ricerca per un Chief of Staff. Usa Google Search per trovare informazioni aggiornate su: ${query}\nFornisci un riassunto dettagliato e fattuale dei risultati trovati, con date e fonti.`
+            );
+            researchContext = searchResult.response.text() || "";
+            logger.info(`[Bridge] Ricerca completata (${researchContext.length} chars).`);
+        } catch (searchErr) {
+            logger.warn("[Bridge] Ricerca web fallita, procedo senza contesto live:", searchErr.message);
+        }
+
+        // ── FASE 2: RAGIONAMENTO + AZIONI ─────────────────────────────────────
+        logger.info("[Bridge] Fase 2: ragionamento e azioni con gemini-3.1-pro-preview-customtools...");
         const model = genAI.getGenerativeModel({
             model: "gemini-3.1-pro-preview-customtools",
             systemInstruction,
             tools: [...BRIDGE_TOOLS],
         });
 
-
-        logger.info("Calling Gemini 3 Pro Preview with Google Search and Server Tools...");
+        const enrichedQuery = researchContext
+            ? `${query}\n\n[RISULTATI RICERCA WEB LIVE]\n${researchContext}`
+            : query;
 
         const chat = model.startChat();
-        let currentResult = await chat.sendMessage(query);
+        let currentResult = await chat.sendMessage(enrichedQuery);
         let loopCount = 0;
         const MAX_LOOPS = 4;
 
