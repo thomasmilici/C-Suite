@@ -193,5 +193,20 @@ service cloud.firestore {
       allow write: if isCOSOrAdmin();
     }
 
+    // ── Missions ──────────────────────────────────────────────────────────────
+    // Modifica i permessi di scrittura in base alla tua logica di business.
+    // Lettura: tutti gli utenti autenticati.
+    // Scrittura: solo COS o Admin.
+    match /missions/{missionId} {
+      allow read: if isAuthenticated();
+      allow write: if isCOSOrAdmin();
+    }
+
+    // ── Mission subcollections (intelligence_archives under a mission) ────────
+    match /missions/{missionId}/{subcollection}/{docId} {
+      allow read: if isCOSOrAdmin();
+      allow write: if isCOSOrAdmin();
+    }
+
   }
 }
