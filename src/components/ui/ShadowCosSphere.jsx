@@ -6,7 +6,7 @@ import React from 'react';
  *   isSpeaking  — bool: AI parla (voce live o risposta streaming)
  *   isThinking  — bool: AI sta elaborando (query testo)
  */
-export function ShadowCosSphere({ isSpeaking = false, isThinking = false }) {
+export function ShadowCosSphere({ isSpeaking = false, isThinking = false, volume = 0 }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center">
       {/* Animazioni custom iniettate inline */}
@@ -40,13 +40,21 @@ export function ShadowCosSphere({ isSpeaking = false, isThinking = false }) {
 
       {/* Contenitore principale Sfera */}
       <div
-        className={`relative w-[240px] h-[240px] rounded-full border border-white/10 transition-all duration-700 ${
+        className={`relative w-[240px] h-[240px] rounded-full border border-white/10 ${
           isSpeaking
-            ? 'shadow-[0_0_80px_20px_rgba(151,71,255,0.6)] scale-105'
+            ? 'shadow-[0_0_80px_20px_rgba(151,71,255,0.6)]'
             : isThinking
-            ? 'shadow-[0_0_60px_15px_rgba(251,146,60,0.4)] scale-100'
-            : 'shadow-[0_0_40px_10px_rgba(151,71,255,0.2)] scale-100'
+            ? 'shadow-[0_0_60px_15px_rgba(251,146,60,0.4)] scale-100 transition-all duration-700'
+            : 'shadow-none scale-100 transition-all duration-700'
         }`}
+        style={
+          isSpeaking 
+            ? { 
+                transform: `scale(${1 + volume * 0.15})`, 
+                transition: 'transform 0.05s ease-out, box-shadow 0.7s ease' 
+              } 
+            : undefined
+        }
       >
         {/* Sfondo Base Oscuro */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#130b29] to-[#05050a] overflow-hidden" />
@@ -81,11 +89,13 @@ export function ShadowCosSphere({ isSpeaking = false, isThinking = false }) {
           className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full w-1/2 h-1/2 bg-white/20 blur-[20px] mix-blend-screen transition-all duration-300 ${
             isSpeaking ? 'animate-pulse-glow' : isThinking ? 'animate-pulse-think' : ''
           }`}
+          style={isSpeaking ? { transform: `translate(-50%, -50%) scale(${1 + volume * 0.4})`, transition: 'transform 0.05s ease-out' } : undefined}
         />
         <div
           className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full w-1/4 h-1/4 blur-[10px] mix-blend-screen transition-all duration-300 ${
             isThinking && !isSpeaking ? 'bg-amber-200' : 'bg-blue-100'
           } ${isSpeaking ? 'animate-pulse-glow' : isThinking ? 'animate-pulse-think' : ''}`}
+          style={isSpeaking ? { transform: `translate(-50%, -50%) scale(${1 + volume * 0.6})`, transition: 'transform 0.05s ease-out' } : undefined}
         />
 
         {/* Ombra interna 3D */}
@@ -99,8 +109,12 @@ export function ShadowCosSphere({ isSpeaking = false, isThinking = false }) {
               style={{ animationDuration: '2s' }}
             />
             <div
-              className="absolute inset-[-15px] rounded-full border border-blue-400/20 animate-ping"
-              style={{ animationDuration: '2s', animationDelay: '0.6s' }}
+              className={`absolute inset-[-15px] rounded-full border border-blue-400/20`}
+              style={{
+                transform: `scale(${1 + volume * 0.2})`,
+                opacity: 0.3 + (volume * 0.7),
+                transition: 'transform 0.1s ease-out, opacity 0.1s ease-out'
+              }}
             />
           </>
         )}

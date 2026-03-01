@@ -17,7 +17,7 @@ import { AiStateContext } from '../components/layout/AppShell';
 import { db } from '../firebase';
 
 export const Dashboard = ({ user }) => {
-    const { isThinking, isSpeaking, isLiveActive } = useContext(AiStateContext);
+    const { isThinking, isSpeaking, isLiveActive, volume } = useContext(AiStateContext);
     const [isAdmin, setIsAdmin] = useState(false);
     const [showArchive, setShowArchive] = useState(false);
     const [showSignalModal, setShowSignalModal] = useState(false);
@@ -85,7 +85,7 @@ export const Dashboard = ({ user }) => {
                 
                 {/* LA SFERA (Assoluta, centrata esattamente sulla spaccatura) */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none w-[240px] h-[240px] flex items-center justify-center">
-                  <ShadowCosSphere isSpeaking={isSpeaking || isLiveActive} isThinking={isThinking} />
+                  <ShadowCosSphere isSpeaking={isSpeaking || isLiveActive} isThinking={isThinking} volume={volume} />
                 </div>
 
                 {/* METÀ SUPERIORE: ESATTAMENTE 50% */}
