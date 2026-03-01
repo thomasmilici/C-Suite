@@ -209,6 +209,10 @@ const TOOL_SCHEMAS = {
         tipo: { type: "string", required: true, enum: ["Ricerca", "Report", "Memo Strategico"] },
         tags: { type: "array", required: false },
     },
+    archiveDossier: {
+        missionId: { type: "string", required: false },           // optional override
+        dossierTitle: { type: "string", required: true, maxLength: 200 },
+    },
 };
 
 // ── AI ACTION POLICY ─────────────────────────────────────────────────────────
@@ -230,6 +234,8 @@ const AI_ACTION_POLICY = {
     updateOKR: { minRole: "ADMIN", collection: "okrs" },
     // ── Auto-Archive — direct execution, no HITL ──────────────────────────────
     archiviaDocumento: { minRole: "COS", collection: "intelligence_archive" },
+    // ── DOSSIER ARCHIVE ─────────────────────────────────────────────────────────
+    archiveDossier: { minRole: "COS", collection: "events" },
 };
 
 // ── INTELLIGENCE ARCHIVE FETCHER (RAG) ───────────────────────────────────────
@@ -298,7 +304,8 @@ async function fetchContext() {
         pulse = snap.exists ? (snap.data().focus_items || []) : [];
     } catch (e) { logger.warn("Failed to fetch Pulse:", e.message); }
     try {
-        const snap = await db.collection("events").where("status", "!=", "archived").orderBy("status").orderBy("createdAt", "desc").get();
+        // Only inject ACTIVE dossiers — archived/deleted/trial ones must not pollute context
+        const snap = await db.collection("events").where("status", "==", "active").orderBy("createdAt", "desc").get();
         events = snap.docs.map(d => ({ id: d.id, title: d.data().title, description: d.data().description || "", status: d.data().status, teamSize: (d.data().teamMembers || []).length }));
     } catch (e) { logger.warn("Failed to fetch Events:", e.message); }
     try {
@@ -552,6 +559,23 @@ const SHADOW_COS_TOOLS = [
             },
         ],
     },
+    // ── DOSSIER ARCHIVE — goes through HITL for operator approval ────────────────
+    {
+        functionDeclarations: [
+            {
+                name: "archiveDossier",
+                description: "Usa questo strumento quando l'utente ti chiede di eliminare, chiudere o archiviare un dossier, un progetto o uno scenario specifico. Questo rimuoverà il dossier dalla tua memoria attiva e dal contesto operativo. Richiede approvazione del Chief of Staff.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        dossierTitle: { type: "STRING", description: "Il titolo o nome del dossier da archiviare (anche parziale — verrà cercato in modo flessibile)" },
+                        missionId: { type: "STRING", description: "ID della missione attiva (opzionale, verrà usato il contesto corrente se omesso)" },
+                    },
+                    required: ["dossierTitle"],
+                },
+            },
+        ],
+    },
 ];
 
 // ── BRIDGE TOOLS SCHEMA (Voice Only) ──────────────────────────────────────────
@@ -624,6 +648,8 @@ async function createPendingAction({ name, args, uid, email, role, aiRunId, sess
         updateOKR: (a) => `Propongo un aggiornamento a un OKR esistente${a.status ? ` — stato → ${a.status}` : ""}${a.progress !== undefined ? ` — avanzamento → ${a.progress}%` : ""}`,
         // Auto-Archive
         archiviaDocumento: (a) => `Ho archiviato in autonomia: "${(a.titolo || "").slice(0, 80)}" [${a.tipo || "?"}]`,
+        // Dossier Archive
+        archiveDossier: (a) => `Archivia dossier: "${(a.dossierTitle || "").slice(0, 100)}" — verrà rimosso dal contesto attivo.`,
     };
 
     const summary = SUMMARIES[name] ? SUMMARIES[name](args) : `Esegui: ${name}`;
@@ -982,6 +1008,59 @@ async function executeToolSecure(name, args, { uid, email, role, aiRunId, sessio
             const ref = await db.collection("intelligence_archive").add(payload);
             newDocId = ref.id;
             diff = `titolo:"${payload.title.slice(0, 80)}", tipo:${payload.tipo}, docNumber:${docNumber}`;
+        }
+
+        // ── DOSSIER ARCHIVE — Fuzzy title match + status update ───────────────
+        if (name === "archiveDossier") {
+            const searchTitle = (args.dossierTitle || "").toLowerCase().trim();
+            if (!searchTitle) throw new Error("dossierTitle cannot be empty.");
+
+            // Use mission-scoped subcollection if missionId is available
+            const effectiveMissionId = args.missionId || missionId;
+            const eventsCollection = effectiveMissionId
+                ? adminDb.collection("missions").doc(effectiveMissionId).collection("events")
+                : adminDb.collection("events");
+
+            // Fetch all active events and do in-memory fuzzy match
+            const snap = await eventsCollection.where("status", "==", "active").get();
+            const matches = snap.docs.filter(d => {
+                const t = (d.data().title || "").toLowerCase();
+                return t.includes(searchTitle) || searchTitle.includes(t);
+            });
+
+            if (matches.length === 0) {
+                // Fallback: search top-level events collection as well
+                const globalSnap = await adminDb.collection("events").where("status", "==", "active").get();
+                const globalMatches = globalSnap.docs.filter(d => {
+                    const t = (d.data().title || "").toLowerCase();
+                    return t.includes(searchTitle) || searchTitle.includes(t);
+                });
+                if (globalMatches.length === 0) {
+                    throw new Error(`Nessun dossier attivo trovato con titolo simile a: "${args.dossierTitle}"`);
+                }
+                // Archive the best match
+                const target = globalMatches[0];
+                await adminDb.collection("events").doc(target.id).update({
+                    status: "archived",
+                    archivedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    archivedBy: uid,
+                    archivedByAi: true,
+                    aiRunId,
+                });
+                newDocId = target.id;
+                diff = `archived events/${target.id} ("${target.data().title}")`;
+            } else {
+                const target = matches[0];
+                await eventsCollection.doc(target.id).update({
+                    status: "archived",
+                    archivedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    archivedBy: uid,
+                    archivedByAi: true,
+                    aiRunId,
+                });
+                newDocId = target.id;
+                diff = `archived events/${target.id} ("${target.data().title}")`;
+            }
         }
 
         // 5. Audit log — SUCCESS
