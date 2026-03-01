@@ -2068,7 +2068,11 @@ exports.triggerRankScores = onCall({ cors: true }, async (request) => {
 // ── ONBOARDING INTERVIEWER ────────────────────────────────────────────────────
 // Conducts a 3-question strategic interview and generates masterPrompt + layoutPreferences.
 // Called by the frontend OnboardingModal component.
-exports.startMissionOnboarding = onCall(async (request) => {
+exports.startMissionOnboarding = onCall({
+    cors: true,
+    secrets: ["GOOGLE_API_KEY"],
+    invoker: "public",
+}, async (request) => {
     const { data, auth: callAuth } = request;
 
     // ── Fix 2a: use HttpsError for auth/permission failures ───────────────────
