@@ -1068,8 +1068,7 @@ ${archiveReports.map((r, i) => {
 
         // Only inject tools for roles that can act
         const tools = hasMinRole(role, "COS") ? SHADOW_COS_TOOLS : [];
-        // gemini-3-pro-preview è in dismissione (retire 9 marzo 2026) → aggiornato a gemini-2.5-pro-preview-03-25
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-preview-03-25", systemInstruction, tools });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview", systemInstruction, tools });
 
         const chatHistory = history.map(h => ({ role: h.role, parts: [{ text: h.text }] }));
         const chat = model.startChat({ history: chatHistory });
@@ -1612,15 +1611,12 @@ ${archiveReports.length > 0
                 }).join('\n\n')
                 : 'Nessun report archiviato.'}`;
 
-        // Initialize Vertex AI instead of GoogleGenerativeAI
-        const projectId = admin.app().options.projectId || process.env.GCLOUD_PROJECT;
-        const vertexai = new VertexAI({ project: projectId, location: 'us-central1' });
-
-        // gemini-3-pro-preview non è nel catalog Vertex AI us-central1 (404) → uso VERTEX_MODEL_PRO
-        const model = vertexai.preview.getGenerativeModel({
-            model: VERTEX_MODEL_PRO,
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            tools: [...BRIDGE_TOOLS, { googleSearchRetrieval: {} }],
+        // Usa GoogleGenerativeAI SDK (Google AI Studio) con gemini-3.1-pro-preview
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-3.1-pro-preview",
+            systemInstruction,
+            tools: [...BRIDGE_TOOLS, { google_search: {} }],
         });
 
 
