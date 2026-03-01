@@ -2097,7 +2097,8 @@ exports.startMissionOnboarding = onCall(async (request) => {
     const { messages = [] } = data || {};
 
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // TASK 3: Usiamo il modello "cervello strategico" avanzato per l'intervista
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
 
     const AVAILABLE_TILES = [
         "TileRadar", "AiPendingActionTop", "AiPendingActionBot",
@@ -2144,7 +2145,18 @@ Ordina layoutPreferences in base all'urgenza e priorità emerse dall'intervista 
             ? "L'intervista è completata. Genera ora il JSON finale con masterPrompt e layoutPreferences."
             : "Continua l'intervista.";
 
-        const result = await chat.sendMessage(promptText);
+        let result;
+        try {
+            // TASK 4: Robustezza della chiamata API verso Google SDK
+            result = await chat.sendMessage(promptText);
+        } catch (apiErr) {
+            logger.error("[startMissionOnboarding - Gemini API Error]:", apiErr);
+            throw new HttpsError(
+                "unavailable",
+                "Il Copilota Strategico è momentaneamente sovraccarico o non raggiungibile. Riprova tra poco."
+            );
+        }
+
         const responseText = result.response.text().trim();
 
         // Try to parse JSON
