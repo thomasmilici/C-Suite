@@ -86,7 +86,7 @@ export const Dashboard = ({ user }) => {
             </div>
 
             {/* METÀ SUPERIORE */}
-            <div className="flex-1 w-full flex flex-col pb-3">
+            <div className="h-1/2 w-full flex flex-col pb-3">
               <div
                 className={`${cardStyleClass} rounded-t-2xl rounded-b-lg w-full h-full p-6 pb-[140px] flex flex-col overflow-hidden`}
                 style={{
@@ -110,7 +110,7 @@ export const Dashboard = ({ user }) => {
             </div>
 
             {/* METÀ INFERIORE */}
-            <div className="flex-1 w-full flex gap-4 pt-3">
+            <div className="h-1/2 w-full flex gap-4 pt-3">
               <div
                 className={`${cardStyleClass} rounded-bl-2xl rounded-br-lg rounded-t-lg flex-1 h-full p-6 pt-[140px] flex flex-col overflow-hidden`}
                 style={{

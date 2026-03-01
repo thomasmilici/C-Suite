@@ -1,122 +1,160 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 /**
- * ShadowCosSphere — Sfera animata del Shadow CoS (Plasma Lamp Design)
+ * ShadowCosSphere — Sfera animata del Shadow CoS (True Plasma Lamp)
  * Props:
  *   isSpeaking  — bool: AI parla (voce live o risposta streaming)
  *   isThinking  — bool: AI sta elaborando (query testo)
+ *   volume      — number: Intensità del volume (0.0 - 1.0)
  */
 export function ShadowCosSphere({ isSpeaking = false, isThinking = false, volume = 0 }) {
+  const [plasmaRays, setPlasmaRays] = useState([]);
+
+  // Genera raggi di plasma casuali che cambiano nel tempo
+  useEffect(() => {
+    // Numero di raggi in base allo stato
+    const numRays = isSpeaking ? 16 : isThinking ? 12 : 8;
+
+    const generateRays = () => {
+      const rays = [];
+      for (let i = 0; i < numRays; i++) {
+        rays.push({
+          id: i,
+          angle: Math.random() * 360,     // Angolazione del raggio
+          length: 40 + Math.random() * 50, // Lunghezza % dal centro al bordo
+          width: 1 + Math.random() * 3,    // Spessore del fulmine
+          speed: 0.5 + Math.random() * 2,  // Velocità di oscillazione
+          opacity: 0.3 + Math.random() * 0.7, // Opacità casuale
+          curve: -20 + Math.random() * 40 // Curvatura CSS
+        });
+      }
+      setPlasmaRays(rays);
+    };
+
+    generateRays();
+    // Rigenera i pattern ogni pochi secondi per un look caotico/elettrico
+    const interval = setInterval(generateRays, isSpeaking ? 800 : 2500);
+    return () => clearInterval(interval);
+  }, [isSpeaking, isThinking]);
+
+  // Colori base della lampada
+  const coreColor = isThinking && !isSpeaking ? 'rgba(251, 146, 60, 1)' : 'rgba(167, 139, 250, 1)';
+  const glowColor = isThinking && !isSpeaking ? 'rgba(234, 88, 12, 0.6)' : 'rgba(99, 102, 241, 0.6)';
+  const plasmaColor = isThinking && !isSpeaking ? 'rgba(253, 186, 116, 0.8)' : 'rgba(199, 210, 254, 0.8)';
+
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
-      {/* Animazioni custom */}
+    <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
       <style>{`
-        @keyframes plasma-rotate {
+        @keyframes rotate-globe {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        @keyframes plasma-pulse {
-          0%, 100% { opacity: 0.6; transform: scale(0.98); }
-          50% { opacity: 1; transform: scale(1.02); }
+        @keyframes jitter {
+          0%, 100% { transform: scale(1) translate(0, 0); }
+          25% { transform: scale(1.02) translate(1px, -1px); }
+          50% { transform: scale(0.98) translate(-1px, 2px); }
+          75% { transform: scale(1.01) translate(-2px, -1px); }
         }
-        @keyframes core-throb {
-          0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); filter: brightness(1); }
-          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); filter: brightness(1.3); }
+        .plasma-ray {
+          transform-origin: bottom center;
+          animation: wiggle var(--speed) ease-in-out infinite alternate;
         }
-        .animate-plasma-slow { animation: plasma-rotate 20s linear infinite; }
-        .animate-plasma-med  { animation: plasma-rotate 8s linear infinite; }
-        .animate-plasma-fast { animation: plasma-rotate 3s linear infinite; }
-        .animate-plasma-pulse { animation: plasma-pulse 1s ease-in-out infinite; }
-        .animate-core-throb  { animation: core-throb 1.2s ease-in-out infinite; }
-        .animate-core-think  { animation: core-throb 2s ease-in-out infinite; }
+        @keyframes wiggle {
+          from { transform: rotate(var(--angle)) skewX(var(--curve)); opacity: var(--op); filter: brightness(1) drop-shadow(0 0 4px var(--color)); }
+          to { transform: rotate(calc(var(--angle) + 15deg)) skewX(calc(var(--curve) * -1)); opacity: calc(var(--op) * 1.5); filter: brightness(1.5) drop-shadow(0 0 8px var(--color)); }
+        }
+        .globe-glass {
+          box-shadow: 
+            inset 0 0 60px rgba(0, 0, 0, 0.9),           /* Ombra profonda bordi */
+            inset 15px 15px 30px rgba(255, 255, 255, 0.15), /* Riflesso luce alto sinistra */
+            inset -15px -15px 30px rgba(0, 0, 0, 0.6),   /* Ombra basso destra */
+            0 0 20px rgba(0, 0, 0, 0.5);                 /* Ombra esterna d'appoggio */
+        }
       `}</style>
 
-      {/* Vetro Esterno Sfera */}
+      {/* Vetro Esterno della Lampada */}
       <div
-        className={`relative w-[240px] h-[240px] rounded-full border border-white/[0.15] overflow-hidden ${isSpeaking
-            ? 'shadow-[0_0_80px_20px_rgba(99,102,241,0.4)]'
-            : isThinking
-              ? 'shadow-[0_0_50px_10px_rgba(245,158,11,0.3)]'
-              : 'shadow-[0_0_30px_5px_rgba(167,139,250,0.1)]'
-          }`}
+        className="relative rounded-full aspect-square w-full max-w-[240px] max-h-[240px] flex items-center justify-center overflow-hidden globe-glass"
         style={{
-          background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.8) 100%)',
-          boxShadow: 'inset 0 0 40px rgba(0,0,0,0.9), inset 10px 10px 20px rgba(255,255,255,0.1), inset -10px -10px 20px rgba(0,0,0,0.5)',
-          transform: isSpeaking ? `scale(${1 + volume * 0.1})` : 'scale(1)',
-          transition: 'transform 0.05s ease-out, box-shadow 0.7s ease'
+          background: 'radial-gradient(circle at 35% 35%, rgba(20, 20, 40, 0.9) 0%, rgba(5, 5, 10, 1) 100%)',
+          boxShadow: isSpeaking
+            ? `0 0 ${40 + volume * 60}px ${10 + volume * 20}px ${glowColor}, inset 0 0 60px rgba(0,0,0,0.9), inset 15px 15px 30px rgba(255,255,255,0.15)`
+            : isThinking
+              ? `0 0 30px 5px ${glowColor}, inset 0 0 60px rgba(0,0,0,0.9), inset 15px 15px 30px rgba(255,255,255,0.15)`
+              : 'inset 0 0 60px rgba(0,0,0,0.9), inset 15px 15px 30px rgba(255,255,255,0.15)',
+          transition: 'box-shadow 0.1s ease-out'
         }}
       >
-        {/* Sfondo Vuoto/Profondo */}
-        <div className="absolute inset-0 rounded-full bg-[#050510] mix-blend-multiply opacity-80" />
 
-        {/* --- FILAMENTI AL PLASMA --- */}
-        {/* Livello 1: Raggi Sottili */}
+        {/* --- GAS NOBILE (SFONDO LUMINOSO) --- */}
         <div
-          className={`absolute [-inset-50%] rounded-full opacity-60 mix-blend-screen transition-all duration-700 ${isSpeaking ? 'animate-plasma-fast' : isThinking ? 'animate-plasma-med' : 'animate-plasma-slow'
-            }`}
+          className="absolute inset-0 rounded-full mix-blend-screen opacity-50"
           style={{
-            background: isThinking && !isSpeaking
-              ? 'repeating-conic-gradient(from 0deg, transparent 0deg, rgba(245,158,11,0.05) 10deg, rgba(234,88,12,0.4) 12deg, transparent 15deg)'
-              : 'repeating-conic-gradient(from 0deg, transparent 0deg, rgba(99,102,241,0.05) 10deg, rgba(167,139,250,0.4) 12deg, transparent 15deg)',
-            WebkitMaskImage: 'radial-gradient(circle, transparent 20%, black 70%, transparent 95%)',
-            maskImage: 'radial-gradient(circle, transparent 20%, black 70%, transparent 95%)',
-            filter: 'blur(1px)'
+            background: `radial-gradient(circle at 50% 50%, ${glowColor} 0%, transparent 70%)`,
+            transform: isSpeaking ? `scale(${1 + volume * 0.3})` : isThinking ? 'scale(1.1)' : 'scale(0.8)',
+            transition: 'transform 0.1s ease-out'
           }}
         />
 
-        {/* Livello 2: Raggi Spessi (gira in senso antiorario) */}
+        {/* --- FILAMENTI ELETTRICI (I RAGGI DEL PLASMA) --- */}
         <div
-          className={`absolute [-inset-50%] rounded-full opacity-50 mix-blend-screen transition-all duration-700 ${isSpeaking ? 'animate-plasma-med' : isThinking ? 'animate-plasma-slow' : 'animate-plasma-slow'
-            }`}
+          className="absolute inset-0 flex items-center justify-center mix-blend-screen"
           style={{
-            animationDirection: 'reverse',
-            background: isThinking && !isSpeaking
-              ? 'repeating-conic-gradient(from 45deg, transparent 0deg, rgba(251,191,36,0) 20deg, rgba(217,119,6,0.5) 25deg, transparent 35deg)'
-              : 'repeating-conic-gradient(from 45deg, transparent 0deg, rgba(56,189,248,0) 20deg, rgba(139,92,246,0.6) 25deg, transparent 35deg)',
-            WebkitMaskImage: 'radial-gradient(circle, transparent 15%, black 60%, transparent 85%)',
-            maskImage: 'radial-gradient(circle, transparent 15%, black 60%, transparent 85%)',
-            filter: 'blur(3px)'
+            animation: isSpeaking ? 'rotate-globe 6s linear infinite, jitter 0.1s infinite' : isThinking ? 'rotate-globe 15s linear infinite' : 'rotate-globe 30s linear infinite'
+          }}
+        >
+          {plasmaRays.map(ray => (
+            <div
+              key={ray.id}
+              className="absolute bottom-1/2 left-1/2 plasma-ray origin-bottom"
+              style={{
+                '--angle': `${ray.angle}deg`,
+                '--curve': `${ray.curve}deg`,
+                '--speed': `${ray.speed}s`,
+                '--op': ray.opacity,
+                '--color': plasmaColor,
+                width: `${ray.width}px`,
+                height: `${ray.length}%`,
+                background: `linear-gradient(to top, white 0%, ${plasmaColor} 20%, transparent 100%)`,
+                marginLeft: `${-(ray.width / 2)}px`,
+                borderRadius: '50% 50% 0 0',
+                filter: 'blur(0.5px)'
+              }}
+            />
+          ))}
+        </div>
+
+        {/* --- ELETTRODO CENTRALE (IL CORE) --- */}
+        <div
+          className="absolute z-10 rounded-full bg-white shadow-[0_0_15px_5px_white] mix-blend-screen"
+          style={{
+            width: isSpeaking ? `${30 + (volume * 15)}px` : '24px',
+            height: isSpeaking ? `${30 + (volume * 15)}px` : '24px',
+            boxShadow: `0 0 ${40 + (isSpeaking ? volume * 40 : isThinking ? 10 : 0)}px ${15 + (isSpeaking ? volume * 20 : 0)}px ${coreColor}, inset 0 0 10px white`,
+            transition: 'width 0.05s, height 0.05s, box-shadow 0.05s'
           }}
         />
 
-        {/* Livello 3: Nube Luminosa Elettrica */}
-        <div
-          className={`absolute inset-0 rounded-full mix-blend-screen transition-opacity duration-500 ${isSpeaking ? 'opacity-70 animate-plasma-pulse' : 'opacity-30'}`}
-          style={{
-            background: isThinking && !isSpeaking
-              ? 'radial-gradient(circle at center, rgba(245,158,11,0.6) 0%, rgba(217,119,6,0.2) 40%, transparent 70%)'
-              : 'radial-gradient(circle at center, rgba(139,92,246,0.6) 0%, rgba(99,102,241,0.2) 40%, transparent 70%)',
-            filter: 'blur(10px)',
-            transform: isSpeaking ? `scale(${1 + volume * 0.3})` : 'scale(1)',
-            transition: 'transform 0.05s ease-out'
-          }}
-        />
-
-        {/* --- NUCLEO CENTRALE (Elettrodo) --- */}
-        <div
-          className={`absolute top-1/2 left-1/2 w-12 h-12 bg-white rounded-full mix-blend-screen shadow-[0_0_30px_10px_white] transition-transform duration-300 z-10 ${isSpeaking ? 'animate-core-throb' : isThinking ? 'animate-core-think opacity-80' : 'opacity-40'
-            }`}
-          style={{
-            boxShadow: isThinking && !isSpeaking
-              ? '0 0 40px 15px rgba(251,191,36,0.8), inset 0 0 10px rgba(255,255,255,1)'
-              : '0 0 40px 15px rgba(167,139,250,0.8), inset 0 0 10px rgba(255,255,255,1)'
-          }}
-        />
-
-        {/* Onde di picco del Nucleo (Reattive al volume) */}
+        {/* Onde di Tesla extra centrali quando parla */}
         {isSpeaking && (
           <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-indigo-300 rounded-full mix-blend-screen blur-[8px] z-0"
+            className="absolute z-0 rounded-full border border-white/40 blur-[1px] mix-blend-screen"
             style={{
-              transform: `translate(-50%, -50%) scale(${1 + volume * 0.8})`,
-              opacity: 0.5 + volume * 0.5,
-              transition: 'transform 0.05s ease-out, opacity 0.05s ease-out'
+              width: `${40 + (volume * 40)}px`,
+              height: `${40 + (volume * 40)}px`,
+              boxShadow: `0 0 10px ${plasmaColor}, inset 0 0 10px ${plasmaColor}`,
+              transform: `rotate(${Math.random() * 360}deg) scaleY(${0.8 + Math.random() * 0.4})`,
+              transition: 'all 0.05s ease'
             }}
           />
         )}
 
-        {/* Riflesso di Vetro Curvo Superiore */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-3/4 h-[30%] bg-gradient-to-b from-white/20 to-transparent rounded-full blur-[2px] pointer-events-none" />
+        {/* Riflesso di Vetro Superiore (Glass Highlight) */}
+        <div className="absolute top-[2%] left-1/2 -translate-x-1/2 w-[70%] h-[30%] bg-gradient-to-b from-white/30 to-transparent rounded-full blur-[2px] pointer-events-none z-20" />
+
+        {/* Riflesso di Vetro Inferiore (Bounce Light) */}
+        <div className="absolute bottom-[2%] left-1/2 -translate-x-1/2 w-[50%] h-[15%] bg-gradient-to-t from-[#a78bfa]/10 to-transparent rounded-full blur-[4px] pointer-events-none z-20" />
+
       </div>
     </div>
   );
