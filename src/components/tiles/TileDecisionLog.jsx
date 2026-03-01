@@ -669,7 +669,7 @@ const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName, eventId }) =>
 };
 
 // ── MAIN TILE ─────────────────────────────────────────────────────────────────
-export const TileDecisionLog = ({ isAdmin, adminName, eventId }) => {
+export const TileDecisionLog = ({ isAdmin, adminName, eventId, isHorizontal = false }) => {
     const [decisions, setDecisions] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [activeDecision, setActiveDecision] = useState(null);
@@ -697,7 +697,7 @@ export const TileDecisionLog = ({ isAdmin, adminName, eventId }) => {
             <div className="h-full flex flex-col p-4 sm:p-7 relative">
                 <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-                <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center justify-between mb-5 shrink-0">
                     <h3 className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
                         <BookOpen className="w-3.5 h-3.5 text-indigo-400" /> Decision Log
                     </h3>
@@ -711,20 +711,22 @@ export const TileDecisionLog = ({ isAdmin, adminName, eventId }) => {
                     )}
                 </div>
 
-                <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 space-y-2 pr-1">
+                <div
+                    className={`flex-grow flex ${isHorizontal ? 'flex-row gap-3 overflow-x-auto overflow-y-hidden pb-2' : 'flex-col space-y-2 overflow-y-auto pr-1'} scrollbar-thin scrollbar-thumb-white/5`}
+                >
                     {decisions.length > 0 ? (
                         <AnimatePresence>
                             {decisions.map((d, i) => (
                                 <motion.button
                                     key={d.id}
                                     layout
-                                    initial={{ opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
+                                    initial={isHorizontal ? { opacity: 0, x: 8 } : { opacity: 0, y: 8 }}
+                                    animate={isHorizontal ? { opacity: 1, x: 0 } : { opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.05 }}
                                     onClick={() => setActiveDecision(d)}
-                                    className="w-full flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.1] transition-all group text-left"
+                                    className={`${isHorizontal ? 'min-w-[280px] max-w-[320px] flex-col items-start h-full' : 'w-full flex-row items-center'} flex justify-between p-3.5 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:bg-white/[0.05] hover:border-white/[0.1] transition-all group text-left`}
                                 >
-                                    <div className="flex-1 min-w-0">
+                                    <div className={`flex-1 min-w-0 ${isHorizontal ? 'w-full mb-2' : ''}`}>
                                         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                                             <VerdictBadge analysis={d.analysis} overrideVerdict={d.verdict} />
                                             <span className="text-[9px] font-mono text-zinc-700">
@@ -738,7 +740,7 @@ export const TileDecisionLog = ({ isAdmin, adminName, eventId }) => {
                                             <p className="text-[9px] text-zinc-700 mt-0.5 truncate">{d.decisionMaker}</p>
                                         )}
                                     </div>
-                                    <ChevronRight className="w-3.5 h-3.5 text-zinc-700 group-hover:text-indigo-400 flex-shrink-0 ml-2 transition-colors" />
+                                    <ChevronRight className={`w-3.5 h-3.5 text-zinc-700 group-hover:text-indigo-400 flex-shrink-0 transition-colors ${isHorizontal ? 'self-end mt-auto' : 'ml-2'}`} />
                                 </motion.button>
                             ))}
                         </AnimatePresence>
