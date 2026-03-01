@@ -1068,7 +1068,7 @@ ${archiveReports.map((r, i) => {
 
         // Only inject tools for roles that can act
         const tools = hasMinRole(role, "COS") ? SHADOW_COS_TOOLS : [];
-        const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview", systemInstruction, tools });
+        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview", systemInstruction, tools });
 
         const chatHistory = history.map(h => ({ role: h.role, parts: [{ text: h.text }] }));
         const chat = model.startChat({ history: chatHistory });
