@@ -8,6 +8,7 @@ import { collection, query, orderBy, limit, onSnapshot, addDoc, deleteDoc, doc, 
 import { db } from '../../firebase';
 import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
+import { MissionContext } from '../layout/AppShell';
 
 const REPORT_PRESETS = [
     { label: 'Analisi Strategica', type: 'strategic', Icon: BarChart2, description: 'Executive summary, trend, implicazioni e raccomandazioni' },
@@ -338,6 +339,7 @@ const ReportModal = ({ report, onClose, adminName }) => {
 
 // ── ARCHIVE MODAL ────────────────────────────────────────────────────────────
 export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
+    const { activeMissionId } = React.useContext(MissionContext);
     const [allReports, setAllReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [deletingId, setDeletingId] = useState(null);
@@ -354,6 +356,8 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
     };
 
     useEffect(() => {
+        if (!activeMissionId) return;
+
         // Merge intelligence_archive (AI auto-archive) + intelligence_archives (legacy)
         const results = { new: [], legacy: [] };
         let loaded = 0;
@@ -377,7 +381,7 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
         };
 
         // Query 1: AI auto-archive (intelligence_archive, singular)
-        const q1 = query(collection(db, 'intelligence_archive'), orderBy('timestamp', 'desc'));
+        const q1 = query(collection(db, 'missions', activeMissionId, 'intelligence_archive'), orderBy('timestamp', 'desc'));
         const unsub1 = onSnapshot(q1, (snap) => {
             results.new = snap.docs
                 .map(d => ({ id: d.id, ...d.data(), _src: 'intelligence_archive' }))
@@ -387,7 +391,7 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
         }, () => { loaded++; if (loaded >= 2) { setAllReports(results.legacy); setLoading(false); } });
 
         // Query 2: legacy intelligence_archives (plural)
-        const q2 = query(collection(db, 'intelligence_archives'), orderBy('timestamp', 'desc'));
+        const q2 = query(collection(db, 'missions', activeMissionId, 'intelligence_archives'), orderBy('timestamp', 'desc'));
         const unsub2 = onSnapshot(q2, (snap) => {
             results.legacy = snap.docs
                 .map(d => ({ id: d.id, ...d.data(), _src: 'intelligence_archives' }))
@@ -397,13 +401,14 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
         }, () => { loaded++; if (loaded >= 2) { setAllReports(results.new); setLoading(false); } });
 
         return () => { unsub1(); unsub2(); };
-    }, []);
+    }, [activeMissionId]);
 
     const handleDelete = async (report) => {
+        if (!activeMissionId) return;
         setDeletingId(report.id);
         try {
             const collName = report._src || 'intelligence_archive';
-            await deleteDoc(doc(db, collName, report.id));
+            await deleteDoc(doc(db, 'missions', activeMissionId, collName, report.id));
             setConfirmDelete(null);
         } catch (e) {
             console.error('Delete error:', e);
@@ -558,6 +563,7 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
 
 // ── MAIN TILE ────────────────────────────────────────────────────────────────
 export const TileIntelligence = ({ adminName, eventId }) => {
+    const { activeMissionId } = React.useContext(MissionContext);
     const [customTopic, setCustomTopic] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeReport, setActiveReport] = useState(null);
@@ -568,6 +574,8 @@ export const TileIntelligence = ({ adminName, eventId }) => {
     const [showArchive, setShowArchive] = useState(false);
 
     useEffect(() => {
+        if (!activeMissionId) return;
+
         // Merge intelligence_archive (AI auto-archive) + intelligence_archives (legacy)
         const results = { new: [], legacy: [] };
         let loaded = 0;
@@ -589,7 +597,7 @@ export const TileIntelligence = ({ adminName, eventId }) => {
         };
 
         // Query 1: AI auto-archive (intelligence_archive, singular)
-        const base1 = collection(db, 'intelligence_archive');
+        const base1 = collection(db, 'missions', activeMissionId, 'intelligence_archive');
         const q1 = eventId
             ? query(base1, where('relatedDossierId', '==', eventId), orderBy('timestamp', 'desc'), limit(5))
             : query(base1, orderBy('timestamp', 'desc'), limit(5));
@@ -602,7 +610,7 @@ export const TileIntelligence = ({ adminName, eventId }) => {
         }, () => { loaded++; if (loaded >= 2) setRecentReports(results.legacy.slice(0, 5)); });
 
         // Query 2: legacy intelligence_archives (plural)
-        const base2 = collection(db, 'intelligence_archives');
+        const base2 = collection(db, 'missions', activeMissionId, 'intelligence_archives');
         const q2 = eventId
             ? query(base2, where('relatedDossierId', '==', eventId), orderBy('timestamp', 'desc'), limit(5))
             : query(base2, orderBy('timestamp', 'desc'), limit(5));
@@ -615,7 +623,7 @@ export const TileIntelligence = ({ adminName, eventId }) => {
         }, () => { loaded++; if (loaded >= 2) setRecentReports(results.new.slice(0, 5)); });
 
         return () => { unsub1(); unsub2(); };
-    }, [eventId]);
+    }, [eventId, activeMissionId]);
 
     const runGenerate = async (type, topic) => {
         if (!topic.trim()) return;
@@ -628,6 +636,7 @@ export const TileIntelligence = ({ adminName, eventId }) => {
                 topic: topic.trim(),
                 reportType: type,
                 ...(eventId && { relatedDossierId: eventId }),
+                missionId: activeMissionId,
             });
             if (result.data?.data && result.data.data.content) {
                 const docNumber = generateDocNumber();

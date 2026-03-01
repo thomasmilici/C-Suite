@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Compass, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
+import { MissionContext } from '../layout/AppShell';
 import { db } from '../../firebase';
 
 // Circular SVG progress ring
@@ -51,10 +52,12 @@ const ProgressRing = ({ progress = 0, status = 'on-track', size = 36 }) => {
 };
 
 export const TileCompass = ({ isAdmin, onOpenModal, eventId }) => {
+    const { activeMissionId } = React.useContext(MissionContext);
     const [okrs, setOkrs] = useState([]);
 
     useEffect(() => {
-        const base = collection(db, "okrs");
+        if (!activeMissionId) return;
+        const base = collection(db, "missions", activeMissionId, "okrs");
         const q = eventId
             ? query(base, where("eventId", "==", eventId), orderBy("createdAt", "desc"))
             : query(base, orderBy("createdAt", "desc"));

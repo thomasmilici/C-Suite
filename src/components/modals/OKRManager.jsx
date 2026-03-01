@@ -3,8 +3,10 @@ import { X, Save, Trash2, Plus, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { MissionContext } from '../layout/AppShell';
 
 export const OKRManager = ({ onClose, existingOKR = null }) => {
+    const { activeMissionId } = React.useContext(MissionContext);
     const [title, setTitle] = useState(existingOKR?.title || "");
     const [status, setStatus] = useState(existingOKR?.status || "on-track");
     const [progress, setProgress] = useState(existingOKR?.progress || 0);
@@ -27,7 +29,7 @@ export const OKRManager = ({ onClose, existingOKR = null }) => {
     };
 
     const handleSave = async () => {
-        if (!title.trim()) return;
+        if (!title.trim() || !activeMissionId) return;
         setLoading(true);
         try {
             const payload = {
@@ -38,9 +40,9 @@ export const OKRManager = ({ onClose, existingOKR = null }) => {
                 updatedAt: serverTimestamp()
             };
             if (existingOKR) {
-                await updateDoc(doc(db, "okrs", existingOKR.id), payload);
+                await updateDoc(doc(db, "missions", activeMissionId, "okrs", existingOKR.id), payload);
             } else {
-                await addDoc(collection(db, "okrs"), { ...payload, createdAt: serverTimestamp() });
+                await addDoc(collection(db, "missions", activeMissionId, "okrs"), { ...payload, createdAt: serverTimestamp() });
             }
             onClose();
         } catch (e) {
@@ -51,10 +53,10 @@ export const OKRManager = ({ onClose, existingOKR = null }) => {
     };
 
     const handleDelete = async () => {
-        if (!existingOKR || !window.confirm("Delete this Strategic Theme?")) return;
+        if (!existingOKR || !activeMissionId || !window.confirm("Delete this Strategic Theme?")) return;
         setLoading(true);
         try {
-            await deleteDoc(doc(db, "okrs", existingOKR.id));
+            await deleteDoc(doc(db, "missions", activeMissionId, "okrs", existingOKR.id));
             onClose();
         } catch (e) {
             console.error("Error deleting OKR:", e);
@@ -138,17 +140,15 @@ export const OKRManager = ({ onClose, existingOKR = null }) => {
                                 <div key={kr.id} className="flex items-center gap-2 group">
                                     <button
                                         onClick={() => toggleKR(kr.id)}
-                                        className={`w-5 h-5 flex-shrink-0 rounded-md border flex items-center justify-center transition-all ${
-                                            kr.completed
+                                        className={`w-5 h-5 flex-shrink-0 rounded-md border flex items-center justify-center transition-all ${kr.completed
                                                 ? 'bg-emerald-500/80 border-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.3)]'
                                                 : 'border-white/20 hover:border-white/40'
-                                        }`}
+                                            }`}
                                     >
                                         {kr.completed && <Check className="w-2.5 h-2.5 text-white" />}
                                     </button>
-                                    <span className={`flex-grow text-xs font-mono transition-colors ${
-                                        kr.completed ? 'text-zinc-600 line-through' : 'text-zinc-300'
-                                    }`}>
+                                    <span className={`flex-grow text-xs font-mono transition-colors ${kr.completed ? 'text-zinc-600 line-through' : 'text-zinc-300'
+                                        }`}>
                                         {kr.text}
                                     </span>
                                     <button

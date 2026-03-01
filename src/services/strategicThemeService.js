@@ -29,7 +29,17 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const COL = 'strategic_themes';
+// ─── COLLECTION PATH GENERATORS ───────────────────────────────────────────────
+
+const getCol = (missionId) => {
+    if (!missionId) throw new Error('[strategicThemeService] missionId is required');
+    return collection(db, 'missions', missionId, 'strategic_themes');
+};
+
+const getDocRef = (missionId, themeId) => {
+    if (!missionId) throw new Error('[strategicThemeService] missionId is required');
+    return doc(db, 'missions', missionId, 'strategic_themes', themeId);
+};
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -63,31 +73,33 @@ export function emptyTheme(uid) {
 // ── Core API ───────────────────────────────────────────────────────────────────
 
 /** Get all strategic themes (ordered by horizon desc, then title) */
-export async function getStrategicThemes() {
-    const q = query(collection(db, COL), orderBy('horizon', 'desc'), orderBy('title'));
+export async function getStrategicThemes(missionId) {
+    const q = query(getCol(missionId), orderBy('horizon', 'desc'), orderBy('title'));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 /** Real-time subscription to all strategic themes */
-export function subscribeStrategicThemes(callback) {
-    const q = query(collection(db, COL), orderBy('horizon', 'desc'), orderBy('title'));
+export function subscribeStrategicThemes(missionId, callback) {
+    if (!missionId) return () => { };
+    const q = query(getCol(missionId), orderBy('horizon', 'desc'), orderBy('title'));
     return onSnapshot(q, snap => {
         callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 }
 
 /** Real-time subscription to active themes only */
-export function subscribeActiveThemes(callback) {
-    const q = query(collection(db, COL), where('status', '==', 'active'), orderBy('title'));
+export function subscribeActiveThemes(missionId, callback) {
+    if (!missionId) return () => { };
+    const q = query(getCol(missionId), where('status', '==', 'active'), orderBy('title'));
     return onSnapshot(q, snap => {
         callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 }
 
 /** Get a single theme */
-export async function getStrategicTheme(themeId) {
-    const snap = await getDoc(doc(db, COL, themeId));
+export async function getStrategicTheme(missionId, themeId) {
+    const snap = await getDoc(getDocRef(missionId, themeId));
     return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
@@ -95,8 +107,8 @@ export async function getStrategicTheme(themeId) {
  * Create a new strategic theme. Returns the new document ID.
  * Caller role check is enforced by Firestore rules (ADMIN only).
  */
-export async function createStrategicTheme(data, uid) {
-    const ref = await addDoc(collection(db, COL), {
+export async function createStrategicTheme(missionId, data, uid) {
+    const ref = await addDoc(getCol(missionId), {
         ...emptyTheme(uid),
         ...data,
         createdBy: uid,
@@ -107,8 +119,8 @@ export async function createStrategicTheme(data, uid) {
 }
 
 /** Update fields of an existing theme (full patch) */
-export async function updateStrategicTheme(themeId, data, uid) {
-    await updateDoc(doc(db, COL, themeId), {
+export async function updateStrategicTheme(missionId, themeId, data, uid) {
+    await updateDoc(getDocRef(missionId, themeId), {
         ...data,
         updatedAt: serverTimestamp(),
         updatedBy: uid,
@@ -116,8 +128,8 @@ export async function updateStrategicTheme(themeId, data, uid) {
 }
 
 /** Delete a theme (ADMIN only, enforced by rules) */
-export async function deleteStrategicTheme(themeId) {
-    await deleteDoc(doc(db, COL, themeId));
+export async function deleteStrategicTheme(missionId, themeId) {
+    await deleteDoc(getDocRef(missionId, themeId));
 }
 
 // ── Event / OKR linking ────────────────────────────────────────────────────────
@@ -126,57 +138,57 @@ export async function deleteStrategicTheme(themeId) {
  * Link a dossier (event) to a theme.
  * Also stamps themeIds on the event document for reverse lookup.
  */
-export async function linkEventToTheme(themeId, eventId, uid) {
-    await updateDoc(doc(db, COL, themeId), {
+export async function linkEventToTheme(missionId, themeId, eventId, uid) {
+    await updateDoc(getDocRef(missionId, themeId), {
         event_ids: arrayUnion(eventId),
         updatedAt: serverTimestamp(),
         updatedBy: uid,
     });
     // Reverse: stamp themeIds[] on the event
     try {
-        await updateDoc(doc(db, 'events', eventId), {
+        await updateDoc(doc(db, 'missions', missionId, 'events', eventId), {
             themeIds: arrayUnion(themeId),
         });
     } catch (_) { /* event might not support update — gracefully skip */ }
 }
 
 /** Unlink a dossier from a theme */
-export async function unlinkEventFromTheme(themeId, eventId, uid) {
-    await updateDoc(doc(db, COL, themeId), {
+export async function unlinkEventFromTheme(missionId, themeId, eventId, uid) {
+    await updateDoc(getDocRef(missionId, themeId), {
         event_ids: arrayRemove(eventId),
         updatedAt: serverTimestamp(),
         updatedBy: uid,
     });
     try {
-        await updateDoc(doc(db, 'events', eventId), {
+        await updateDoc(doc(db, 'missions', missionId, 'events', eventId), {
             themeIds: arrayRemove(themeId),
         });
     } catch (_) { }
 }
 
 /** Link an OKR to a theme */
-export async function linkOKRToTheme(themeId, okrId, uid) {
-    await updateDoc(doc(db, COL, themeId), {
+export async function linkOKRToTheme(missionId, themeId, okrId, uid) {
+    await updateDoc(getDocRef(missionId, themeId), {
         okr_ids: arrayUnion(okrId),
         updatedAt: serverTimestamp(),
         updatedBy: uid,
     });
     try {
-        await updateDoc(doc(db, 'okrs', okrId), {
+        await updateDoc(doc(db, 'missions', missionId, 'okrs', okrId), {
             themeIds: arrayUnion(themeId),
         });
     } catch (_) { }
 }
 
 /** Unlink an OKR from a theme */
-export async function unlinkOKRFromTheme(themeId, okrId, uid) {
-    await updateDoc(doc(db, COL, themeId), {
+export async function unlinkOKRFromTheme(missionId, themeId, okrId, uid) {
+    await updateDoc(getDocRef(missionId, themeId), {
         okr_ids: arrayRemove(okrId),
         updatedAt: serverTimestamp(),
         updatedBy: uid,
     });
     try {
-        await updateDoc(doc(db, 'okrs', okrId), {
+        await updateDoc(doc(db, 'missions', missionId, 'okrs', okrId), {
             themeIds: arrayRemove(themeId),
         });
     } catch (_) { }

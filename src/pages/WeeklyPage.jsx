@@ -11,6 +11,7 @@ import {
     emptyKeyMoment, emptyStakeholderMove, emptyRiskSignal, emptyNarrative
 } from '../services/weeklyPlanService';
 import { todayId } from '../services/dailyPlanService';
+import { MissionContext } from '../components/layout/AppShell';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ export const WeeklyPage = ({ user }) => {
     const { weekId: paramWeekId } = useParams();
     const navigate = useNavigate();
     const uid = user?.uid;
+    const { activeMissionId } = React.useContext(MissionContext);
 
     const weekId = paramWeekId || currentWeekId();
     const isCurrentWeek = weekId === currentWeekId();
@@ -112,23 +114,24 @@ export const WeeklyPage = ({ user }) => {
     const [savedAt, setSavedAt] = useState(null);
 
     useEffect(() => {
+        if (!activeMissionId) return;
         setLoading(true);
-        getOrCreateWeeklyPlan(weekId, uid).then(() => setLoading(false));
-        const unsub = subscribeWeeklyPlan(weekId, data => {
+        getOrCreateWeeklyPlan(activeMissionId, weekId, uid).then(() => setLoading(false));
+        const unsub = subscribeWeeklyPlan(activeMissionId, weekId, data => {
             setPlan(data);
             setLoading(false);
         });
         return () => unsub();
-    }, [weekId, uid]);
+    }, [activeMissionId, weekId, uid]);
 
     const autoSave = useCallback(async (patch) => {
-        if (!uid) return;
+        if (!uid || !activeMissionId) return;
         setSaving(true);
         try {
-            await patchWeeklyPlan(weekId, patch, uid);
+            await patchWeeklyPlan(activeMissionId, weekId, patch, uid);
             setSavedAt(new Date());
         } finally { setSaving(false); }
-    }, [weekId, uid]);
+    }, [activeMissionId, weekId, uid]);
 
     const debouncedSave = useDebounce(autoSave, 800);
 
@@ -180,8 +183,8 @@ export const WeeklyPage = ({ user }) => {
     };
 
     const handleFinalize = async () => {
-        if (!window.confirm('Finalizzare la settimana? Lo stato diventerà "Finalized".')) return;
-        await finalizeWeeklyPlan(weekId, plan?.debrief || '', uid);
+        if (!activeMissionId || !window.confirm('Finalizzare la settimana? Lo stato diventerà "Finalized".')) return;
+        await finalizeWeeklyPlan(activeMissionId, weekId, plan?.debrief || '', uid);
     };
 
     const nav_week = (dir) => navigate(`/steering/weekly/${shiftWeekId(weekId, dir)}`);

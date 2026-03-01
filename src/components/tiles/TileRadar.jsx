@@ -3,6 +3,7 @@ import { Radar as RadarIcon, Radio, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, onSnapshot, orderBy, limit, where } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { MissionContext } from '../layout/AppShell';
 import {
     RadarChart,
     Radar,
@@ -14,11 +15,11 @@ import {
 
 // --- Axis definitions with keyword matching ---
 const AXES = [
-    { key: 'Mercato',    keywords: ['mercato', 'market', 'concorren', 'competitor', 'cliente', 'vendite', 'ricavi', 'prezzo'] },
-    { key: 'Tech',       keywords: ['tech', 'sistema', 'software', 'bug', 'server', 'api', 'deploy', 'database', 'infra'] },
-    { key: 'Operativo',  keywords: ['operativ', 'supply', 'logistic', 'processo', 'produzion', 'ritardo', 'fornitore'] },
-    { key: 'Team',       keywords: ['team', 'persona', 'hr', 'assunz', 'dipendent', 'cultura', 'burn', 'conflitt'] },
-    { key: 'Finanziario',keywords: ['finanz', 'budget', 'costo', 'cost', 'cash', 'investiment', 'spesa', 'margin'] },
+    { key: 'Mercato', keywords: ['mercato', 'market', 'concorren', 'competitor', 'cliente', 'vendite', 'ricavi', 'prezzo'] },
+    { key: 'Tech', keywords: ['tech', 'sistema', 'software', 'bug', 'server', 'api', 'deploy', 'database', 'infra'] },
+    { key: 'Operativo', keywords: ['operativ', 'supply', 'logistic', 'processo', 'produzion', 'ritardo', 'fornitore'] },
+    { key: 'Team', keywords: ['team', 'persona', 'hr', 'assunz', 'dipendent', 'cultura', 'burn', 'conflitt'] },
+    { key: 'Finanziario', keywords: ['finanz', 'budget', 'costo', 'cost', 'cash', 'investiment', 'spesa', 'margin'] },
     { key: 'Compliance', keywords: ['legal', 'compliance', 'regolament', 'gdpr', 'normativ', 'audit', 'rischio'] },
 ];
 
@@ -79,9 +80,9 @@ const CustomTooltip = ({ active, payload }) => {
 // --- Signal row (compact) ---
 const SignalRow = ({ signal }) => {
     const levelCfg = {
-        high:   { dot: 'bg-red-400',    text: 'text-red-400',    label: 'HIGH',   pulse: true },
-        medium: { dot: 'bg-yellow-400', text: 'text-yellow-400', label: 'MED',    pulse: false },
-        low:    { dot: 'bg-blue-400',   text: 'text-blue-400',   label: 'LOW',    pulse: false },
+        high: { dot: 'bg-red-400', text: 'text-red-400', label: 'HIGH', pulse: true },
+        medium: { dot: 'bg-yellow-400', text: 'text-yellow-400', label: 'MED', pulse: false },
+        low: { dot: 'bg-blue-400', text: 'text-blue-400', label: 'LOW', pulse: false },
     };
     const cfg = levelCfg[signal.level] ?? levelCfg.low;
     return (
@@ -101,10 +102,12 @@ const SignalRow = ({ signal }) => {
 
 // --- Main tile ---
 export const TileRadar = ({ isAdmin, onOpenModal, eventId }) => {
+    const { activeMissionId } = React.useContext(MissionContext);
     const [signals, setSignals] = useState([]);
 
     useEffect(() => {
-        const base = collection(db, "signals");
+        if (!activeMissionId) return;
+        const base = collection(db, "missions", activeMissionId, "signals");
         const q = eventId
             ? query(base, where("eventId", "==", eventId), orderBy("createdAt", "desc"), limit(12))
             : query(base, orderBy("createdAt", "desc"), limit(12));
@@ -112,7 +115,7 @@ export const TileRadar = ({ isAdmin, onOpenModal, eventId }) => {
             setSignals(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
         });
         return () => unsub();
-    }, [eventId]);
+    }, [eventId, activeMissionId]);
 
     const radarData = useMemo(() => buildRadarData(signals), [signals]);
     const hasSignals = signals.length > 0;

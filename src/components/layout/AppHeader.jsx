@@ -1,10 +1,23 @@
-import React from 'react';
-import { Shield, User, LogOut } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Shield, User, LogOut, ChevronDown } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { useNavigate, Link } from 'react-router-dom';
+import { MissionContext } from './AppShell';
+import { subscribeMissions } from '../../services/missionService';
 
 export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
     const navigate = useNavigate();
+    const { activeMissionId, setActiveMissionId } = React.useContext(MissionContext);
+    const [missions, setMissions] = useState([]);
+
+    useEffect(() => {
+        return subscribeMissions(data => {
+            setMissions(data);
+            if (data.length > 0 && activeMissionId === 'default_mission') {
+                setActiveMissionId(data[0].id);
+            }
+        });
+    }, [activeMissionId, setActiveMissionId]);
 
     const handleLogout = async () => {
         await AuthService.logout();
@@ -48,6 +61,25 @@ export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
 
                 {/* Right Actions */}
                 <div className="flex items-center gap-3 flex-shrink-0 ml-auto">
+
+                    {/* Mission Selector */}
+                    {missions.length > 0 && (
+                        <div className="hidden md:flex items-center relative">
+                            <select
+                                value={activeMissionId}
+                                onChange={(e) => setActiveMissionId(e.target.value)}
+                                className="appearance-none bg-white/[0.04] border border-white/[0.1] hover:bg-white/[0.08] text-white text-[10px] font-mono rounded-lg px-3 py-1.5 pr-8 transition-colors outline-none cursor-pointer max-w-[150px] truncate"
+                            >
+                                {missions.map(m => (
+                                    <option key={m.id} value={m.id} className="bg-[#050508] text-white">
+                                        Mission: {m.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="w-3 h-3 text-zinc-400 absolute right-2.5 pointer-events-none" />
+                        </div>
+                    )}
+
                     {/* User Profile / Admin Badge */}
                     <div className="hidden sm:flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
                         <div className="w-5 h-5 rounded bg-indigo-500/20 flex items-center justify-center text-indigo-400">

@@ -4,26 +4,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { doc, onSnapshot, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { format } from 'date-fns';
+import { MissionContext } from '../layout/AppShell';
 
 export const TilePulse = ({ eventId }) => {
+  const { activeMissionId } = React.useContext(MissionContext);
   const [items, setItems] = useState([]);
   const [input, setInput] = useState('');
   const today = new Date().toISOString().split('T')[0];
 
   // Scoped doc: se eventId esiste usa "eventId_today", altrimenti usa solo "today" (global)
   const docKey = eventId ? `${eventId}_${today}` : today;
-  const pulseRef = doc(db, 'daily_pulse', docKey);
 
   useEffect(() => {
+    if (!activeMissionId) return;
+    const pulseRef = doc(db, 'missions', activeMissionId, 'daily_pulse', docKey);
     const unsub = onSnapshot(pulseRef, (docSnap) => {
       if (docSnap.exists()) setItems(docSnap.data().focus_items || []);
       else setItems([]);
     });
     return () => unsub();
-  }, [docKey]);
+  }, [docKey, activeMissionId]);
 
   const addItem = async (e) => {
-    if (e.key === 'Enter' && input.trim() && items.length < 3) {
+    if (e.key === 'Enter' && input.trim() && items.length < 3 && activeMissionId) {
+      const pulseRef = doc(db, 'missions', activeMissionId, 'daily_pulse', docKey);
       const newItem = { id: Date.now(), text: input, completed: false };
       if (items.length === 0) await setDoc(pulseRef, { date: today, eventId: eventId || null, focus_items: [newItem] });
       else await updateDoc(pulseRef, { focus_items: arrayUnion(newItem) });
@@ -32,12 +36,16 @@ export const TilePulse = ({ eventId }) => {
   };
 
   const toggleItem = async (item) => {
+    if (!activeMissionId) return;
+    const pulseRef = doc(db, 'missions', activeMissionId, 'daily_pulse', docKey);
     const updated = items.map(i => i.id === item.id ? { ...i, completed: !i.completed } : i);
     await updateDoc(pulseRef, { focus_items: updated });
   };
 
   const deleteItem = async (e, item) => {
     e.stopPropagation();
+    if (!activeMissionId) return;
+    const pulseRef = doc(db, 'missions', activeMissionId, 'daily_pulse', docKey);
     const updated = items.filter(i => i.id !== item.id);
     await updateDoc(pulseRef, { focus_items: updated });
   };
@@ -56,11 +64,10 @@ export const TilePulse = ({ eventId }) => {
         </h3>
         <div className="flex items-center gap-2">
           {items.length > 0 && (
-            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-              allDone
+            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${allDone
                 ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
                 : 'text-zinc-400 border-white/5 bg-white/[0.03]'
-            }`}>
+              }`}>
               {items.filter(i => i.completed).length}/{items.length}
             </span>
           )}
@@ -82,20 +89,17 @@ export const TilePulse = ({ eventId }) => {
               whileHover={{ scale: 1.01 }}
               transition={{ type: 'spring', damping: 15 }}
               onClick={() => toggleItem(item)}
-              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all group ${
-                item.completed
+              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all group ${item.completed
                   ? 'bg-white/[0.02] border-white/[0.04] opacity-60'
                   : 'bg-white/[0.03] border-white/[0.07] hover:border-teal-500/20 hover:bg-teal-500/[0.03]'
-              }`}
+                }`}
             >
-              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                item.completed ? 'border-teal-400 bg-teal-400/20' : 'border-zinc-600 group-hover:border-teal-500/50'
-              }`}>
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${item.completed ? 'border-teal-400 bg-teal-400/20' : 'border-zinc-600 group-hover:border-teal-500/50'
+                }`}>
                 {item.completed && <Check className="w-2.5 h-2.5 text-teal-300" />}
               </div>
-              <span className={`flex-grow text-sm font-mono transition-all ${
-                item.completed ? 'line-through text-zinc-600' : 'text-zinc-200'
-              }`}>
+              <span className={`flex-grow text-sm font-mono transition-all ${item.completed ? 'line-through text-zinc-600' : 'text-zinc-200'
+                }`}>
                 {item.text}
               </span>
               <button

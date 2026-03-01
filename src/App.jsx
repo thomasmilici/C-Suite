@@ -14,6 +14,7 @@ import { StrategicThemesPage } from './pages/StrategicThemesPage';
 import { StakeholderPage } from './pages/StakeholderPage';
 import { ToolboxPage } from './pages/ToolboxPage';
 import { AppShell } from './components/layout/AppShell';
+import { MissionProvider } from './context/MissionContext';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const [user, setUser] = useState(auth.currentUser);
@@ -63,103 +64,105 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+    <MissionProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
 
-        <Route path="/join/:token" element={<Join />} />
+          <Route path="/join/:token" element={<Join />} />
 
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
-                <Dashboard user={user} />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                  <Dashboard user={user} />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <AppShell user={user} isAdmin={true}>
-                <Admin />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AppShell user={user} isAdmin={true}>
+                  <Admin />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/progetto/:id"
-          element={
-            <ProtectedRoute>
-              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
-                <ProjectDashboard user={user} />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/progetto/:id"
+            element={
+              <ProtectedRoute>
+                <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                  <ProjectDashboard user={user} />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/steering/daily/:date"
-          element={
-            <ProtectedRoute>
-              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
-                <DailyPage user={user} />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/steering/daily/:date"
+            element={
+              <ProtectedRoute>
+                <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                  <DailyPage user={user} />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/steering/weekly/:weekId"
-          element={
-            <ProtectedRoute>
-              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
-                <WeeklyPage user={user} />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/steering/weekly/:weekId"
+            element={
+              <ProtectedRoute>
+                <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                  <WeeklyPage user={user} />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/themes"
-          element={
-            <ProtectedRoute>
-              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
-                <StrategicThemesPage user={user} />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/themes"
+            element={
+              <ProtectedRoute>
+                <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                  <StrategicThemesPage user={user} />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/stakeholder"
-          element={
-            <ProtectedRoute>
-              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
-                <StakeholderPage user={user} />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/stakeholder"
+            element={
+              <ProtectedRoute>
+                <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                  <StakeholderPage user={user} />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/toolbox"
-          element={
-            <ProtectedRoute>
-              <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
-                <ToolboxPage user={user} />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/toolbox"
+            element={
+              <ProtectedRoute>
+                <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                  <ToolboxPage user={user} />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </BrowserRouter>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </MissionProvider>
   );
 }
 

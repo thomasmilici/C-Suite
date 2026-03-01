@@ -604,7 +604,7 @@ const BRIDGE_TOOLS = [
 // On "approved": the client calls the `executeApprovedAction` Cloud Function
 // which re-validates RBAC and actually writes to the target collection.
 // This guarantees EVERY write, even approved ones, passes RBAC + audit log.
-async function createPendingAction({ name, args, uid, email, role, aiRunId, sessionId, contextId = null }) {
+async function createPendingAction({ name, args, uid, email, role, aiRunId, sessionId, contextId = null, missionId = null }) {
     const db = admin.firestore();
 
     // Human-readable summaries in linguaggio naturale
@@ -650,6 +650,7 @@ async function createPendingAction({ name, args, uid, email, role, aiRunId, sess
         proposedAction: name,
         payload: { toolName: name, args },
         contextId: contextId || null,
+        missionId: missionId || null,
         status: "pending",
         summary,
         actionIntent,
@@ -681,8 +682,11 @@ async function createPendingAction({ name, args, uid, email, role, aiRunId, sess
 // Every execution path writes to audit_logs. No exceptions.
 // NOTE: This function is now called ONLY by executeApprovedAction (after human approval).
 // The agentic loop in askShadowCoS routes through createPendingAction (HITL) instead.
-async function executeToolSecure(name, args, { uid, email, role, aiRunId, sessionId }) {
-    const db = admin.firestore();
+async function executeToolSecure(name, args, { uid, email, role, aiRunId, sessionId, missionId }) {
+    const adminDb = admin.firestore();
+    const db = {
+        collection: (coll) => missionId ? adminDb.collection("missions").doc(missionId).collection(coll) : adminDb.collection(coll)
+    };
     const policy = AI_ACTION_POLICY[name];
 
     // 1. Policy check
@@ -1031,7 +1035,7 @@ exports.askShadowCoS = onCall({
     const role = await getUserRole(uid);
     // contextId: optional dossier/event ID sent by the client when inside a Dossier view.
     // When present, AI context is scoped to that dossier only (context isolation).
-    const { query, history = [], sessionId = null, contextId = null } = request.data;
+    const { query, history = [], sessionId = null, contextId = null, missionId = null } = request.data;
     const aiRunId = `run_${Date.now()}_${uid.slice(0, 6)}`;
 
     logger.info(`Invoked by: ${email} (${role}) | sessionId: ${sessionId} | aiRunId: ${aiRunId}`);
@@ -1196,7 +1200,7 @@ ${archiveReports.map((r, i) => {
                         if (!hasMinRole(role, policy.minRole)) throw new Error(`Role '${role}' insufficient for '${call.name}'`);
                         const schema = TOOL_SCHEMAS[call.name];
                         if (schema) validate(call.name, call.args, schema);
-                        const result = await executeToolSecure(call.name, call.args, { uid, email, role, aiRunId, sessionId });
+                        const result = await executeToolSecure(call.name, call.args, { uid, email, role, aiRunId, sessionId, missionId });
                         toolResult = {
                             success: true,
                             status: "archived",
@@ -1223,6 +1227,7 @@ ${archiveReports.map((r, i) => {
                             args: call.args,
                             uid, email, role, aiRunId, sessionId,
                             contextId: contextId || call.args?.eventId || null,
+                            missionId,
                         });
                         toolResult = {
                             success: true,
@@ -1302,6 +1307,7 @@ exports.executeApprovedAction = onCall({
         }
 
         const { toolName, args } = pending.payload;
+        const pendingMissionId = pending.missionId || null;
 
         // 2. Re-validate RBAC server-side (never trust the client)
         const policy = AI_ACTION_POLICY[toolName];
@@ -1311,7 +1317,7 @@ exports.executeApprovedAction = onCall({
         if (schema) validate(toolName, args, schema);
 
         // 3. Execute the actual tool
-        const result = await executeToolSecure(toolName, args, { uid, email, role, aiRunId, sessionId: null });
+        const result = await executeToolSecure(toolName, args, { uid, email, role, aiRunId, sessionId: null, missionId: pendingMissionId });
 
         // 4. Mark as approved
         await ref.update({
@@ -1457,7 +1463,8 @@ exports.researchAndReport = onCall({
     const email = request.auth.token?.email || null;
     const role = await getUserRole(uid);
     // relatedDossierId: optional — if research is triggered from inside a Dossier view
-    const { topic, reportType = "strategic", sessionId = null, relatedDossierId = null } = request.data;
+    // missionId: optional — to isolate the report under a specific mission silo
+    const { topic, reportType = "strategic", sessionId = null, relatedDossierId = null, missionId = null } = request.data;
     const aiRunId = `report_${Date.now()}_${uid.slice(0, 6)}`;
 
     if (!topic) {
@@ -1521,7 +1528,11 @@ Usa questo contesto per collegare le implicazioni del report agli obiettivi real
 
         // ── Persist to intelligence_archives (long-term memory) ──────────────
         const db = admin.firestore();
-        const archiveRef = await db.collection("intelligence_archives").add({
+        const collectionPath = missionId
+            ? `missions/${missionId}/intelligence_archives`
+            : "intelligence_archives";
+
+        const archiveRef = await db.collection(collectionPath).add({
             title: topic,
             content: cleanContent,
             sourceUrls: sources.map(s => s.uri),
@@ -1972,5 +1983,119 @@ exports.triggerRankScores = onCall({ cors: true }, async (request) => {
         logger.error("TRIGGER RANK FAILURE:", { message: e.message });
         await writeAuditLog({ uid, email, role, action: "TRIGGER_RANK_SCORES", aiRunId, result: "error", errorMessage: e.message });
         return { data: null, debug: e.message };
+    }
+});
+
+// ── ONBOARDING INTERVIEWER ────────────────────────────────────────────────────
+// Conducts a 3-question strategic interview and generates masterPrompt + layoutPreferences.
+// Called by the frontend OnboardingModal component.
+exports.startMissionOnboarding = onCall(async (request) => {
+    const { data, auth: callAuth } = request;
+    if (!callAuth) throw new Error("Unauthenticated");
+
+    const uid = callAuth.uid;
+    const email = callAuth.token?.email || null;
+    const role = await getUserRole(uid);
+
+    if (!hasMinRole(role, "COS")) {
+        throw new Error("Permessi insufficienti: ruolo COS o superiore richiesto.");
+    }
+
+    const { missionId, messages = [] } = data || {};
+    if (!missionId) throw new Error("missionId è obbligatorio.");
+
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const AVAILABLE_TILES = [
+        "TileRadar", "AiPendingActionTop", "AiPendingActionBot",
+        "TileCompass", "TilePulse", "TileDecisionLog",
+        "TileIntelligence", "BriefingRoom", "ProactiveAlerts"
+    ];
+
+    const SYSTEM_INSTRUCTION = `Sei il Copilota Strategico AI di un Chief of Staff.
+Il tuo compito è condurre una brevissima intervista di ESATTAMENTE 3 domande per capire:
+1. La VISIONE strategica per quest'anno.
+2. Le PRIORITÀ assolute (2-3 max).
+3. Lo STILE di orchestrazione preferito (es. proattivo/reattivo, delegatore/centralizzatore).
+
+REGOLE FERREE:
+- Fai UNA sola domanda alla volta. Tono diretto, professionale, empatico.
+- Quando l'utente ha risposto a 3 domande (messages contiene 3 o più turni utente), NON fare altre domande.
+- Invece, rispondi SOLO con un JSON valido nel seguente formato, senza altro testo:
+{
+  "done": true,
+  "masterPrompt": "Sintesi densa in 2-3 frasi del mandato, delle priorità e dello stile. Scritto in seconda persona, come prompt per l'IA.",
+  "layoutPreferences": ["TileRadar", "AiPendingActionTop", "TileCompass", "TilePulse", "TileDecisionLog", "BriefingRoom"]
+}
+I tile disponibili sono: ${AVAILABLE_TILES.join(", ")}.
+Ordina layoutPreferences in base all'urgenza e priorità emerse dall'intervista (max 8 tile).
+- Se l'utente non ha ancora risposto a 3 domande, fai la prossima domanda come testo semplice.`;
+
+    // Count user turns
+    const userTurns = messages.filter(m => m.role === "user").length;
+    const shouldFinalize = userTurns >= 3;
+
+    // Build Gemini chat history
+    const chatHistory = messages.map(m => ({
+        role: m.role === "ai" ? "model" : "user",
+        parts: [{ text: m.text }],
+    }));
+
+    try {
+        const chat = model.startChat({
+            history: chatHistory,
+            systemInstruction: SYSTEM_INSTRUCTION,
+        });
+
+        const promptText = shouldFinalize
+            ? "L'intervista è completata. Genera ora il JSON finale con masterPrompt e layoutPreferences."
+            : "Continua l'intervista.";
+
+        const result = await chat.sendMessage(promptText);
+        const responseText = result.response.text().trim();
+
+        // Try to parse JSON
+        if (shouldFinalize) {
+            try {
+                // Strip markdown code fences if present
+                const cleaned = responseText.replace(/^```json\n?|```$/g, "").trim();
+                const parsed = JSON.parse(cleaned);
+
+                if (parsed.done && parsed.masterPrompt && parsed.layoutPreferences) {
+                    // Save to Firestore
+                    await admin.firestore().collection("missions").doc(missionId).update({
+                        masterPrompt: parsed.masterPrompt,
+                        layoutPreferences: parsed.layoutPreferences,
+                        isSetupComplete: true,
+                        onboardingCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        onboardingCompletedBy: uid,
+                    });
+
+                    await writeAuditLog({
+                        uid, email, role,
+                        action: "MISSION_ONBOARDING_COMPLETE",
+                        targetDocRef: `missions/${missionId}`,
+                        result: "success",
+                        diff: `layoutPreferences: ${parsed.layoutPreferences.join(", ")}`,
+                    });
+
+                    return {
+                        done: true,
+                        masterPrompt: parsed.masterPrompt,
+                        layoutPreferences: parsed.layoutPreferences,
+                    };
+                }
+            } catch (_parseErr) {
+                logger.warn("[onboarding] JSON parse failed, returning as question", _parseErr.message);
+            }
+        }
+
+        // Return as a question/continuation
+        return { done: false, question: responseText };
+
+    } catch (err) {
+        logger.error("[startMissionOnboarding] Error:", err.message);
+        throw new Error(`Errore del Copilota: ${err.message}`);
     }
 });

@@ -14,6 +14,7 @@ import {
 } from '../services/meetingService';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
+import { MissionContext } from '../components/layout/AppShell';
 
 // ── Stakeholder Form ──────────────────────────────────────────────────────────
 function StakeholderModal({ item, onSave, onClose }) {
@@ -168,6 +169,7 @@ function MeetingModal({ item, stakeholders, events, onSave, onClose }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export const StakeholderPage = ({ user }) => {
     const uid = user?.uid;
+    const { activeMissionId } = React.useContext(MissionContext);
     const [tab, setTab] = useState('stakeholders'); // 'stakeholders' | 'meetings'
     const [stakeholders, setStakeholders] = useState([]);
     const [meetings, setMeetings] = useState([]);
@@ -175,20 +177,23 @@ export const StakeholderPage = ({ user }) => {
     const [modal, setModal] = useState(null); // { type: 'stakeholder'|'meeting', item }
 
     useEffect(() => {
-        const u1 = subscribeStakeholders(setStakeholders);
-        const u2 = subscribeMeetings(setMeetings);
-        const q = query(collection(db, 'events'));
+        if (!activeMissionId) return;
+        const u1 = subscribeStakeholders(activeMissionId, setStakeholders);
+        const u2 = subscribeMeetings(activeMissionId, setMeetings);
+        const q = query(collection(db, 'missions', activeMissionId, 'events'));
         const u3 = onSnapshot(q, snap => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
         return () => { u1(); u2(); u3(); };
-    }, []);
+    }, [activeMissionId]);
 
     const handleSaveStakeholder = async (form) => {
-        if (form.id) await updateStakeholder(form.id, form, uid);
-        else await createStakeholder(form, uid);
+        if (!activeMissionId) return;
+        if (form.id) await updateStakeholder(activeMissionId, form.id, form, uid);
+        else await createStakeholder(activeMissionId, form, uid);
     };
     const handleSaveMeeting = async (form) => {
-        if (form.id) await updateMeeting(form.id, form, uid);
-        else await createMeeting(form, uid);
+        if (!activeMissionId) return;
+        if (form.id) await updateMeeting(activeMissionId, form.id, form, uid);
+        else await createMeeting(activeMissionId, form, uid);
     };
 
     const upcomingMeetings = meetings.filter(m => m.status === 'scheduled').sort((a, b) => a.date > b.date ? 1 : -1);
@@ -257,7 +262,7 @@ export const StakeholderPage = ({ user }) => {
                                             className="p-2 text-zinc-600 hover:text-indigo-400 border border-white/[0.07] rounded-lg transition-all">
                                             <Pencil className="w-3.5 h-3.5" />
                                         </button>
-                                        <button onClick={async () => { if (window.confirm('Eliminare?')) await deleteStakeholder(s.id); }}
+                                        <button onClick={async () => { if (activeMissionId && window.confirm('Eliminare?')) await deleteStakeholder(activeMissionId, s.id); }}
                                             className="p-2 text-zinc-600 hover:text-red-400 border border-white/[0.07] rounded-lg transition-all">
                                             <Trash2 className="w-3.5 h-3.5" />
                                         </button>

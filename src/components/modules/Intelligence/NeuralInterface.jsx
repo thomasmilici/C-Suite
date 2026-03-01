@@ -7,6 +7,7 @@ import { collection, doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'fir
 import { db } from '../../../firebase';
 import { getAuth } from 'firebase/auth';
 import ReactMarkdown from 'react-markdown';
+import { useMission } from '../../../context/MissionContext';
 
 const MASTER_PROMPTS = [
     {
@@ -149,7 +150,7 @@ async function clearChatHistory(uid) {
 // SECURITY NOTE: All AI write actions are now routed through the askShadowCoS
 // Cloud Function, which enforces RBAC and writes to audit_logs.
 // There are NO direct Firestore writes from the client for AI-proposed actions.
-async function executeAction(action, currentHistory) {
+async function executeAction(action, currentHistory, missionId) {
     const { type, params } = action;
 
     if (type === 'RUN_REPORT') {
@@ -179,7 +180,7 @@ async function executeAction(action, currentHistory) {
     if (!command) throw new Error(`Unknown action type: ${type}. Not in secure allowlist.`);
 
     const askShadow = httpsCallable(functions, 'askShadowCoS');
-    const result = await askShadow({ query: command, history: currentHistory || [] });
+    const result = await askShadow({ query: command, history: currentHistory || [], missionId });
     const responseText = result.data?.data;
     if (!responseText || responseText.includes('Offline') || responseText.includes('negato')) {
         throw new Error(responseText || 'Action failed via Shadow CoS.');
@@ -189,6 +190,7 @@ async function executeAction(action, currentHistory) {
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export const NeuralInterface = ({ onClose, events = [], isAdmin = false }) => {
+    const { activeMissionId } = React.useContext(MissionContext);
     const [messages, setMessages] = useState([
         { id: 1, type: 'ai', text: getInitialMessage(), actions: [] }
     ]);
@@ -253,7 +255,7 @@ export const NeuralInterface = ({ onClose, events = [], isAdmin = false }) => {
             .filter(m => m.type === 'user' || m.type === 'ai')
             .map(m => ({ role: m.type === 'user' ? 'user' : 'model', text: m.text }));
         try {
-            const resultText = await executeAction(action, historySnapshot);
+            const resultText = await executeAction(action, historySnapshot, activeMissionId);
             setMessages(prev => {
                 const updated = prev.map(m => {
                     if (m.id !== messageId) return m;
@@ -292,7 +294,7 @@ export const NeuralInterface = ({ onClose, events = [], isAdmin = false }) => {
 
         try {
             const askShadow = httpsCallable(functions, 'askShadowCoS');
-            const result = await askShadow({ query: input, history, sessionId });
+            const result = await askShadow({ query: input, history, sessionId, missionId: activeMissionId });
             const rawText = result.data.data || "Analysis incomplete. Try clarifying intent.";
 
             // Parse action proposals

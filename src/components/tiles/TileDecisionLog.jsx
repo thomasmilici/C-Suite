@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { BookOpen, Plus, X, Loader2, ChevronRight, AlertTriangle, CheckCircle, Minus, Download, Pencil, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +8,7 @@ import { collection, query, orderBy, limit, onSnapshot, addDoc, updateDoc, doc, 
 import { db } from '../../firebase';
 import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
+import { MissionContext } from '../layout/AppShell';
 
 // ── PDF EXPORT ─────────────────────────────────────────────────────────────────
 const generateDocNumber = () => {
@@ -299,15 +300,17 @@ const VerdictSelector = ({ value, onChange }) => (
 
 // ── DECISION MODAL (view + edit saved) ───────────────────────────────────────
 const DecisionModal = ({ entry, onClose, adminName, isAdmin }) => {
+    const { activeMissionId } = useContext(MissionContext);
     const [editing, setEditing] = useState(false);
     const [editText, setEditText] = useState(entry.analysis || '');
     const [editVerdict, setEditVerdict] = useState(entry.verdict || null);
     const [saving, setSaving] = useState(false);
 
     const handleSaveEdit = async () => {
+        if (!activeMissionId) return;
         setSaving(true);
         try {
-            await updateDoc(doc(db, 'decisions', entry.id), {
+            await updateDoc(doc(db, 'missions', activeMissionId, 'decisions', entry.id), {
                 analysis: editText,
                 verdict: editVerdict,
             });
@@ -445,6 +448,7 @@ const DecisionModal = ({ entry, onClose, adminName, isAdmin }) => {
 
 // ── NEW DECISION FORM (with review step) ─────────────────────────────────────
 const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName, eventId }) => {
+    const { activeMissionId } = useContext(MissionContext);
     const [step, setStep] = useState('input'); // 'input' | 'review'
     const [decision, setDecision] = useState('');
     const [rationale, setRationale] = useState('');
@@ -490,6 +494,7 @@ const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName, eventId }) =>
 
     // Step 2: save to Firestore
     const handleSave = async () => {
+        if (!activeMissionId) return;
         setIsSaving(true);
         try {
             const docNumber = generateDocNumber();
@@ -502,7 +507,7 @@ const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName, eventId }) =>
                 rationale: rationale.trim(),
                 decisionMaker: adminName || 'Admin',
             };
-            await addDoc(collection(db, 'decisions'), {
+            await addDoc(collection(db, 'missions', activeMissionId, 'decisions'), {
                 ...entry,
                 ...(eventId && { eventId }),
                 savedAt: serverTimestamp(),
@@ -670,12 +675,14 @@ const NewDecisionForm = ({ onClose, onSuccess, isAdmin, adminName, eventId }) =>
 
 // ── MAIN TILE ─────────────────────────────────────────────────────────────────
 export const TileDecisionLog = ({ isAdmin, adminName, eventId, isHorizontal = false }) => {
+    const { activeMissionId } = useContext(MissionContext);
     const [decisions, setDecisions] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [activeDecision, setActiveDecision] = useState(null);
 
     useEffect(() => {
-        const base = collection(db, 'decisions');
+        if (!activeMissionId) return;
+        const base = collection(db, 'missions', activeMissionId, 'decisions');
         const q = eventId
             ? query(base, where('eventId', '==', eventId), orderBy('savedAt', 'desc'), limit(10))
             : query(base, orderBy('savedAt', 'desc'), limit(10));
@@ -685,7 +692,7 @@ export const TileDecisionLog = ({ isAdmin, adminName, eventId, isHorizontal = fa
             console.error('Firestore decisions error:', err);
         });
         return () => unsub();
-    }, [eventId]);
+    }, [activeMissionId, eventId]);
 
     const handleSuccess = (entry) => {
         setShowForm(false);

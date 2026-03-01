@@ -14,6 +14,7 @@ import {
 import { currentWeekId, dateToWeekId } from '../services/weeklyPlanService';
 import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
+import { MissionContext } from '../components/layout/AppShell';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ export const DailyPage = ({ user }) => {
     const { date } = useParams();
     const navigate = useNavigate();
     const uid = user?.uid;
+    const { activeMissionId } = React.useContext(MissionContext);
 
     // Normalize date param: if missing or invalid, go to today
     const dateId = (() => {
@@ -119,32 +121,34 @@ export const DailyPage = ({ user }) => {
 
     // Load plan and subscribe to real-time updates
     useEffect(() => {
+        if (!activeMissionId) return;
         setLoading(true);
-        getOrCreateDailyPlan(dateId, uid).then(() => setLoading(false));
-        const unsub = subscribeDailyPlan(dateId, (data) => {
+        getOrCreateDailyPlan(activeMissionId, dateId, uid).then(() => setLoading(false));
+        const unsub = subscribeDailyPlan(activeMissionId, dateId, (data) => {
             setPlan(data);
             setLoading(false);
         });
         return () => unsub();
-    }, [dateId, uid]);
+    }, [activeMissionId, dateId, uid]);
 
     // Load active dossier list for selector
     useEffect(() => {
-        const q = query(collection(db, 'events'), where('status', '!=', 'archived'), orderBy('status'), orderBy('updatedAt', 'desc'));
+        if (!activeMissionId) return;
+        const q = query(collection(db, 'missions', activeMissionId, 'events'), where('status', '!=', 'archived'), orderBy('status'), orderBy('updatedAt', 'desc'));
         return onSnapshot(q, snap => setActiveEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    }, []);
+    }, [activeMissionId]);
 
     // Auto-save helper
     const autoSave = useCallback(async (patch) => {
-        if (!uid) return;
+        if (!uid || !activeMissionId) return;
         setSaving(true);
         try {
-            await patchDailyPlan(dateId, patch, uid);
+            await patchDailyPlan(activeMissionId, dateId, patch, uid);
             setSavedAt(new Date());
         } finally {
             setSaving(false);
         }
-    }, [dateId, uid]);
+    }, [activeMissionId, dateId, uid]);
 
     const debouncedSave = useDebounce(autoSave, 800);
 
@@ -199,8 +203,8 @@ export const DailyPage = ({ user }) => {
     };
 
     const handleFinalize = async () => {
-        if (!window.confirm('Finalizzare la giornata? Lo stato diventerà "Finalized".')) return;
-        await finalizeDailyPlan(dateId, plan?.reflection || '', uid);
+        if (!activeMissionId || !window.confirm('Finalizzare la giornata? Lo stato diventerà "Finalized".')) return;
+        await finalizeDailyPlan(activeMissionId, dateId, plan?.reflection || '', uid);
     };
 
     const navigate_date = (dir) => navigate(`/steering/daily/${shiftDateId(dateId, dir)}`);

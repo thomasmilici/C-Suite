@@ -51,6 +51,16 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
+const getPlanDoc = (missionId, weekId) => {
+    if (!missionId) throw new Error('[weeklyPlanService] missionId is required');
+    return doc(db, 'missions', missionId, 'weekly_plans', weekId);
+};
+
+const getPlanCol = (missionId) => {
+    if (!missionId) throw new Error('[weeklyPlanService] missionId is required');
+    return collection(db, 'missions', missionId, 'weekly_plans');
+};
+
 // ── ISO Week Utilities ─────────────────────────────────────────────────────────
 
 /**
@@ -185,8 +195,8 @@ export function emptyWeeklyPlan(weekId, uid) {
  * Get a weekly plan document.
  * Returns null if not found.
  */
-export async function getWeeklyPlan(weekId) {
-    const ref = doc(db, 'weekly_plans', weekId);
+export async function getWeeklyPlan(missionId, weekId) {
+    const ref = getPlanDoc(missionId, weekId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     return { id: snap.id, ...snap.data() };
@@ -196,8 +206,8 @@ export async function getWeeklyPlan(weekId) {
  * Get or create a weekly plan.
  * Auto-creates the empty document on first access.
  */
-export async function getOrCreateWeeklyPlan(weekId, uid) {
-    const ref = doc(db, 'weekly_plans', weekId);
+export async function getOrCreateWeeklyPlan(missionId, weekId, uid) {
+    const ref = getPlanDoc(missionId, weekId);
     const snap = await getDoc(ref);
 
     if (snap.exists()) {
@@ -217,8 +227,8 @@ export async function getOrCreateWeeklyPlan(weekId, uid) {
 /**
  * Save the entire weekly plan document (full update).
  */
-export async function saveWeeklyPlan(weekId, plan, uid) {
-    const ref = doc(db, 'weekly_plans', weekId);
+export async function saveWeeklyPlan(missionId, weekId, plan, uid) {
+    const ref = getPlanDoc(missionId, weekId);
     const snap = await getDoc(ref);
     const now = serverTimestamp();
     if (snap.exists()) {
@@ -232,12 +242,13 @@ export async function saveWeeklyPlan(weekId, plan, uid) {
  * Patch one or more top-level fields of a weekly plan.
  * Ideal for real-time auto-save of individual sections.
  *
+ * @param {string} missionId
  * @param {string} weekId
  * @param {Record<string, any>} patch - e.g. { outcomes: [...] } or { narrative: {...} }
  * @param {string} uid
  */
-export async function patchWeeklyPlan(weekId, patch, uid) {
-    const ref = doc(db, 'weekly_plans', weekId);
+export async function patchWeeklyPlan(missionId, weekId, patch, uid) {
+    const ref = getPlanDoc(missionId, weekId);
     const snap = await getDoc(ref);
     const now = serverTimestamp();
     if (snap.exists()) {
@@ -256,18 +267,20 @@ export async function patchWeeklyPlan(weekId, patch, uid) {
  * Finalize a weekly plan (Friday debrief action).
  * Sets status → 'finalized', records debrief text.
  */
-export async function finalizeWeeklyPlan(weekId, debrief, uid) {
-    await patchWeeklyPlan(weekId, { status: 'finalized', debrief }, uid);
+export async function finalizeWeeklyPlan(missionId, weekId, debrief, uid) {
+    await patchWeeklyPlan(missionId, weekId, { status: 'finalized', debrief }, uid);
 }
 
 /**
  * Real-time subscription to a weekly plan.
+ * @param {string} missionId
  * @param {string} weekId
  * @param {function} callback - called with (WeeklyPlan | null)
  * @returns unsubscribe function
  */
-export function subscribeWeeklyPlan(weekId, callback) {
-    const ref = doc(db, 'weekly_plans', weekId);
+export function subscribeWeeklyPlan(missionId, weekId, callback) {
+    if (!missionId) return () => { };
+    const ref = getPlanDoc(missionId, weekId);
     return onSnapshot(ref, snap => {
         callback(snap.exists() ? { id: snap.id, ...snap.data() } : null);
     });
@@ -275,11 +288,12 @@ export function subscribeWeeklyPlan(weekId, callback) {
 
 /**
  * Fetch the N most recent weekly plans (for history / cockpit widget).
+ * @param {string} missionId
  * @param {number} n - default 8 (two months of weeks)
  */
-export async function getRecentWeeklyPlans(n = 8) {
+export async function getRecentWeeklyPlans(missionId, n = 8) {
     const q = query(
-        collection(db, 'weekly_plans'),
+        getPlanCol(missionId),
         orderBy('weekId', 'desc'),
         limit(n)
     );

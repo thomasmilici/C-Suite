@@ -61,46 +61,48 @@ export function emptyMeeting(uid) {
 
 // ── Stakeholders ───────────────────────────────────────────────────────────────
 
-export function subscribeStakeholders(callback) {
-    const q = query(collection(db, 'stakeholders'), orderBy('name'));
+export function subscribeStakeholders(missionId, callback) {
+    if (!missionId) return () => { };
+    const q = query(collection(db, 'missions', missionId, 'stakeholders'), orderBy('name'));
     return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 }
 
-export async function createStakeholder(data, uid) {
-    const ref = await addDoc(collection(db, 'stakeholders'), {
+export async function createStakeholder(missionId, data, uid) {
+    const ref = await addDoc(collection(db, 'missions', missionId, 'stakeholders'), {
         ...emptyStakeholder(uid), ...data, createdBy: uid,
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     });
     return ref.id;
 }
 
-export async function updateStakeholder(id, data, uid) {
-    await updateDoc(doc(db, 'stakeholders', id), { ...data, updatedAt: serverTimestamp(), updatedBy: uid });
+export async function updateStakeholder(missionId, id, data, uid) {
+    await updateDoc(doc(db, 'missions', missionId, 'stakeholders', id), { ...data, updatedAt: serverTimestamp(), updatedBy: uid });
 }
 
-export async function deleteStakeholder(id) {
-    await deleteDoc(doc(db, 'stakeholders', id));
+export async function deleteStakeholder(missionId, id) {
+    await deleteDoc(doc(db, 'missions', missionId, 'stakeholders', id));
 }
 
 // ── Meetings ───────────────────────────────────────────────────────────────────
 
-export function subscribeMeetings(callback) {
-    const q = query(collection(db, 'meetings'), orderBy('date', 'desc'));
+export function subscribeMeetings(missionId, callback) {
+    if (!missionId) return () => { };
+    const q = query(collection(db, 'missions', missionId, 'meetings'), orderBy('date', 'desc'));
     return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 }
 
-export async function createMeeting(data, uid) {
-    const ref = await addDoc(collection(db, 'meetings'), {
+export async function createMeeting(missionId, data, uid) {
+    const ref = await addDoc(collection(db, 'missions', missionId, 'meetings'), {
         ...emptyMeeting(uid), ...data, createdBy: uid,
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     });
     return ref.id;
 }
 
-export async function updateMeeting(id, data, uid) {
-    await updateDoc(doc(db, 'meetings', id), { ...data, updatedAt: serverTimestamp(), updatedBy: uid });
+export async function updateMeeting(missionId, id, data, uid) {
+    await updateDoc(doc(db, 'missions', missionId, 'meetings', id), { ...data, updatedAt: serverTimestamp(), updatedBy: uid });
 }
 
-export async function deleteMeeting(id) {
-    await deleteDoc(doc(db, 'meetings', id));
+export async function deleteMeeting(missionId, id) {
+    await deleteDoc(doc(db, 'missions', missionId, 'meetings', id));
 }

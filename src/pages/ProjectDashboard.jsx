@@ -5,6 +5,7 @@ import { getEvent } from '../services/eventService';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AuthService } from '../services/authService';
+import { MissionContext } from '../components/layout/AppShell';
 import { TileCompass } from '../components/tiles/TileCompass';
 import { TilePulse } from '../components/tiles/TilePulse';
 import { TileTeam } from '../components/tiles/TileTeam';
@@ -24,6 +25,7 @@ import { StatusPill } from '../components/ui/StatusPill';
 
 export const ProjectDashboard = ({ user }) => {
   const { id: eventId } = useParams();
+  const { activeMissionId } = React.useContext(MissionContext);
   const navigate = useNavigate();
 
   const [event, setEvent] = useState(null);
@@ -39,9 +41,9 @@ export const ProjectDashboard = ({ user }) => {
   const [selectedOKR, setSelectedOKR] = useState(null);
 
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId || !activeMissionId) return;
     setLoadingEvent(true);
-    getEvent(eventId).then(data => {
+    getEvent(activeMissionId, eventId).then(data => {
       if (!data) { setNotFound(true); }
       else { setEvent(data); }
       setLoadingEvent(false);

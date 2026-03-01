@@ -13,6 +13,7 @@ import {
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getAuth } from 'firebase/auth';
+import { MissionContext } from '../components/layout/AppShell';
 
 // ── Status badge ───────────────────────────────────────────────────────────────
 const STATUS_STYLE = {
@@ -115,14 +116,15 @@ function ThemeModal({ theme, onSave, onClose }) {
 }
 
 // ── Link Events Panel ──────────────────────────────────────────────────────────
-function LinkEventsPanel({ theme, events, uid, onClose }) {
+function LinkEventsPanel({ theme, events, uid, onClose, activeMissionId }) {
     const linked = theme.event_ids || [];
 
     const toggle = async (eventId) => {
+        if (!activeMissionId) return;
         if (linked.includes(eventId)) {
-            await unlinkEventFromTheme(theme.id, eventId, uid);
+            await unlinkEventFromTheme(activeMissionId, theme.id, eventId, uid);
         } else {
-            await linkEventToTheme(theme.id, eventId, uid);
+            await linkEventToTheme(activeMissionId, theme.id, eventId, uid);
         }
     };
 
@@ -162,6 +164,7 @@ function LinkEventsPanel({ theme, events, uid, onClose }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export const StrategicThemesPage = ({ user }) => {
     const uid = user?.uid;
+    const { activeMissionId } = React.useContext(MissionContext);
     const [themes, setThemes] = useState([]);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -169,26 +172,29 @@ export const StrategicThemesPage = ({ user }) => {
     const [linkPanel, setLinkPanel] = useState(null);   // theme to link events
 
     useEffect(() => {
-        const unsub = subscribeStrategicThemes(data => { setThemes(data); setLoading(false); });
+        if (!activeMissionId) return;
+        const unsub = subscribeStrategicThemes(activeMissionId, data => { setThemes(data); setLoading(false); });
         return () => unsub();
-    }, []);
+    }, [activeMissionId]);
 
     useEffect(() => {
-        const q = query(collection(db, 'events'), orderBy('updatedAt', 'desc'));
+        if (!activeMissionId) return;
+        const q = query(collection(db, 'missions', activeMissionId, 'events'), orderBy('updatedAt', 'desc'));
         return onSnapshot(q, snap => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    }, []);
+    }, [activeMissionId]);
 
     const handleSave = async (form) => {
+        if (!activeMissionId) return;
         if (form.id) {
-            await updateStrategicTheme(form.id, form, uid);
+            await updateStrategicTheme(activeMissionId, form.id, form, uid);
         } else {
-            await createStrategicTheme(form, uid);
+            await createStrategicTheme(activeMissionId, form, uid);
         }
     };
 
     const handleDelete = async (themeId) => {
-        if (!window.confirm('Eliminare questo tema strategico?')) return;
-        await deleteStrategicTheme(themeId);
+        if (!activeMissionId || !window.confirm('Eliminare questo tema strategico?')) return;
+        await deleteStrategicTheme(activeMissionId, themeId);
     };
 
     if (loading) return (
@@ -307,6 +313,7 @@ export const StrategicThemesPage = ({ user }) => {
                         theme={linkPanel}
                         events={events}
                         uid={uid}
+                        activeMissionId={activeMissionId}
                         onClose={() => setLinkPanel(null)}
                     />
                 )}

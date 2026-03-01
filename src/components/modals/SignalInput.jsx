@@ -3,17 +3,19 @@ import { X, Radio, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { MissionContext } from '../layout/AppShell';
 
 export const SignalInput = ({ onClose }) => {
+    const { activeMissionId } = React.useContext(MissionContext);
     const [text, setText] = useState("");
     const [level, setLevel] = useState("low"); // low, medium, high
     const [loading, setLoading] = useState(false);
 
     const handleSave = async () => {
-        if (!text.trim()) return;
+        if (!text.trim() || !activeMissionId) return;
         setLoading(true);
         try {
-            await addDoc(collection(db, "signals"), {
+            await addDoc(collection(db, "missions", activeMissionId, "signals"), {
                 text,
                 level,
                 createdAt: serverTimestamp(),
@@ -66,10 +68,10 @@ export const SignalInput = ({ onClose }) => {
                                     key={l}
                                     onClick={() => setLevel(l)}
                                     className={`p-2.5 rounded-xl border uppercase text-xs font-bold tracking-wider transition-all ${level === l
-                                            ? l === 'high' ? 'bg-red-500/20 text-red-300 border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.2)]'
-                                                : l === 'medium' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'
-                                                    : 'bg-blue-500/20 text-blue-300 border-blue-500/50'
-                                            : 'bg-white/[0.03] border-white/[0.07] text-zinc-500 hover:border-white/15 hover:text-zinc-300'
+                                        ? l === 'high' ? 'bg-red-500/20 text-red-300 border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.2)]'
+                                            : l === 'medium' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'
+                                                : 'bg-blue-500/20 text-blue-300 border-blue-500/50'
+                                        : 'bg-white/[0.03] border-white/[0.07] text-zinc-500 hover:border-white/15 hover:text-zinc-300'
                                         }`}
                                 >
                                     {l}

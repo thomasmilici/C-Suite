@@ -59,6 +59,15 @@ import {
 import { db } from '../firebase';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+const getPlanDoc = (missionId, dateId) => {
+    if (!missionId) throw new Error('[dailyPlanService] missionId is required');
+    return doc(db, 'missions', missionId, 'daily_plans', dateId);
+};
+
+const getPlanCol = (missionId) => {
+    if (!missionId) throw new Error('[dailyPlanService] missionId is required');
+    return collection(db, 'missions', missionId, 'daily_plans');
+};
 
 /** Returns today's date as ISO string "YYYY-MM-DD" */
 export function todayId() {
@@ -135,8 +144,8 @@ export function emptyDailyPlan(dateId, uid) {
  * Get a daily plan document.
  * Returns null if not found.
  */
-export async function getDailyPlan(dateId) {
-    const ref = doc(db, 'daily_plans', dateId);
+export async function getDailyPlan(missionId, dateId) {
+    const ref = getPlanDoc(missionId, dateId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     return { id: snap.id, ...snap.data() };
@@ -147,8 +156,8 @@ export async function getDailyPlan(dateId) {
  * On first access it seeds the document from any existing `daily_pulse` data
  * for backward compatibility.
  */
-export async function getOrCreateDailyPlan(dateId, uid) {
-    const ref = doc(db, 'daily_plans', dateId);
+export async function getOrCreateDailyPlan(missionId, dateId, uid) {
+    const ref = getPlanDoc(missionId, dateId);
     const snap = await getDoc(ref);
 
     if (snap.exists()) {
@@ -185,8 +194,8 @@ export async function getOrCreateDailyPlan(dateId, uid) {
  * Save the entire daily plan document.
  * Use for full updates (e.g. AI draft apply).
  */
-export async function saveDailyPlan(dateId, plan, uid) {
-    const ref = doc(db, 'daily_plans', dateId);
+export async function saveDailyPlan(missionId, dateId, plan, uid) {
+    const ref = getPlanDoc(missionId, dateId);
     const snap = await getDoc(ref);
     const now = serverTimestamp();
     if (snap.exists()) {
@@ -200,12 +209,13 @@ export async function saveDailyPlan(dateId, plan, uid) {
  * Patch a single top-level field of the daily plan.
  * Ideal for real-time auto-save of individual sections.
  *
+ * @param {string} missionId
  * @param {string} dateId
  * @param {Record<string, any>} patch - e.g. { focus: [...] } or { reflection: '...' }
  * @param {string} uid
  */
-export async function patchDailyPlan(dateId, patch, uid) {
-    const ref = doc(db, 'daily_plans', dateId);
+export async function patchDailyPlan(missionId, dateId, patch, uid) {
+    const ref = getPlanDoc(missionId, dateId);
     const snap = await getDoc(ref);
     const now = serverTimestamp();
     if (snap.exists()) {
@@ -225,18 +235,20 @@ export async function patchDailyPlan(dateId, patch, uid) {
  * Finalize a daily plan (end-of-day action).
  * Sets status → 'finalized', records reflection.
  */
-export async function finalizeDailyPlan(dateId, reflection, uid) {
-    await patchDailyPlan(dateId, { status: 'finalized', reflection }, uid);
+export async function finalizeDailyPlan(missionId, dateId, reflection, uid) {
+    await patchDailyPlan(missionId, dateId, { status: 'finalized', reflection }, uid);
 }
 
 /**
  * Real-time subscription to a daily plan.
+ * @param {string} missionId
  * @param {string} dateId
  * @param {function} callback - called with (DailyPlan | null)
  * @returns unsubscribe function
  */
-export function subscribeDailyPlan(dateId, callback) {
-    const ref = doc(db, 'daily_plans', dateId);
+export function subscribeDailyPlan(missionId, dateId, callback) {
+    if (!missionId) return () => { };
+    const ref = getPlanDoc(missionId, dateId);
     return onSnapshot(ref, snap => {
         callback(snap.exists() ? { id: snap.id, ...snap.data() } : null);
     });
@@ -244,11 +256,12 @@ export function subscribeDailyPlan(dateId, callback) {
 
 /**
  * Fetch the N most recent daily plans (for history / cockpit widget).
+ * @param {string} missionId
  * @param {number} n - number of docs to fetch (default 7)
  */
-export async function getRecentDailyPlans(n = 7) {
+export async function getRecentDailyPlans(missionId, n = 7) {
     const q = query(
-        collection(db, 'daily_plans'),
+        getPlanCol(missionId),
         orderBy('date', 'desc'),
         limit(n)
     );
