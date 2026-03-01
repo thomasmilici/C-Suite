@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { subscribeToActiveEvents, createEvent, deleteEvent } from '../services/eventService';
 import { Plus, Folder, ArrowRight, Calendar, Users, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { MissionContext } from './layout/AppShell';
 
 const STATUS_COLORS = {
     active: { dot: 'bg-green-500', text: 'text-green-400', label: 'Attivo' },
@@ -10,7 +11,7 @@ const STATUS_COLORS = {
     archived: { dot: 'bg-zinc-600', text: 'text-zinc-500', label: 'Archiviato' },
 };
 
-const EventCard = ({ event, onClick, isAdmin, onDelete }) => {
+const EventCard = ({ event, onClick, isAdmin, onDelete, activeMissionId }) => {
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
@@ -28,7 +29,7 @@ const EventCard = ({ event, onClick, isAdmin, onDelete }) => {
         e.stopPropagation();
         setDeleting(true);
         try {
-            await deleteEvent(event.id);
+            await deleteEvent(activeMissionId, event.id);
             if (onDelete) onDelete(event.id);
         } catch (err) {
             console.error('[EventCard] deleteEvent error:', err);
@@ -107,7 +108,7 @@ const EventCard = ({ event, onClick, isAdmin, onDelete }) => {
     );
 };
 
-const NewEventModal = ({ currentUser, onClose, onCreated }) => {
+const NewEventModal = ({ currentUser, onClose, onCreated, activeMissionId }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
@@ -121,7 +122,7 @@ const NewEventModal = ({ currentUser, onClose, onCreated }) => {
         setLoading(true);
         setError('');
         try {
-            const id = await createEvent({
+            const id = await createEvent(activeMissionId, {
                 title: title.trim(),
                 description: description.trim(),
                 createdBy: currentUser.uid,
@@ -194,12 +195,15 @@ const NewEventModal = ({ currentUser, onClose, onCreated }) => {
 
 export const EventsList = ({ isAdmin, currentUser }) => {
     const navigate = useNavigate();
+    const { activeMissionId } = useContext(MissionContext);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
 
     useEffect(() => {
+        if (!activeMissionId) return;
         const unsub = subscribeToActiveEvents(
+            activeMissionId,
             (data) => { setEvents(data); setLoading(false); },
             (err) => { console.error('[EventsList] subscribe error:', err); setLoading(false); }
         );
@@ -261,6 +265,7 @@ export const EventsList = ({ isAdmin, currentUser }) => {
                             <EventCard
                                 key={event.id}
                                 event={event}
+                                activeMissionId={activeMissionId}
                                 isAdmin={isAdmin}
                                 onClick={() => navigate(`/progetto/${event.id}`)}
                                 onDelete={handleDeleted}
@@ -273,6 +278,7 @@ export const EventsList = ({ isAdmin, currentUser }) => {
             {showModal && (
                 <NewEventModal
                     currentUser={currentUser}
+                    activeMissionId={activeMissionId}
                     onClose={() => setShowModal(false)}
                     onCreated={handleCreated}
                 />

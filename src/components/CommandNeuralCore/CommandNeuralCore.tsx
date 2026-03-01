@@ -2,84 +2,84 @@ import React, { useEffect, useRef } from 'react';
 import { useVoiceAmplitude } from './useVoiceAmplitude';
 
 export interface CommandNeuralCoreProps {
-    size?: number; // default 280
-    primaryColor?: string; // default #4FD1FF
-    state?: "idle" | "listening" | "thinking" | "speaking";
-    autoDetectVoice?: boolean;
-    volume?: number; // Allows external volume input natively if not using the mic
+  size?: number; // default 280
+  primaryColor?: string; // default #4FD1FF
+  state?: "idle" | "listening" | "thinking" | "speaking";
+  autoDetectVoice?: boolean;
+  volume?: number; // Allows external volume input natively if not using the mic
 }
 
 export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
-    size = 280,
-    primaryColor = '#4FD1FF',
-    state = 'idle',
-    autoDetectVoice = false,
-    volume
+  size = 280,
+  primaryColor = '#4FD1FF',
+  state = 'idle',
+  autoDetectVoice = false,
+  volume
 }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-    // Real or simulated amplitude
-    const realAmplitude = useVoiceAmplitude(autoDetectVoice);
+  // Real or simulated amplitude
+  const realAmplitude = useVoiceAmplitude(autoDetectVoice);
 
-    // Animation references
-    const animRef = useRef<number>(0);
-    const timeRef = useRef<number>(0);
-    const particlesRef = useRef<Particle[]>([]);
+  // Animation references
+  const animRef = useRef<number>(0);
+  const timeRef = useRef<number>(0);
+  const particlesRef = useRef<Particle[]>([]);
 
-    // Simulated amplitude if autoDetectVoice is false but state is speaking
-    const simulatedAmpRef = useRef<number>(0);
+  // Simulated amplitude if autoDetectVoice is false but state is speaking
+  const simulatedAmpRef = useRef<number>(0);
 
-    // Particle structure
-    interface Particle {
-        x: number;
-        y: number;
-        vx: number;
-        vy: number;
-        angle: number;
-        radius: number;
-        baseOpacity: number;
-        orbitSpeed: number;
+  // Particle structure
+  interface Particle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    angle: number;
+    radius: number;
+    baseOpacity: number;
+    orbitSpeed: number;
+  }
+
+  // Init particles
+  useEffect(() => {
+    const numParticles = 30; // 24-36
+    const p: Particle[] = [];
+    const maxDist = (size / 2) * 0.85; // Constrained inside ring radius
+
+    for (let i = 0; i < numParticles; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * maxDist;
+      p.push({
+        x: Math.cos(angle) * dist,
+        y: Math.sin(angle) * dist,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        angle: angle,
+        radius: 1 + Math.random(), // Size: 1-2px
+        baseOpacity: 0.2 + Math.random() * 0.4, // Opacity range: 0.2-0.6
+        orbitSpeed: (Math.random() - 0.5) * 0.005,
+      });
     }
+    particlesRef.current = p;
+  }, [size]);
 
-    // Init particles
-    useEffect(() => {
-        const numParticles = 30; // 24-36
-        const p: Particle[] = [];
-        const maxDist = (size / 2) * 0.85; // Constrained inside ring radius
-
-        for (let i = 0; i < numParticles; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * maxDist;
-            p.push({
-                x: Math.cos(angle) * dist,
-                y: Math.sin(angle) * dist,
-                vx: (Math.random() - 0.5) * 0.5,
-                vy: (Math.random() - 0.5) * 0.5,
-                angle: angle,
-                radius: 1 + Math.random(), // Size: 1-2px
-                baseOpacity: 0.2 + Math.random() * 0.4, // Opacity range: 0.2-0.6
-                orbitSpeed: (Math.random() - 0.5) * 0.005,
-            });
-        }
-        particlesRef.current = p;
-    }, [size]);
-
-    // Utility to convert hex to rgba
-    const hexToRgba = (hex: string, alpha: number) => {
-        let r = 0, g = 0, b = 0;
-        // 3 digits
-        if (hex.length === 4) {
-            r = parseInt(hex[1] + hex[1], 16);
-            g = parseInt(hex[2] + hex[2], 16);
-            b = parseInt(hex[3] + hex[3], 16);
-        }
-        // 6 digits
-        else if (hex.length === 7) {
-            r = parseInt(hex[1] + hex[2], 16);
-            g = parseInt(hex[3] + hex[4], 16);
-            b = parseInt(hex[5] + hex[6], 16);
-        }
-        return \`rgba(\${r}, \${g}, \${b}, \${alpha})\`;
+  // Utility to convert hex to rgba
+  const hexToRgba = (hex: string, alpha: number) => {
+    let r = 0, g = 0, b = 0;
+    // 3 digits
+    if (hex.length === 4) {
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    }
+    // 6 digits
+    else if (hex.length === 7) {
+      r = parseInt(hex[1] + hex[2], 16);
+      g = parseInt(hex[3] + hex[4], 16);
+      b = parseInt(hex[5] + hex[6], 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
   // Main animation loop
@@ -95,13 +95,13 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
     canvas.width = size * dpr;
     canvas.height = size * dpr;
     // Set display size
-    canvas.style.width = \`\${size}px\`;
-    canvas.style.height = \`\${size}px\`;
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
     ctx.scale(dpr, dpr);
 
     const center = size / 2;
     const ringRadius = size * 0.4;
-    
+
     // Attempt parsing primary color to RGB for the gradient
     let rgbaBase = '';
     try {
@@ -113,17 +113,17 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
     const renderLoop = (timestamp: number) => {
       // time in ms
       if (!timeRef.current) timeRef.current = timestamp;
-      
+
       // Update simulated amplitude
       if (state === 'speaking') {
         if (!autoDetectVoice) {
-           if (volume !== undefined) {
-             simulatedAmpRef.current = volume;
-           } else {
-             // Simulate voice if not provided
-             const targetSim = 0.2 + 0.3 * Math.sin(timestamp * 0.005) + 0.2 * Math.sin(timestamp * 0.012);
-             simulatedAmpRef.current += (Math.max(0, targetSim) - simulatedAmpRef.current) * 0.1;
-           }
+          if (volume !== undefined) {
+            simulatedAmpRef.current = volume;
+          } else {
+            // Simulate voice if not provided
+            const targetSim = 0.2 + 0.3 * Math.sin(timestamp * 0.005) + 0.2 * Math.sin(timestamp * 0.012);
+            simulatedAmpRef.current += (Math.max(0, targetSim) - simulatedAmpRef.current) * 0.1;
+          }
         }
       } else {
         simulatedAmpRef.current += (0 - simulatedAmpRef.current) * 0.1;
@@ -138,7 +138,7 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
       let rotAngle = 0;
       let glowIntensity = 1; // Base glow 1
       let radialOpacity = 0.05; // IDLE -> 5%
-      
+
       if (state === 'listening') {
         ringScale = 1 + Math.sin(timestamp * 0.002) * 0.02; // Slow breathing 1 -> 1.02
         radialOpacity = 0.10;
@@ -159,10 +159,10 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
 
       // 3. RADIAL ENERGY FIELD (BACKGROUND)
       const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, ringRadius * 1.5 * ringScale);
-      
+
       const rgbValues = rgbaBase.substring(rgbaBase.indexOf('(') + 1, rgbaBase.lastIndexOf(','));
-      grad.addColorStop(0, \`rgba(\${rgbValues}, \${radialOpacity})\`); 
-      grad.addColorStop(1, \`rgba(\${rgbValues}, 0)\`);
+      grad.addColorStop(0, `rgba(${rgbValues}, ${radialOpacity})`);
+      grad.addColorStop(1, `rgba(${rgbValues}, 0)`);
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(0, 0, ringRadius * 1.5 * ringScale, 0, Math.PI * 2);
@@ -193,11 +193,11 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
         else ctx.lineTo(x, y);
       }
       ctx.closePath();
-      
+
       // Ring Stroke
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = primaryColor;
-      
+
       // Very subtle shadow blur
       if (glowIntensity > 0) {
         ctx.shadowColor = primaryColor;
@@ -226,9 +226,9 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
 
       // 2. INTERNAL PARTICLE FIELD
       const maxParticleDist = ringRadius * ringScale * 0.95;
-      
+
       // Update particles
-      particlesRef.current.forEach((p, index) => {
+      particlesRef.current.forEach((p) => {
         // Base behavior
         let velMult = 1;
         if (state === 'listening') velMult = 1.5;
@@ -247,7 +247,7 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
           // Normal slow drift
           p.x += p.vx * velMult;
           p.y += p.vy * velMult;
-          
+
           // Radial push on speaking
           if (state === 'speaking' && activeAmp > 0.05) {
             const mag = Math.sqrt(p.x * p.x + p.y * p.y);
@@ -281,7 +281,7 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
             const dx = p1.x - p2.x;
             const dy = p1.y - p2.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            
+
             const connectDist = state === 'thinking' ? 40 : 50 + activeAmp * 20;
 
             if (dist < connectDist) {
@@ -289,8 +289,8 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
               if (state === 'thinking') lineOpacity *= 0.5; // Faint lines
 
               // Fallback directly to rgb for lines, ensuring valid color
-              const lineRgb = rgbValues || '100, 200, 255'; 
-              ctx.strokeStyle = \`rgba(\${lineRgb}, \${lineOpacity})\`;
+              const lineRgb = rgbValues || '100, 200, 255';
+              ctx.strokeStyle = `rgba(${lineRgb}, ${lineOpacity})`;
               ctx.beginPath();
               ctx.moveTo(p1.x, p1.y);
               ctx.lineTo(p2.x, p2.y);
