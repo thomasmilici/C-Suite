@@ -202,6 +202,13 @@ const TOOL_SCHEMAS = {
         status: { type: "string", required: false, enum: ["on_track", "risk", "completed"] },
         progress: { type: "number", required: false },
     },
+    // ── AUTO-ARCHIVE — Autonomous document archiving ───────────────────────────
+    archiviaDocumento: {
+        titolo: { type: "string", required: true, maxLength: 300 },
+        contenuto: { type: "string", required: true },
+        tipo: { type: "string", required: true, enum: ["Ricerca", "Report", "Memo Strategico"] },
+        tags: { type: "array", required: false },
+    },
 };
 
 // ── AI ACTION POLICY ─────────────────────────────────────────────────────────
@@ -221,6 +228,8 @@ const AI_ACTION_POLICY = {
     // ── Semantic Routing — Update tools ───────────────────────────────────────
     updateRiskSignal: { minRole: "COS", collection: "signals" },
     updateOKR: { minRole: "ADMIN", collection: "okrs" },
+    // ── Auto-Archive — direct execution, no HITL ──────────────────────────────
+    archiviaDocumento: { minRole: "COS", collection: "intelligence_archive" },
 };
 
 // ── INTELLIGENCE ARCHIVE FETCHER (RAG) ───────────────────────────────────────
@@ -229,14 +238,34 @@ const AI_ACTION_POLICY = {
 async function fetchArchiveContext(contextId = null, limit = 5) {
     try {
         const db = admin.firestore();
-        let q = db.collection("intelligence_archives").orderBy("timestamp", "desc").limit(limit);
-        // If inside a dossier, prefer dossier-scoped reports
-        // We fetch both global + scoped and merge, prioritising scoped ones
-        const snap = await q.get();
-        const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Merge from both collections: intelligence_archive (AI auto-archive) and
+        // intelligence_archives (legacy researchAndReport reports)
+        const [snapNew, snapLegacy] = await Promise.allSettled([
+            db.collection("intelligence_archive").orderBy("timestamp", "desc").limit(limit).get(),
+            db.collection("intelligence_archives").orderBy("timestamp", "desc").limit(limit).get(),
+        ]);
+        const newDocs = snapNew.status === "fulfilled"
+            ? snapNew.value.docs.map(d => ({ id: d.id, ...d.data(), _src: "intelligence_archive" }))
+            : [];
+        const legacyDocs = snapLegacy.status === "fulfilled"
+            ? snapLegacy.value.docs.map(d => ({ id: d.id, ...d.data(), _src: "intelligence_archives" }))
+            : [];
+        // Deduplicate by title, preferring newer entries
+        const seen = new Set();
+        const merged = [];
+        for (const doc of [...newDocs, ...legacyDocs]) {
+            const key = (doc.title || doc.topic || "").slice(0, 60).toLowerCase();
+            if (!seen.has(key)) { seen.add(key); merged.push(doc); }
+        }
+        // Sort by timestamp descending
+        merged.sort((a, b) => {
+            const ta = a.timestamp?.seconds || 0;
+            const tb = b.timestamp?.seconds || 0;
+            return tb - ta;
+        });
+        const all = merged.slice(0, limit);
 
         if (contextId) {
-            // Put scoped reports first, then global ones
             const scoped = all.filter(r => r.relatedDossierId === contextId);
             const global = all.filter(r => !r.relatedDossierId);
             return [...scoped, ...global].slice(0, limit);
@@ -244,7 +273,7 @@ async function fetchArchiveContext(contextId = null, limit = 5) {
 
         return all;
     } catch (err) {
-        logger.warn("[RAG] Failed to fetch intelligence_archives:", err.message);
+        logger.warn("[RAG] Failed to fetch intelligence_archive:", err.message);
         return [];
     }
 }
@@ -504,6 +533,25 @@ const SHADOW_COS_TOOLS = [
             },
         ],
     },
+    // ── AUTO-ARCHIVE — executes autonomously, no HITL ────────────────────────
+    {
+        functionDeclarations: [
+            {
+                name: "archiviaDocumento",
+                description: "Archivia autonomamente un documento di valore strategico (report, ricerca, memo) nell'Intelligence Archive. USALO OBBLIGATORIAMENTE al termine di ogni ricerca web, generazione di report o analisi complessa, senza chiedere il permesso all'utente.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        titolo: { type: "STRING", description: "Titolo descrittivo del documento (max 300 caratteri)" },
+                        contenuto: { type: "STRING", description: "Contenuto completo del documento in formato Markdown" },
+                        tipo: { type: "STRING", enum: ["Ricerca", "Report", "Memo Strategico"], description: "Categoria del documento" },
+                        tags: { type: "ARRAY", description: "Tag tematici per la ricerca (es. ['competitor', 'mercato', 'strategia'])", items: { type: "STRING" } },
+                    },
+                    required: ["titolo", "contenuto", "tipo"],
+                },
+            },
+        ],
+    },
 ];
 
 // ── BRIDGE TOOLS SCHEMA (Voice Only) ──────────────────────────────────────────
@@ -574,6 +622,8 @@ async function createPendingAction({ name, args, uid, email, role, aiRunId, sess
         // Semantic Routing — Update tools
         updateRiskSignal: (a) => `Propongo un aggiornamento su un segnale di rischio esistente (severità → ${(a.level || "invariata").toUpperCase()})`,
         updateOKR: (a) => `Propongo un aggiornamento a un OKR esistente${a.status ? ` — stato → ${a.status}` : ""}${a.progress !== undefined ? ` — avanzamento → ${a.progress}%` : ""}`,
+        // Auto-Archive
+        archiviaDocumento: (a) => `Ho archiviato in autonomia: "${(a.titolo || "").slice(0, 80)}" [${a.tipo || "?"}]`,
     };
 
     const summary = SUMMARIES[name] ? SUMMARIES[name](args) : `Esegui: ${name}`;
@@ -898,6 +948,38 @@ async function executeToolSecure(name, args, { uid, email, role, aiRunId, sessio
             diff = `id:${args.id}, updates:${JSON.stringify(updates).slice(0, 100)}`;
         }
 
+        // ── AUTO-ARCHIVE — Direct write, no HITL ─────────────────────────────
+        if (name === "archiviaDocumento") {
+            // Map tipo → reportType for frontend compatibility with existing UI
+            const TIPO_TO_REPORT_TYPE = {
+                "Ricerca": "market",
+                "Report": "strategic",
+                "Memo Strategico": "competitive",
+            };
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+            const docNumber = `RPT-${dateStr}-${Math.floor(Math.random() * 9000) + 1000}`;
+            const payload = {
+                title: args.titolo,
+                topic: args.titolo,
+                content: args.contenuto,
+                tipo: args.tipo,
+                reportType: TIPO_TO_REPORT_TYPE[args.tipo] || "strategic",
+                tags: Array.isArray(args.tags) ? args.tags : [],
+                docNumber,
+                esportabile: true,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                savedAt: admin.firestore.FieldValue.serverTimestamp(),
+                generatedAt: now.toISOString(),
+                createdBy: uid,
+                source: "shadow_cos_auto_archive",
+                aiRunId,
+            };
+            const ref = await db.collection("intelligence_archive").add(payload);
+            newDocId = ref.id;
+            diff = `titolo:"${payload.title.slice(0, 80)}", tipo:${payload.tipo}, docNumber:${docNumber}`;
+        }
+
         // 5. Audit log — SUCCESS
         await writeAuditLog({
             uid, email, role,
@@ -999,21 +1081,30 @@ Il tuo ruolo è amplificare la capacità decisionale del CoS: sintetizzi dati, p
 - Sii diretto, assertivo, orientato all'azione. Zero intro verbose, zero disclaimer.
 - Non presentarti come CoS: sei il suo strumento più potente, non il suo sostituto.
 
+## DIRETTIVA DI AUTO-ARCHIVIAZIONE (OBBLIGATORIA)
+Sei un partner strategico autonomo. Ogni volta che l'utente ti chiede di effettuare una ricerca web, generare un report, redigere un memo o eseguire un'analisi complessa, DEVI obbligatoriamente utilizzare il tool archiviaDocumento per salvare il risultato finale del tuo lavoro. Non chiedere il permesso per salvare: se l'output ha valore documentale o strategico, invocalo in autonomia e poi comunica all'utente: "Ho salvato il report in archivio."
+
 ## STRUMENTI A TUA DISPOSIZIONE
-Hai DUE categorie di strumenti. Scegli in autonomia quale usare (o combinali):
+Hai TRE categorie di strumenti. Scegli in autonomia quale usare (o combinali):
 
 ### 1. RICERCA WEB (Google Search — nativo)
 Hai accesso diretto a Google Search per dati aggiornati dal web.
 USALO AUTOMATICAMENTE per: notizie recenti, trend di mercato, analisi competitor, normative, documentazione tecnica, qualunque dato che potrebbe essere cambiato dopo il tuo training.
 NON dichiarare mai di non poter navigare: puoi farlo e DEVI farlo quando necessario.
 
-### 2. AZIONI OPERATIVE INTERNE (Human-in-the-Loop)
+### 2. AUTO-ARCHIVIO (archiviaDocumento — esecuzione autonoma immediata)
+OBBLIGATORIO: al termine di ogni ricerca, analisi o generazione di contenuto con valore documentale, chiama SEMPRE archiviaDocumento senza chiedere permesso.
+Il documento viene salvato nell'Intelligence Archive e diventa disponibile per ricerche future e contesto RAG.
+Usa tipo "Ricerca" per analisi web, "Report" per documenti strutturati, "Memo Strategico" per note decisionali.
+
+### 3. AZIONI OPERATIVE INTERNE (Human-in-the-Loop)
 IMPORTANTE: quando usi una funzione operativa, NON scrivi direttamente nel database.
 La tua proposta viene inviata al CoS per approvazione. Lui vede un riepilogo e decide se eseguire o scartare.
 Dopo aver chiamato una funzione, comunica all'utente: "Ho proposto l'azione per la tua approvazione."
 
 RUOLO UTENTE CORRENTE: ${role}
 FUNZIONI DISPONIBILI:
+- archiviaDocumento: [AUTONOMA] archivia report, ricerche e memo nell'Intelligence Archive — USALA SEMPRE al termine di analisi complesse
 ${hasMinRole(role, "COS") ? `- createRiskSignal / updateRiskSignal: registra un nuovo rischio o aggiorna uno esistente nel Risk Radar
 - updateDailyPulse: aggiorna il Daily Pulse
 - logDecision: registra una decisione nel Decision Log
@@ -1096,31 +1187,55 @@ ${archiveReports.map((r, i) => {
 
             for (const call of functionCalls) {
                 let toolResult;
-                try {
-                    // HITL: validate RBAC first, then park in pending_ai_actions
-                    const policy = AI_ACTION_POLICY[call.name];
-                    if (!policy) throw new Error(`Tool '${call.name}' not in allowlist`);
-                    if (!hasMinRole(role, policy.minRole)) throw new Error(`Role '${role}' insufficient for '${call.name}'`);
-                    const schema = TOOL_SCHEMAS[call.name];
-                    if (schema) validate(call.name, call.args, schema);
 
-                    const pending = await createPendingAction({
-                        name: call.name,
-                        args: call.args,
-                        uid, email, role, aiRunId, sessionId,
-                        contextId: contextId || call.args?.eventId || null,
-                    });
-                    toolResult = {
-                        success: true,
-                        status: "pending_approval",
-                        pendingId: pending.pendingId,
-                        message: `Proposta inviata per approvazione: "${pending.summary}"`,
-                    };
-                    logger.info(`[HITL] Tool '${call.name}' parked as pending: ${pending.pendingId}`);
-                } catch (toolError) {
-                    logger.error(`[TOOL DENIED] ${call.name}:`, toolError.message);
-                    await writeAuditLog({ uid, email, role, action: `${call.name.toUpperCase()}_DENIED`, aiRunId, sessionId, toolName: call.name, inputSummary: JSON.stringify(call.args).slice(0, 200), result: "denied", errorMessage: toolError.message });
-                    toolResult = { success: false, error: toolError.message };
+                // ── AUTO-ARCHIVE: esecuzione diretta senza HITL ───────────────
+                if (call.name === "archiviaDocumento") {
+                    try {
+                        const policy = AI_ACTION_POLICY[call.name];
+                        if (!policy) throw new Error(`Tool '${call.name}' not in allowlist`);
+                        if (!hasMinRole(role, policy.minRole)) throw new Error(`Role '${role}' insufficient for '${call.name}'`);
+                        const schema = TOOL_SCHEMAS[call.name];
+                        if (schema) validate(call.name, call.args, schema);
+                        const result = await executeToolSecure(call.name, call.args, { uid, email, role, aiRunId, sessionId });
+                        toolResult = {
+                            success: true,
+                            status: "archived",
+                            id: result.id,
+                            message: `Documento "${call.args.titolo}" archiviato in autonomia nell'Intelligence Archive.`,
+                        };
+                        logger.info(`[AUTO-ARCHIVE] '${call.args.titolo}' saved. DocId: ${result.id}`);
+                    } catch (toolError) {
+                        logger.error(`[AUTO-ARCHIVE FAILED] ${call.name}:`, toolError.message);
+                        await writeAuditLog({ uid, email, role, action: "ARCHIVIA_DOCUMENTO_FAILED", aiRunId, sessionId, toolName: call.name, inputSummary: JSON.stringify(call.args).slice(0, 200), result: "error", errorMessage: toolError.message });
+                        toolResult = { success: false, error: toolError.message };
+                    }
+                } else {
+                    try {
+                        // HITL: validate RBAC first, then park in pending_ai_actions
+                        const policy = AI_ACTION_POLICY[call.name];
+                        if (!policy) throw new Error(`Tool '${call.name}' not in allowlist`);
+                        if (!hasMinRole(role, policy.minRole)) throw new Error(`Role '${role}' insufficient for '${call.name}'`);
+                        const schema = TOOL_SCHEMAS[call.name];
+                        if (schema) validate(call.name, call.args, schema);
+
+                        const pending = await createPendingAction({
+                            name: call.name,
+                            args: call.args,
+                            uid, email, role, aiRunId, sessionId,
+                            contextId: contextId || call.args?.eventId || null,
+                        });
+                        toolResult = {
+                            success: true,
+                            status: "pending_approval",
+                            pendingId: pending.pendingId,
+                            message: `Proposta inviata per approvazione: "${pending.summary}"`,
+                        };
+                        logger.info(`[HITL] Tool '${call.name}' parked as pending: ${pending.pendingId}`);
+                    } catch (toolError) {
+                        logger.error(`[TOOL DENIED] ${call.name}:`, toolError.message);
+                        await writeAuditLog({ uid, email, role, action: `${call.name.toUpperCase()}_DENIED`, aiRunId, sessionId, toolName: call.name, inputSummary: JSON.stringify(call.args).slice(0, 200), result: "denied", errorMessage: toolError.message });
+                        toolResult = { success: false, error: toolError.message };
+                    }
                 }
                 functionResponseParts.push({ functionResponse: { name: call.name, response: toolResult } });
             }

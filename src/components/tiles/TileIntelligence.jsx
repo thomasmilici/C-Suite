@@ -35,6 +35,38 @@ const generateDocNumber = () => {
     return `RPT-${dateStr}-${rand}`;
 };
 
+// ── Download Markdown utility ─────────────────────────────────────────────────
+const downloadAsMarkdown = (report) => {
+    const title = report.topic || report.title || 'documento';
+    const docNumber = report.docNumber || '';
+    const date = report.savedAt
+        ? new Date(report.savedAt.toDate?.() || report.savedAt).toLocaleDateString('it-IT')
+        : new Date().toLocaleDateString('it-IT');
+    const tipo = report.tipo || TYPE_LABELS[report.reportType] || 'Report';
+    const tags = Array.isArray(report.tags) && report.tags.length > 0
+        ? `**Tag:** ${report.tags.join(', ')}\n\n`
+        : '';
+
+    const header = `# ${title}\n\n` +
+        `> **Tipo:** ${tipo}  \n` +
+        `> **Data:** ${date}  \n` +
+        (docNumber ? `> **N° Documento:** ${docNumber}  \n` : '') +
+        `> **Fonte:** Quinta OS Intelligence Archive\n\n` +
+        `---\n\n` +
+        tags;
+
+    const fullContent = header + (report.content || '');
+    const blob = new Blob([fullContent], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${docNumber ? docNumber + '_' : ''}${title.replace(/[^a-zA-Z0-9_\-\s]/g, '').replace(/\s+/g, '_').slice(0, 50)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
 // PDF export con certificazione C-Suite
 const exportToPDF = (report, adminName) => {
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -322,38 +354,56 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
     };
 
     useEffect(() => {
-        // Read from intelligence_archives (long-term memory, saved server-side)
-        const q = query(collection(db, 'intelligence_archives'), orderBy('timestamp', 'desc'));
-        const unsub = onSnapshot(q, (snap) => {
-            const valid = snap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(r => (r.title || r.topic) && r.content && r.content.length > 50)
-                .map(r => ({
-                    ...r,
-                    topic: r.topic || r.title,
-                    savedAt: r.savedAt || r.timestamp,
-                }));
-            setAllReports(valid);
+        // Merge intelligence_archive (AI auto-archive) + intelligence_archives (legacy)
+        const results = { new: [], legacy: [] };
+        let loaded = 0;
+        const tryMerge = () => {
+            loaded++;
+            if (loaded < 2) return;
+            // Deduplicate by docNumber or title, new collection takes precedence
+            const seen = new Set();
+            const merged = [];
+            for (const r of [...results.new, ...results.legacy]) {
+                const key = r.docNumber || (r.topic || r.title || '').slice(0, 60).toLowerCase();
+                if (!seen.has(key)) { seen.add(key); merged.push(r); }
+            }
+            merged.sort((a, b) => {
+                const ta = a.savedAt?.seconds || a.timestamp?.seconds || 0;
+                const tb = b.savedAt?.seconds || b.timestamp?.seconds || 0;
+                return tb - ta;
+            });
+            setAllReports(merged);
             setLoading(false);
-        }, (err) => {
-            // Fallback to legacy reports collection
-            console.warn('intelligence_archives read failed in archive modal, falling back:', err.code);
-            const q2 = query(collection(db, 'reports'), orderBy('savedAt', 'desc'));
-            onSnapshot(q2, (snap) => {
-                const valid = snap.docs
-                    .map(d => ({ id: d.id, ...d.data() }))
-                    .filter(r => r.topic && r.content && r.content.length > 50);
-                setAllReports(valid);
-                setLoading(false);
-            }, () => setLoading(false));
-        });
-        return () => unsub();
+        };
+
+        // Query 1: AI auto-archive (intelligence_archive, singular)
+        const q1 = query(collection(db, 'intelligence_archive'), orderBy('timestamp', 'desc'));
+        const unsub1 = onSnapshot(q1, (snap) => {
+            results.new = snap.docs
+                .map(d => ({ id: d.id, ...d.data(), _src: 'intelligence_archive' }))
+                .filter(r => (r.title || r.topic) && r.content && r.content.length > 50)
+                .map(r => ({ ...r, topic: r.topic || r.title, savedAt: r.savedAt || r.timestamp }));
+            tryMerge();
+        }, () => { loaded++; if (loaded >= 2) { setAllReports(results.legacy); setLoading(false); } });
+
+        // Query 2: legacy intelligence_archives (plural)
+        const q2 = query(collection(db, 'intelligence_archives'), orderBy('timestamp', 'desc'));
+        const unsub2 = onSnapshot(q2, (snap) => {
+            results.legacy = snap.docs
+                .map(d => ({ id: d.id, ...d.data(), _src: 'intelligence_archives' }))
+                .filter(r => (r.title || r.topic) && r.content && r.content.length > 50)
+                .map(r => ({ ...r, topic: r.topic || r.title, savedAt: r.savedAt || r.timestamp }));
+            tryMerge();
+        }, () => { loaded++; if (loaded >= 2) { setAllReports(results.new); setLoading(false); } });
+
+        return () => { unsub1(); unsub2(); };
     }, []);
 
-    const handleDelete = async (reportId) => {
-        setDeletingId(reportId);
+    const handleDelete = async (report) => {
+        setDeletingId(report.id);
         try {
-            await deleteDoc(doc(db, 'intelligence_archives', reportId));
+            const collName = report._src || 'intelligence_archive';
+            await deleteDoc(doc(db, collName, report.id));
             setConfirmDelete(null);
         } catch (e) {
             console.error('Delete error:', e);
@@ -440,9 +490,18 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
 
                                         {/* Actions */}
                                         <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {/* Download .md */}
                                             <button
-                                                onClick={() => exportToPDF(r, adminName)}
-                                                title="Scarica PDF"
+                                                onClick={(e) => { e.stopPropagation(); downloadAsMarkdown(r); }}
+                                                title="Esporta Markdown (.md)"
+                                                className="p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 rounded-lg transition-all"
+                                            >
+                                                <span className="text-[8px] font-mono font-bold leading-none">.md</span>
+                                            </button>
+                                            {/* Download PDF */}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); exportToPDF(r, adminName); }}
+                                                title="Esporta PDF"
                                                 className="p-1.5 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-all"
                                             >
                                                 <Download className="w-3.5 h-3.5" />
@@ -451,7 +510,7 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[9px] font-mono text-red-400">Confermi?</span>
                                                     <button
-                                                        onClick={() => handleDelete(r.id)}
+                                                        onClick={() => handleDelete(r)}
                                                         disabled={deletingId === r.id}
                                                         className="px-2 py-1 text-[9px] font-mono text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/10 transition-all"
                                                     >
@@ -509,35 +568,53 @@ export const TileIntelligence = ({ adminName, eventId }) => {
     const [showArchive, setShowArchive] = useState(false);
 
     useEffect(() => {
-        // Read from intelligence_archives (long-term memory, saved server-side)
-        const base = collection(db, 'intelligence_archives');
-        const q = eventId
-            ? query(base, where('relatedDossierId', '==', eventId), orderBy('timestamp', 'desc'), limit(5))
-            : query(base, orderBy('timestamp', 'desc'), limit(5));
-        const unsub = onSnapshot(q, (snap) => {
-            const valid = snap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(r => r.title && r.content && r.content.length > 100)
-                // Normalize fields: intelligence_archives uses 'title' and 'timestamp',
-                // legacy reports used 'topic' and 'savedAt'. Map for compatibility.
-                .map(r => ({
-                    ...r,
-                    topic: r.topic || r.title,
-                    savedAt: r.savedAt || r.timestamp,
-                }));
-            setRecentReports(valid);
-        }, (err) => {
-            // Fallback to legacy 'reports' collection if permission denied (non-COS role)
-            console.warn('intelligence_archives read failed, falling back to reports:', err.code);
-            const fallback = collection(db, 'reports');
-            const fq = eventId
-                ? query(fallback, where('eventId', '==', eventId), orderBy('savedAt', 'desc'), limit(5))
-                : query(fallback, orderBy('savedAt', 'desc'), limit(5));
-            onSnapshot(fq, (snap) => {
-                setRecentReports(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.topic && r.content));
+        // Merge intelligence_archive (AI auto-archive) + intelligence_archives (legacy)
+        const results = { new: [], legacy: [] };
+        let loaded = 0;
+        const tryMerge = () => {
+            loaded++;
+            if (loaded < 2) return;
+            const seen = new Set();
+            const merged = [];
+            for (const r of [...results.new, ...results.legacy]) {
+                const key = r.docNumber || (r.topic || r.title || '').slice(0, 60).toLowerCase();
+                if (!seen.has(key)) { seen.add(key); merged.push(r); }
+            }
+            merged.sort((a, b) => {
+                const ta = a.savedAt?.seconds || a.timestamp?.seconds || 0;
+                const tb = b.savedAt?.seconds || b.timestamp?.seconds || 0;
+                return tb - ta;
             });
-        });
-        return () => unsub();
+            setRecentReports(merged.slice(0, 5));
+        };
+
+        // Query 1: AI auto-archive (intelligence_archive, singular)
+        const base1 = collection(db, 'intelligence_archive');
+        const q1 = eventId
+            ? query(base1, where('relatedDossierId', '==', eventId), orderBy('timestamp', 'desc'), limit(5))
+            : query(base1, orderBy('timestamp', 'desc'), limit(5));
+        const unsub1 = onSnapshot(q1, (snap) => {
+            results.new = snap.docs
+                .map(d => ({ id: d.id, ...d.data(), _src: 'intelligence_archive' }))
+                .filter(r => (r.title || r.topic) && r.content && r.content.length > 100)
+                .map(r => ({ ...r, topic: r.topic || r.title, savedAt: r.savedAt || r.timestamp }));
+            tryMerge();
+        }, () => { loaded++; if (loaded >= 2) setRecentReports(results.legacy.slice(0, 5)); });
+
+        // Query 2: legacy intelligence_archives (plural)
+        const base2 = collection(db, 'intelligence_archives');
+        const q2 = eventId
+            ? query(base2, where('relatedDossierId', '==', eventId), orderBy('timestamp', 'desc'), limit(5))
+            : query(base2, orderBy('timestamp', 'desc'), limit(5));
+        const unsub2 = onSnapshot(q2, (snap) => {
+            results.legacy = snap.docs
+                .map(d => ({ id: d.id, ...d.data(), _src: 'intelligence_archives' }))
+                .filter(r => (r.title || r.topic) && r.content && r.content.length > 100)
+                .map(r => ({ ...r, topic: r.topic || r.title, savedAt: r.savedAt || r.timestamp }));
+            tryMerge();
+        }, () => { loaded++; if (loaded >= 2) setRecentReports(results.new.slice(0, 5)); });
+
+        return () => { unsub1(); unsub2(); };
     }, [eventId]);
 
     const runGenerate = async (type, topic) => {
