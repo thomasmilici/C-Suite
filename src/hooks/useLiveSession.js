@@ -104,9 +104,10 @@ export function useLiveSession({ onTextMessage, onError } = {}) {
     const MAX_RECONNECT = 2;
 
     // Bridge call to Il Cervello (Gemini 3 Pro via Cloud Function)
+    // timeout: 270s (client SDK default = 70s → deadline-exceeded sul two-phase pipeline)
     const callBridge = useCallback(async (query, contextId = null) => {
         try {
-            const bridge = httpsCallable(functions, 'delegaRagionamentoStrategico');
+            const bridge = httpsCallable(functions, 'delegaRagionamentoStrategico', { timeout: 270000 });
             const result = await bridge({ query, contextId });
             return result.data?.sintesi || 'Analisi non disponibile.';
         } catch (e) {
