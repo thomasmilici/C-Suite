@@ -328,8 +328,8 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
   }, [size, primaryColor, state, autoDetectVoice, realAmplitude, volume]);
 
   return (
-    <div style={{ width: size, height: size, margin: 'auto' }}>
-      <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%', outline: 'none' }} />
+    <div style={{ width: size, height: size, margin: 'auto', background: 'transparent' }}>
+      <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%', outline: 'none', background: 'transparent' }} />
     </div>
   );
 };

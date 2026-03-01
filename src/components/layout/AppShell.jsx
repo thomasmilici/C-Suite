@@ -1,7 +1,6 @@
 import React, { useState, useCallback, createContext } from 'react';
 import { useLocation } from 'react-router-dom';
 
-
 import { AppHeader } from './AppHeader';
 import { WorkspaceNav } from './WorkspaceNav';
 import { AiFab } from '../ui/AiFab';
@@ -17,8 +16,11 @@ import { functions } from '../../firebase';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { RefreshCcw } from 'lucide-react';
+import { useMission } from '../../context/MissionContext';
+import { updateMission } from '../../services/missionService';
 
-// Esportiamo il Context globale per l'IA
+// AI state context (shared with children for isSpeaking etc)
 export const AiStateContext = createContext({
     isThinking: false,
     isLiveActive: false,
@@ -26,7 +28,7 @@ export const AiStateContext = createContext({
     volume: 0,
 });
 
-// Esportiamo il Context globale per il Silo di Missione (Refactoring B2B)
+// Legacy shim — kept so existing consumers don't break while migrating to MissionContext.jsx
 export const MissionContext = createContext({
     activeMissionId: 'default_mission',
     setActiveMissionId: () => { },
@@ -62,8 +64,8 @@ export const AppShell = ({ children, user, isAdmin }) => {
     const [isThinking, setIsThinking] = useState(false);
     const [messages, setMessages] = useState([]);
     const [isLiveActive, setIsLiveActive] = useState(false);
-    const [activeMissionId, setActiveMissionId] = useState('default_mission'); // Todo: UI for mission selection
     const location = useLocation();
+    const { activeMissionId, setActiveMissionId } = useMission();
 
     const showWorkspaceNav = !location.pathname.includes('/login') &&
         !location.pathname.includes('/join');
@@ -218,9 +220,21 @@ export const AppShell = ({ children, user, isAdmin }) => {
                         <BottomNav onAiClick={() => setShowCopilot(v => !v)} />
                     </div>
 
-                    {/* Footer Credits (Global) */}
-                    <div className="fixed bottom-4 left-6 z-30 hidden md:block">
+                    {/* Footer Credits + Ricalibra button */}
+                    <div className="fixed bottom-4 left-6 z-30 hidden md:flex items-center gap-3">
                         <AppCredits />
+                        <button
+                            onClick={async () => {
+                                if (activeMissionId) {
+                                    await updateMission(activeMissionId, { isSetupComplete: false });
+                                }
+                            }}
+                            title="Ricalibra Mandato Strategico"
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-zinc-600 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all text-[10px] font-mono border border-transparent hover:border-indigo-500/20"
+                        >
+                            <RefreshCcw className="w-3 h-3" />
+                            Ricalibra
+                        </button>
                     </div>
 
                 </div>
