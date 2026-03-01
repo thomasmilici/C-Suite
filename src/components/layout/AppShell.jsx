@@ -1,13 +1,7 @@
 import React, { useState, useCallback, createContext } from 'react';
 import { useLocation } from 'react-router-dom';
 
-// Esportiamo il Context globale per l'IA
-export const AiStateContext = createContext({
-    isThinking: false,
-    isLiveActive: false,
-    isSpeaking: false,
-    volume: 0,
-});
+
 import { AppHeader } from './AppHeader';
 import { WorkspaceNav } from './WorkspaceNav';
 import { AiFab } from '../ui/AiFab';
@@ -24,13 +18,27 @@ import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
+// Esportiamo il Context globale per l'IA
+export const AiStateContext = createContext({
+    isThinking: false,
+    isLiveActive: false,
+    isSpeaking: false,
+    volume: 0,
+});
+
+// Esportiamo il Context globale per il Silo di Missione (Refactoring B2B)
+export const MissionContext = createContext({
+    activeMissionId: 'default_mission',
+    setActiveMissionId: () => { },
+});
+
 const HISTORY_LIMIT = 20;
 
 async function loadHistory(uid) {
     try {
         const snap = await getDoc(doc(db, 'shadow_cos_prefs', uid));
         if (snap.exists() && snap.data().history?.length > 0) return snap.data().history;
-    } catch (_) {}
+    } catch (_) { }
     return [];
 }
 
@@ -45,7 +53,7 @@ async function saveMessage(uid, message) {
             const updated = [...existing, message].slice(-HISTORY_LIMIT);
             await updateDoc(ref, { history: updated, updatedAt: new Date() });
         }
-    } catch (_) {}
+    } catch (_) { }
 }
 
 export const AppShell = ({ children, user, isAdmin }) => {
@@ -54,6 +62,7 @@ export const AppShell = ({ children, user, isAdmin }) => {
     const [isThinking, setIsThinking] = useState(false);
     const [messages, setMessages] = useState([]);
     const [isLiveActive, setIsLiveActive] = useState(false);
+    const [activeMissionId, setActiveMissionId] = useState('default_mission'); // Todo: UI for mission selection
     const location = useLocation();
 
     const showWorkspaceNav = !location.pathname.includes('/login') &&
@@ -111,7 +120,7 @@ export const AppShell = ({ children, user, isAdmin }) => {
 
         try {
             const askShadow = httpsCallable(functions, 'askShadowCoS');
-            const result = await askShadow({ query: text, history, contextId: ctxId || null });
+            const result = await askShadow({ query: text, history, contextId: ctxId || null, missionId: activeMissionId });
             const rawText = result.data?.data || 'Analisi non disponibile.';
 
             const aiMsg = { id: Date.now() + 1, type: 'ai', text: rawText };
@@ -131,89 +140,91 @@ export const AppShell = ({ children, user, isAdmin }) => {
     }, []);
 
     return (
-        <div className="min-h-screen text-gray-200 font-sans selection:bg-zinc-800 relative">
-            <Toaster 
-                position="bottom-right"
-                toastOptions={{
-                    className: 'glass-card',
-                    style: {
-                        background: 'rgba(30, 27, 75, 0.6)', 
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        color: '#fff',
-                        backdropFilter: 'blur(12px)',
-                    },
-                    duration: 2500,
-                }} 
-            />
-
-            {/* Level 1 Header: Global — includes CommandBar */}
-            <AppHeader
-                user={user}
-                isAdmin={isAdmin}
-                commandBarSlot={
-                    <CommandBar
-                        onSend={handleSend}
-                        isProcessing={isThinking}
-                        isLiveActive={isLiveActive}
-                        onLiveToggle={handleLiveToggle}
+        <MissionContext.Provider value={{ activeMissionId, setActiveMissionId }}>
+            <AiStateContext.Provider value={{ isThinking, isLiveActive, isSpeaking, volume }}>
+                <div className="min-h-screen text-gray-200 font-sans selection:bg-zinc-800 relative">
+                    <Toaster
+                        position="bottom-right"
+                        toastOptions={{
+                            className: 'glass-card',
+                            style: {
+                                background: 'rgba(30, 27, 75, 0.6)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                color: '#fff',
+                                backdropFilter: 'blur(12px)',
+                            },
+                            duration: 2500,
+                        }}
                     />
-                }
-            />
 
-            {/* Level 2 Header: Context Navigation */}
-            {showWorkspaceNav && <WorkspaceNav />}
+                    {/* Level 1 Header: Global — includes CommandBar */}
+                    <AppHeader
+                        user={user}
+                        isAdmin={isAdmin}
+                        commandBarSlot={
+                            <CommandBar
+                                onSend={handleSend}
+                                isProcessing={isThinking}
+                                isLiveActive={isLiveActive}
+                                onLiveToggle={handleLiveToggle}
+                            />
+                        }
+                    />
 
-            {/* Main Content Area — shifted right when copilot open on desktop */}
-            <div className={`relative z-10 transition-all duration-300 ${showCopilot ? 'md:mr-[420px]' : ''}`}>
-                <AiStateContext.Provider value={{ isThinking, isLiveActive, isSpeaking, volume }}>
-                    {children}
-                </AiStateContext.Provider>
-            </div>
+                    {/* Level 2 Header: Context Navigation */}
+                    {showWorkspaceNav && <WorkspaceNav />}
 
-            {/* CopilotDialogue — slide-in drawer */}
-            <CopilotDialogue
-                messages={messages}
-                isOpen={showCopilot}
-                isThinking={isThinking}
-                onClose={() => setShowCopilot(false)}
-                onClear={handleClear}
-                isLiveActive={isLiveActive}
-                transcript={transcript}
-                volume={volume}
-                isSpeaking={isSpeaking}
-                onEndLive={() => {
-                    endSession();
-                    setIsLiveActive(false);
-                }}
-            />
+                    {/* Main Content Area — shifted right when copilot open on desktop */}
+                    <div className={`relative z-10 transition-all duration-300 ${showCopilot ? 'md:mr-[420px]' : ''}`}>
+                        {children}
+                    </div>
 
-            {/* Legacy AI FAB — nascosto su desktop, il CommandBar è il punto di ingresso primario */}
-            <div className="hidden">
-                <AiFab
-                    onClick={() => setShowLegacyAi(true)}
-                    isProcessing={isThinking}
-                />
-            </div>
+                    {/* CopilotDialogue — slide-in drawer */}
+                    <CopilotDialogue
+                        messages={messages}
+                        isOpen={showCopilot}
+                        isThinking={isThinking}
+                        onClose={() => setShowCopilot(false)}
+                        onClear={handleClear}
+                        isLiveActive={isLiveActive}
+                        transcript={transcript}
+                        volume={volume}
+                        isSpeaking={isSpeaking}
+                        onEndLive={() => {
+                            endSession();
+                            setIsLiveActive(false);
+                        }}
+                    />
 
-            {/* Legacy NeuralInterface Modal */}
-            {showLegacyAi && (
-                <NeuralInterface
-                    onClose={() => setShowLegacyAi(false)}
-                    isAdmin={isAdmin}
-                    initiallyOpen={true}
-                />
-            )}
+                    {/* Legacy AI FAB — nascosto su desktop, il CommandBar è il punto di ingresso primario */}
+                    <div className="hidden">
+                        <AiFab
+                            onClick={() => setShowLegacyAi(true)}
+                            isProcessing={isThinking}
+                        />
+                    </div>
 
-            {/* Mobile Bottom Navigation */}
-            <div className="md:hidden">
-                <BottomNav onAiClick={() => setShowCopilot(v => !v)} />
-            </div>
+                    {/* Legacy NeuralInterface Modal */}
+                    {showLegacyAi && (
+                        <NeuralInterface
+                            onClose={() => setShowLegacyAi(false)}
+                            isAdmin={isAdmin}
+                            initiallyOpen={true}
+                        />
+                    )}
 
-            {/* Footer Credits (Global) */}
-            <div className="fixed bottom-4 left-6 z-30 hidden md:block">
-                <AppCredits />
-            </div>
+                    {/* Mobile Bottom Navigation */}
+                    <div className="md:hidden">
+                        <BottomNav onAiClick={() => setShowCopilot(v => !v)} />
+                    </div>
 
-        </div>
+                    {/* Footer Credits (Global) */}
+                    <div className="fixed bottom-4 left-6 z-30 hidden md:block">
+                        <AppCredits />
+                    </div>
+
+                </div>
+            </AiStateContext.Provider>
+        </MissionContext.Provider>
     );
 };
