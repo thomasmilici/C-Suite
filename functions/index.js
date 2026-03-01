@@ -1622,25 +1622,34 @@ ${archiveReports.length > 0
         // Fase 2: gemini-3.1-pro-preview-customtools + BRIDGE_TOOLS → ragionamento + azioni
         const genAI = new GoogleGenerativeAI(apiKey);
 
-        // ── FASE 1: RICERCA WEB LIVE (max 20s) ───────────────────────────────
-        logger.info("[Bridge] Fase 1: ricerca web con gemini-3.1-pro-preview...");
-        const searchModel = genAI.getGenerativeModel({
-            model: "gemini-3.1-pro-preview",
-            tools: [{ google_search: {} }],
-        });
+        // ── FASE 1: RICERCA WEB LIVE (solo se richiesta esplicitamente, max 20s) ──
+        // Pattern che indicano una ricerca web esplicita dell'utente.
+        // Query interne (OKR, segnali, funzioni, memo) saltano direttamente alla Fase 2.
+        const WEB_SEARCH_PATTERNS = /\b(cerca|ricerca|notizie|news|aggiornamenti|ultime|web|internet|online|trovami|trova informazioni|cosa sta succedendo|cosa dice|risultati|articoli|fonti)\b/i;
+        const needsWebSearch = WEB_SEARCH_PATTERNS.test(query);
         let researchContext = "";
-        try {
-            const searchPromise = searchModel.generateContent(
-                `Sei un assistente di ricerca per un Chief of Staff. Usa Google Search per trovare informazioni aggiornate su: ${query}\nFornisci un riassunto dettagliato e fattuale dei risultati trovati, con date e fonti.`
-            );
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Phase1 timeout")), 20000)
-            );
-            const searchResult = await Promise.race([searchPromise, timeoutPromise]);
-            researchContext = searchResult.response.text() || "";
-            logger.info(`[Bridge] Ricerca completata (${researchContext.length} chars).`);
-        } catch (searchErr) {
-            logger.warn("[Bridge] Ricerca web fallita o timeout, procedo senza contesto live:", searchErr.message);
+
+        if (needsWebSearch) {
+            logger.info("[Bridge] Fase 1: ricerca web rilevata, avvio con gemini-3.1-pro-preview...");
+            const searchModel = genAI.getGenerativeModel({
+                model: "gemini-3.1-pro-preview",
+                tools: [{ google_search: {} }],
+            });
+            try {
+                const searchPromise = searchModel.generateContent(
+                    `Sei un assistente di ricerca per un Chief of Staff. Usa Google Search per trovare informazioni aggiornate su: ${query}\nFornisci un riassunto dettagliato e fattuale dei risultati trovati, con date e fonti.`
+                );
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error("Phase1 timeout")), 20000)
+                );
+                const searchResult = await Promise.race([searchPromise, timeoutPromise]);
+                researchContext = searchResult.response.text() || "";
+                logger.info(`[Bridge] Ricerca web completata (${researchContext.length} chars).`);
+            } catch (searchErr) {
+                logger.warn("[Bridge] Ricerca web fallita o timeout, procedo senza contesto live:", searchErr.message);
+            }
+        } else {
+            logger.info("[Bridge] Query interna rilevata — Fase 1 saltata, accesso diretto al contesto Firestore.");
         }
 
         // ── FASE 2: RAGIONAMENTO + AZIONI ─────────────────────────────────────
