@@ -1616,12 +1616,16 @@ ${archiveReports.length > 0
                 }).join('\n\n')
                 : 'Nessun report archiviato.'}`;
 
-        // Usa GoogleGenerativeAI SDK (Google AI Studio) con gemini-3.1-pro-preview
+        // Usa GoogleGenerativeAI SDK (Google AI Studio) con gemini-3.1-pro-preview.
+        // NOTA: gemini-3.1-pro-preview (thinking model) NON supporta functionDeclarations
+        // combinati con google_search nella stessa request (400 Bad Request).
+        // Questo bridge si occupa esclusivamente di reasoning + ricerca web per la voce AI;
+        // le azioni dirette (HITL) restano nel pathway di askShadowCoS.
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
             model: "gemini-3.1-pro-preview",
             systemInstruction,
-            tools: [...BRIDGE_TOOLS, { google_search: {} }],
+            tools: [{ google_search: {} }],
         });
 
 
