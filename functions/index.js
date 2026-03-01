@@ -1,4 +1,4 @@
-const { onCall } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -2070,18 +2070,35 @@ exports.triggerRankScores = onCall({ cors: true }, async (request) => {
 // Called by the frontend OnboardingModal component.
 exports.startMissionOnboarding = onCall(async (request) => {
     const { data, auth: callAuth } = request;
-    if (!callAuth) throw new Error("Unauthenticated");
+
+    // ── Fix 2a: use HttpsError for auth/permission failures ───────────────────
+    if (!callAuth) {
+        throw new HttpsError(
+            "unauthenticated",
+            "Autenticazione richiesta."
+        );
+    }
 
     const uid = callAuth.uid;
     const email = callAuth.token?.email || null;
     const role = await getUserRole(uid);
 
     if (!hasMinRole(role, "COS")) {
-        throw new Error("Permessi insufficienti: ruolo COS o superiore richiesto.");
+        throw new HttpsError(
+            "permission-denied",
+            "Permessi insufficienti: ruolo COS o superiore richiesto."
+        );
     }
 
     const { missionId, messages = [] } = data || {};
-    if (!missionId) throw new Error("missionId è obbligatorio.");
+
+    // ── Fix 2b: return a structured 400-equivalent instead of a 500 crash ────
+    if (!missionId) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Il parametro missionId è obbligatorio."
+        );
+    }
 
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -2174,7 +2191,13 @@ Ordina layoutPreferences in base all'urgenza e priorità emerse dall'intervista 
         return { done: false, question: responseText };
 
     } catch (err) {
+        // Re-throw HttpsErrors as-is so the client gets the correct code.
+        // Wrap unexpected errors in a structured 'internal' HttpsError.
+        if (err instanceof HttpsError) throw err;
         logger.error("[startMissionOnboarding] Error:", err.message);
-        throw new Error(`Errore del Copilota: ${err.message}`);
+        throw new HttpsError(
+            "internal",
+            `Errore del Copilota: ${err.message}`
+        );
     }
 });

@@ -26,6 +26,19 @@ export function OnboardingModal({ onClose }) {
     }, [messages, loading]);
 
     async function sendToAI(history) {
+        // ── Fix 3: Block the call if missionId is missing ─────────────────────
+        // This can happen if MissionContext hasn't resolved yet (Auth race or no
+        // missions in Firestore). Show a clear error instead of sending a broken
+        // payload that would crash the backend with a 500.
+        if (!activeMissionId) {
+            setMessages(prev => [...prev, {
+                role: 'ai',
+                text: '⚠️ Errore: nessuna missione attiva trovata. Ricarica la pagina o crea prima una missione.',
+            }]);
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
             const result = await startMissionOnboarding({
@@ -109,8 +122,8 @@ export function OnboardingModal({ onClose }) {
                             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                             <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'ai'
-                                    ? 'bg-[#161b2b] border border-white/5 text-white/80 rounded-tl-sm'
-                                    : 'bg-indigo-600/80 text-white rounded-tr-sm'
+                                ? 'bg-[#161b2b] border border-white/5 text-white/80 rounded-tl-sm'
+                                : 'bg-indigo-600/80 text-white rounded-tr-sm'
                                 }`}>
                                 {msg.text}
                             </div>
