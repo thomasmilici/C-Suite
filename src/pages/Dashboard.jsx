@@ -90,8 +90,8 @@ export const Dashboard = ({ user }) => {
               <div
                 className={`${cardStyleClass} rounded-t-2xl rounded-b-lg w-full h-full p-6 pb-[140px] flex flex-col overflow-hidden`}
                 style={{
-                  WebkitMaskImage: 'radial-gradient(circle at 50% calc(100% + 20px), transparent 135px, black 136px)',
-                  maskImage: 'radial-gradient(circle at 50% calc(100% + 20px), transparent 135px, black 136px)'
+                  WebkitMaskImage: 'radial-gradient(circle at 50% calc(100% + 12px), transparent 135px, black 136px)',
+                  maskImage: 'radial-gradient(circle at 50% calc(100% + 12px), transparent 135px, black 136px)'
                 }}
               >
                 <div className="flex items-center gap-1.5 mb-3 shrink-0">
@@ -114,8 +114,8 @@ export const Dashboard = ({ user }) => {
               <div
                 className={`${cardStyleClass} rounded-bl-2xl rounded-br-lg rounded-t-lg flex-1 h-full p-6 pt-[140px] flex flex-col overflow-hidden`}
                 style={{
-                  WebkitMaskImage: 'radial-gradient(circle at calc(100% + 8px) -20px, transparent 135px, black 136px)',
-                  maskImage: 'radial-gradient(circle at calc(100% + 8px) -20px, transparent 135px, black 136px)'
+                  WebkitMaskImage: 'radial-gradient(circle at calc(100% + 8px) -12px, transparent 135px, black 136px)',
+                  maskImage: 'radial-gradient(circle at calc(100% + 8px) -12px, transparent 135px, black 136px)'
                 }}
               >
                 <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2 shrink-0">Priorità</p>
@@ -127,8 +127,8 @@ export const Dashboard = ({ user }) => {
               <div
                 className={`${cardStyleClass} rounded-br-2xl rounded-bl-lg rounded-t-lg flex-1 h-full p-6 pt-[140px] flex flex-col overflow-hidden`}
                 style={{
-                  WebkitMaskImage: 'radial-gradient(circle at -8px -20px, transparent 135px, black 136px)',
-                  maskImage: 'radial-gradient(circle at -8px -20px, transparent 135px, black 136px)'
+                  WebkitMaskImage: 'radial-gradient(circle at -8px -12px, transparent 135px, black 136px)',
+                  maskImage: 'radial-gradient(circle at -8px -12px, transparent 135px, black 136px)'
                 }}
               >
                 <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2 shrink-0">Daily Pulse</p>
