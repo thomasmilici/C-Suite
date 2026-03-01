@@ -2100,34 +2100,38 @@ exports.startMissionOnboarding = onCall({
     // which then calls forceMissionSetup to atomically create the mission.
     const { messages = [] } = data || {};
 
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-    // TASK 3: Usiamo il modello "cervello strategico" avanzato per l'intervista
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
-
     const AVAILABLE_TILES = [
         "TileRadar", "AiPendingActionTop", "AiPendingActionBot",
         "TileCompass", "TilePulse", "TileDecisionLog",
         "TileIntelligence", "BriefingRoom", "ProactiveAlerts"
     ];
 
-    const SYSTEM_INSTRUCTION = `Sei il Copilota Strategico AI di un Chief of Staff.
-Il tuo compito è condurre una brevissima intervista di ESATTAMENTE 3 domande per capire:
-1. La VISIONE strategica per quest'anno.
-2. Le PRIORITÀ assolute (2-3 max).
-3. Lo STILE di orchestrazione preferito (es. proattivo/reattivo, delegatore/centralizzatore).
+    // systemInstruction MUST be a Content object { parts: [{text}] } for SDK v1beta.
+    // Passing a plain string causes a 400 Bad Request. The prompt is kept as a
+    // single sanitized string (no raw newlines inside the JSON example block).
+    const systemInstructionText = [
+        "Sei il Copilota Strategico AI di un Chief of Staff.",
+        "Il tuo compito e' condurre una brevissima intervista di ESATTAMENTE 3 domande per capire:",
+        "1. La VISIONE strategica per quest'anno.",
+        "2. Le PRIORITA' assolute (2-3 max).",
+        "3. Lo STILE di orchestrazione preferito (es. proattivo/reattivo, delegatore/centralizzatore).",
+        "",
+        "REGOLE FERREE:",
+        "- Fai UNA sola domanda alla volta. Tono diretto, professionale, empatico.",
+        "- Quando l'utente ha risposto a 3 domande (messages contiene 3 o piu' turni utente), NON fare altre domande.",
+        "- Invece, rispondi SOLO con un JSON valido in questo formato, senza altro testo:",
+        `{\"done\": true, \"masterPrompt\": \"Sintesi densa del mandato, priorita' e stile.\", \"layoutPreferences\": [...]  }`,
+        `I tile disponibili sono: ${AVAILABLE_TILES.join(", ")}.`,
+        "Ordina layoutPreferences in base all'urgenza e priorita' emerse dall'intervista (max 8 tile).",
+        "- Se l'utente non ha ancora risposto a 3 domande, fai la prossima domanda come testo semplice."
+    ].join("\n");
 
-REGOLE FERREE:
-- Fai UNA sola domanda alla volta. Tono diretto, professionale, empatico.
-- Quando l'utente ha risposto a 3 domande (messages contiene 3 o più turni utente), NON fare altre domande.
-- Invece, rispondi SOLO con un JSON valido nel seguente formato, senza altro testo:
-{
-  "done": true,
-  "masterPrompt": "Sintesi densa in 2-3 frasi del mandato, delle priorità e dello stile. Scritto in seconda persona, come prompt per l'IA.",
-  "layoutPreferences": ["TileRadar", "AiPendingActionTop", "TileCompass", "TilePulse", "TileDecisionLog", "BriefingRoom"]
-}
-I tile disponibili sono: ${AVAILABLE_TILES.join(", ")}.
-Ordina layoutPreferences in base all'urgenza e priorità emerse dall'intervista (max 8 tile).
-- Se l'utente non ha ancora risposto a 3 domande, fai la prossima domanda come testo semplice.`;
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+    // systemInstruction is passed to getGenerativeModel (not startChat) per SDK v1beta spec.
+    const model = genAI.getGenerativeModel({
+        model: "gemini-3.1-pro-preview",
+        systemInstruction: { parts: [{ text: systemInstructionText }] },
+    });
 
     // Count user turns
     const userTurns = messages.filter(m => m.role === "user").length;
@@ -2140,10 +2144,8 @@ Ordina layoutPreferences in base all'urgenza e priorità emerse dall'intervista 
     }));
 
     try {
-        const chat = model.startChat({
-            history: chatHistory,
-            systemInstruction: SYSTEM_INSTRUCTION,
-        });
+        const chat = model.startChat({ history: chatHistory });
+
 
         const promptText = shouldFinalize
             ? "L'intervista è completata. Genera ora il JSON finale con masterPrompt e layoutPreferences."
