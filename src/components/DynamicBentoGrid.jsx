@@ -7,6 +7,7 @@ import { TilePulse } from './tiles/TilePulse';
 import { TileRadar } from './tiles/TileRadar';
 import { TileIntelligence } from './tiles/TileIntelligence';
 import { TileDecisionLog } from './tiles/TileDecisionLog';
+import { TileSteeringFocus } from './tiles/TileSteeringFocus';
 import { AiPendingActionTile } from './AiPendingActionTile';
 import { ProactiveAlerts } from './modules/Intelligence/ProactiveAlerts';
 import { BriefingRoom } from './modules/Briefing/BriefingRoom';
@@ -18,6 +19,7 @@ const TILE_REGISTRY = {
     TileCompass: ({ props }) => <TileCompass {...props} />,
     TileDecisionLog: ({ props }) => <TileDecisionLog {...props} />,
     TileIntelligence: ({ props }) => <TileIntelligence {...props} />,
+    TileSteeringFocus: ({ props }) => <TileSteeringFocus {...props} />,
     AiPendingActionTop: ({ props }) => <AiPendingActionTile position="top" {...props} />,
     AiPendingActionBot: ({ props }) => <AiPendingActionTile position="bottom" {...props} />,
     ProactiveAlerts: ({ props }) => <ProactiveAlerts {...props} />,
@@ -27,7 +29,7 @@ const TILE_REGISTRY = {
 // Fixed positions in the bento grid (0-indexed, center = position 4 in a 3×3 = always the sphere)
 // Layout is: [TL, TC, TR, ML, *CENTER*, MR, BL, BC, BR]
 // We expose 4 positions: 0,1,2,3 (before center) and 4,5,6,7 (after center) for up to 8 tiles
-const FALLBACK_LAYOUT = ['TileRadar', 'AiPendingActionTop', 'TileCompass', 'TilePulse', 'TileDecisionLog', 'BriefingRoom'];
+const FALLBACK_LAYOUT = ['TileRadar', 'AiPendingActionTop', 'TileSteeringFocus', 'TileCompass', 'TilePulse', 'TileDecisionLog', 'BriefingRoom'];
 
 const cardClass = "bg-[#161b2b] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),_0_8px_20px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col";
 
@@ -96,48 +98,57 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
         );
     }
 
-    // OPERATIONAL STATE: Smartphone-style static Grid
-    // The grid is a 3x3 layout. The center cell (grid-area: 2 / 2) is strictly reserved for the AI sphere.
-    // We map up to 8 preferences to the 8 remaining outer slots.
+    // OPERATIONAL STATE: Masonry-style Grid (Bento)
+    // Grid 4x4 with grid-flow-row-dense to compact gaps automatically.
+    // The sphere is forced into the center (col-start-2 span-2, row-start-2 span-2).
 
-    // Define the 8 available slots in a predictable order (e.g. reading order, skipping center)
-    const slotMap = [
-        { gridColumn: 1, gridRow: 1 }, // Slot 0: Top Left
-        { gridColumn: 2, gridRow: 1 }, // Slot 1: Top Center
-        { gridColumn: 3, gridRow: 1 }, // Slot 2: Top Right
-        { gridColumn: 1, gridRow: 2 }, // Slot 3: Middle Left
-        { gridColumn: 3, gridRow: 2 }, // Slot 4: Middle Right
-        { gridColumn: 1, gridRow: 3 }, // Slot 5: Bottom Left
-        { gridColumn: 2, gridRow: 3 }, // Slot 6: Bottom Center
-        { gridColumn: 3, gridRow: 3 }, // Slot 7: Bottom Right
-    ];
+    // Determine sizes (col-span, row-span) based on the tile type to create variety.
+    const getTileSize = (tileKey) => {
+        switch (tileKey) {
+            case 'AiPendingActionTop':
+            case 'AiPendingActionBot':
+            case 'TileSteeringFocus':
+                // Wide but short tiles
+                return 'col-span-2 row-span-1';
+            case 'TileRadar':
+            case 'TilePulse':
+            case 'TileDecisionLog':
+                // Tall tiles
+                return 'col-span-1 row-span-2';
+            case 'BriefingRoom':
+            case 'ProactiveAlerts':
+                // Large/featured tiles
+                return 'col-span-2 row-span-2';
+            default:
+                // Standard square-ish
+                return 'col-span-1 row-span-1';
+        }
+    };
 
     return (
-        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-3 grid-rows-3 gap-4 relative">
+        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-4 grid-rows-4 gap-4 grid-flow-row-dense relative">
 
-            {/* 1. Map tiles strictly to their designated slots */}
-            {slotMap.map((pos, index) => {
-                const tileKey = prefs[index];
-                if (!tileKey) return null; // Slot remains empty if no tile assigned
+            {/* Map tiles dynamically. Browser automatically fills gaps due to grid-flow-row-dense */}
+            {prefs.map((tileKey, index) => {
+                if (!tileKey) return null;
+                const sizeClasses = getTileSize(tileKey);
 
                 return (
                     <div
                         key={`${tileKey}-${index}`}
-                        className="w-full h-full flex flex-col"
-                        style={{ gridColumn: pos.gridColumn, gridRow: pos.gridRow }}
+                        className={`w-full h-full flex flex-col ${sizeClasses}`}
                     >
                         <TileWrapper tileKey={tileKey} tileProps={tileProps} />
                     </div>
                 );
             })}
 
-            {/* 2. Absolute center slot reserved exclusively for the AI Sphere */}
+            {/* Absolute/Fixed center area reserved exclusively for the AI Sphere */}
             <div
-                className="flex items-center justify-center relative w-full h-full pointer-events-none z-50"
-                style={{ gridColumn: 2, gridRow: 2 }}
+                className="col-start-2 col-span-2 row-start-2 row-span-2 flex items-center justify-center relative w-full h-full pointer-events-none z-50"
             >
-                {/* Visual anchor / hole reserved for the sphere */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] flex items-center justify-center">
+                {/* Visual anchor for the sphere */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] flex items-center justify-center rounded-full overflow-hidden bg-transparent">
                     <ShadowCosSphere isSpeaking={isSpeaking} />
                 </div>
             </div>
