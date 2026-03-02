@@ -96,81 +96,52 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
         );
     }
 
-    // OPERATIONAL STATE: Bento Grid with sphere anchored at center
-    return (
-        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] flex flex-col gap-4">
-            {/* TOP ROW */}
-            <div className="flex gap-4" style={{ height: '45%' }}>
-                {topTiles[0] && (
-                    <div className="flex-1">
-                        <TileWrapper tileKey={topTiles[0]} tileProps={tileProps} />
-                    </div>
-                )}
-                <div className="flex-1">
-                    {/* THE TOP CENTER CARD with cutout */}
-                    <div
-                        className={`${cardClass} p-6 pb-[140px] w-full h-full`}
-                        style={{
-                            WebkitMaskImage: 'radial-gradient(circle at 50% calc(100% + 8px), transparent 135px, black 136px)',
-                            maskImage: 'radial-gradient(circle at 50% calc(100% + 8px), transparent 135px, black 136px)',
-                        }}
-                    >
-                        {topTiles[1] ? <TileWrapper tileKey={topTiles[1]} tileProps={tileProps} /> : null}
-                    </div>
-                </div>
-                {topTiles[2] && (
-                    <div className="flex-1">
-                        <TileWrapper tileKey={topTiles[2]} tileProps={tileProps} />
-                    </div>
-                )}
-            </div>
+    // OPERATIONAL STATE: Smartphone-style static Grid
+    // The grid is a 3x3 layout. The center cell (grid-area: 2 / 2) is strictly reserved for the AI sphere.
+    // We map up to 8 preferences to the 8 remaining outer slots.
 
-            {/* MIDDLE ROW — Sphere + side tiles */}
-            <div className="relative flex gap-4" style={{ height: '10%' }}>
-                {/* Sphere absolutely centered across the two rows */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none w-[240px] h-[240px] flex items-center justify-center">
+    // Define the 8 available slots in a predictable order (e.g. reading order, skipping center)
+    const slotMap = [
+        { gridColumn: 1, gridRow: 1 }, // Slot 0: Top Left
+        { gridColumn: 2, gridRow: 1 }, // Slot 1: Top Center
+        { gridColumn: 3, gridRow: 1 }, // Slot 2: Top Right
+        { gridColumn: 1, gridRow: 2 }, // Slot 3: Middle Left
+        { gridColumn: 3, gridRow: 2 }, // Slot 4: Middle Right
+        { gridColumn: 1, gridRow: 3 }, // Slot 5: Bottom Left
+        { gridColumn: 2, gridRow: 3 }, // Slot 6: Bottom Center
+        { gridColumn: 3, gridRow: 3 }, // Slot 7: Bottom Right
+    ];
+
+    return (
+        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-3 grid-rows-3 gap-4 relative">
+
+            {/* 1. Map tiles strictly to their designated slots */}
+            {slotMap.map((pos, index) => {
+                const tileKey = prefs[index];
+                if (!tileKey) return null; // Slot remains empty if no tile assigned
+
+                return (
+                    <div
+                        key={`${tileKey}-${index}`}
+                        className="w-full h-full flex flex-col"
+                        style={{ gridColumn: pos.gridColumn, gridRow: pos.gridRow }}
+                    >
+                        <TileWrapper tileKey={tileKey} tileProps={tileProps} />
+                    </div>
+                );
+            })}
+
+            {/* 2. Absolute center slot reserved exclusively for the AI Sphere */}
+            <div
+                className="flex items-center justify-center relative w-full h-full pointer-events-none z-50"
+                style={{ gridColumn: 2, gridRow: 2 }}
+            >
+                {/* Visual anchor / hole reserved for the sphere */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] flex items-center justify-center">
                     <ShadowCosSphere isSpeaking={isSpeaking} />
                 </div>
-                {leftTile && <div className="flex-1"><TileWrapper tileKey={leftTile} tileProps={tileProps} /></div>}
-                {/* Spacer for sphere */}
-                <div style={{ width: 240, flexShrink: 0 }} />
-                {rightTile && <div className="flex-1"><TileWrapper tileKey={rightTile} tileProps={tileProps} /></div>}
             </div>
 
-            {/* BOTTOM ROW */}
-            <div className="flex gap-4" style={{ height: '45%' }}>
-                {botTiles[0] && (
-                    <div className="flex-1">
-                        <TileWrapper tileKey={botTiles[0]} tileProps={tileProps} />
-                    </div>
-                )}
-                {/* Bottom center — two cards with cutouts */}
-                <div className="flex-1 flex gap-4">
-                    <div
-                        className={`${cardClass} p-6 pt-[140px] flex-1 h-full`}
-                        style={{
-                            WebkitMaskImage: 'radial-gradient(circle at calc(100% + 8px) -8px, transparent 135px, black 136px)',
-                            maskImage: 'radial-gradient(circle at calc(100% + 8px) -8px, transparent 135px, black 136px)',
-                        }}
-                    >
-                        {botTiles[1] ? <TileWrapper tileKey={botTiles[1]} tileProps={tileProps} /> : null}
-                    </div>
-                    <div
-                        className={`${cardClass} p-6 pt-[140px] flex-1 h-full`}
-                        style={{
-                            WebkitMaskImage: 'radial-gradient(circle at -8px -8px, transparent 135px, black 136px)',
-                            maskImage: 'radial-gradient(circle at -8px -8px, transparent 135px, black 136px)',
-                        }}
-                    >
-                        {botTiles[2] ? <TileWrapper tileKey={botTiles[2]} tileProps={tileProps} /> : null}
-                    </div>
-                </div>
-                {botTiles[3] && (
-                    <div className="flex-1">
-                        <TileWrapper tileKey={botTiles[3]} tileProps={tileProps} />
-                    </div>
-                )}
-            </div>
         </div>
     );
 }
