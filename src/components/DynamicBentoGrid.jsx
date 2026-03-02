@@ -98,49 +98,69 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
         );
     }
 
-    // OPERATIONAL STATE: Symmetric 4x4 Grid (Tetris-style)
-    // Grid 4x4 fissa. Sfera posizionata assolutamente al centro.
-    // Nessun posizionamento sciolto (auto-flow "dense" rimosso in favore di esatte coordinate).
-
-    // Mappa esplicita delle posizioni (Tetris perfetto) per 7 tile
-    const getSlotPosition = (index) => {
-        switch (index) {
-            case 0: return "col-start-1 col-span-2 row-start-1 row-span-1"; // AiPendingActionTop (alto sx)
-            case 1: return "col-start-3 col-span-2 row-start-1 row-span-1"; // TileSteeringFocus (alto dx)
-            case 2: return "col-start-1 col-span-1 row-start-2 row-span-2"; // TileRadar (sx)
-            case 3: return "col-start-4 col-span-1 row-start-2 row-span-2"; // TileCompass (dx)
-            case 4: return "col-start-1 col-span-2 row-start-4 row-span-1"; // BriefingRoom (basso sx)
-            case 5: return "col-start-3 col-span-1 row-start-4 row-span-1"; // TilePulse (basso metà dx)
-            case 6: return "col-start-4 col-span-1 row-start-4 row-span-1"; // TileDecisionLog (basso dx)
-            default: return "hidden"; // Fallback se superiamo i 7 tile
-        }
-    };
+    // OPERATIONAL STATE: 3-Column Bento (PromptPal style)
+    // Griglia fissa a 3 colonne, senza auto-flow e posizionamento denso staccato.
+    // Ogni colonna ha flex-col e gap-6 per impilare blocchi ad altezza piena.
 
     return (
-        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-4 grid-rows-4 gap-4 relative">
+        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-3 gap-6 relative">
 
-            {/* 1. Mappatura Esplicita (No "dense" gaps) */}
-            {prefs.map((tileKey, index) => {
-                if (!tileKey) return null;
-                const slotClass = getSlotPosition(index);
+            {/* COLONNA 1 (Sinistra) */}
+            <div className="col-span-1 flex flex-col gap-6 h-full">
+                {/* Hitl / Pending Actions (in cima) */}
+                <div className="flex-1 min-h-0 flex flex-col">
+                    <TileWrapper tileKey="AiPendingActionTop" tileProps={tileProps} />
+                </div>
+                {/* Decision Log (in basso) */}
+                <div className="flex-1 min-h-0 flex flex-col">
+                    <TileWrapper tileKey="TileDecisionLog" tileProps={tileProps} />
+                </div>
+            </div>
 
-                return (
-                    <div
-                        key={`${tileKey}-${index}`}
-                        className={`w-full h-full flex flex-col ${slotClass}`}
-                    >
-                        <TileWrapper tileKey={tileKey} tileProps={tileProps} />
-                    </div>
-                );
-            })}
+            {/* COLONNA 2 (Hero / Centro) */}
+            {/* Questa colonna abbraccia la sfera al centro ("Hug Effect") */}
+            <div className="col-span-1 flex flex-col gap-0 h-full relative items-center justify-between">
 
-            {/* 2. Sfera Ancora al Centro (2x2 centrale) */}
-            <div
-                className="col-start-2 col-span-2 row-start-2 row-span-2 flex items-center justify-center relative w-full h-full pointer-events-none z-50"
-            >
-                {/* Il "buco" è riservato unicamente a lei */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] flex items-center justify-center">
+                {/* HUD Top: Steering Focus */}
+                {/* Usa mask-image per tagliare il bordo inferiore a mezzaluna per far spazio alla sfera */}
+                <div
+                    className="w-full flex-1 min-h-0 flex flex-col pb-[120px]"
+                    style={{
+                        WebkitMaskImage: 'radial-gradient(circle at 50% calc(100% + 10px), transparent 130px, black 132px)',
+                        maskImage: 'radial-gradient(circle at 50% calc(100% + 10px), transparent 130px, black 132px)',
+                    }}
+                >
+                    <TileWrapper tileKey="TileSteeringFocus" tileProps={tileProps} />
+                </div>
+
+                {/* La Sfera Assoluta e Centrata */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none w-[240px] h-[240px] flex items-center justify-center bg-transparent">
                     <ShadowCosSphere isSpeaking={isSpeaking} />
+                </div>
+
+                {/* HUD Bottom: Pulse o Insight */}
+                {/* Usa mask-image per tagliare il bordo superiore a mezzaluna inversa */}
+                <div
+                    className="w-full flex-1 min-h-0 flex flex-col pt-[120px]"
+                    style={{
+                        WebkitMaskImage: 'radial-gradient(circle at 50% -10px, transparent 130px, black 132px)',
+                        maskImage: 'radial-gradient(circle at 50% -10px, transparent 130px, black 132px)',
+                    }}
+                >
+                    <TileWrapper tileKey="TilePulse" tileProps={tileProps} />
+                </div>
+
+            </div>
+
+            {/* COLONNA 3 (Destra) */}
+            <div className="col-span-1 flex flex-col gap-6 h-full">
+                {/* Radar (in cima) */}
+                <div className="flex-1 min-h-0 flex flex-col">
+                    <TileWrapper tileKey="TileRadar" tileProps={tileProps} />
+                </div>
+                {/* Strategic Themes o Briefing Room (in basso) */}
+                <div className="flex-1 min-h-0 flex flex-col">
+                    <TileWrapper tileKey="BriefingRoom" tileProps={tileProps} />
                 </div>
             </div>
 
