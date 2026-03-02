@@ -21,7 +21,7 @@ export function ShadowCosSphere({ isSpeaking = false, isThinking = false, volume
   }
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
+    <div className="relative w-full h-full flex items-center justify-center pointer-events-none rounded-full overflow-hidden bg-transparent">
       <CommandNeuralCore
         size={240}
         primaryColor="#4FD1FF"
