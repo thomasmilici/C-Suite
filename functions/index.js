@@ -2138,10 +2138,31 @@ exports.startMissionOnboarding = onCall({
     const shouldFinalize = userTurns >= 3;
 
     // Build Gemini chat history
-    const chatHistory = messages.map(m => ({
-        role: m.role === "ai" ? "model" : "user",
-        parts: [{ text: m.text }],
+    let chatHistory = messages.map(m => ({
+        role: (m.role === "ai" || m.role === "model") ? "model" : "user",
+        parts: [{ text: m.text || " " }],
     }));
+
+    // 1. Assicurati che il primo messaggio sia dell'utente (requisito Gemini)
+    if (chatHistory.length > 0 && chatHistory[0].role === "model") {
+        chatHistory.unshift({ role: "user", parts: [{ text: "Pronto per l'intervista." }] });
+    }
+
+    // 2. Assicurati che i ruoli si alternino (user -> model -> user) unendo i messaggi consecutivi dello stesso ruolo
+    const cleanHistory = [];
+    for (const msg of chatHistory) {
+        if (cleanHistory.length === 0) {
+            cleanHistory.push(msg);
+        } else {
+            const lastMsg = cleanHistory[cleanHistory.length - 1];
+            if (lastMsg.role === msg.role) {
+                lastMsg.parts[0].text += "\n" + msg.parts[0].text;
+            } else {
+                cleanHistory.push({ role: msg.role, parts: [{ text: msg.parts[0].text }] });
+            }
+        }
+    }
+    chatHistory = cleanHistory;
 
     try {
         const chat = model.startChat({ history: chatHistory });
