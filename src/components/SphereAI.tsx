@@ -1,24 +1,24 @@
 export type SphereState = "idle" | "thinking" | "speaking";
 
-export default function SphereAI({ 
+export default function SphereAI({
   state = "idle",
   size = 130
-}: { 
+}: {
   state?: SphereState;
   size?: number;
 }) {
   const wrapSize = size + 30;
 
   return (
-    <div style={{ 
-      display: "flex", 
-      alignItems: "center", 
+    <div style={{
+      display: "flex",
+      alignItems: "center",
       justifyContent: "center",
-      width: wrapSize, 
+      width: wrapSize,
       height: wrapSize,
       flexShrink: 0
     }}>
-      <div 
+      <div
         style={{ position: "relative", width: size, height: size, borderRadius: "50%" }}
         className={`sphere-root sphere-${state}`}
       >
@@ -52,9 +52,8 @@ export default function SphereAI({
         /* IDLE */
         .sphere-idle .sphere-inner {
           background: radial-gradient(circle at 35% 30%,
-            #c4b5fd, #7c3aed, #4c1d95, #1e1b4b);
+            rgba(196,181,253,0.9), rgba(124,58,237,0.8), rgba(76,29,149,0.4), transparent);
           box-shadow:
-            inset -8px -8px 20px rgba(0,0,0,0.5),
             inset 4px 4px 12px rgba(196,181,253,0.2);
           animation: breathe 4s ease-in-out infinite;
         }
@@ -71,9 +70,8 @@ export default function SphereAI({
         /* THINKING */
         .sphere-thinking .sphere-inner {
           background: radial-gradient(circle at 35% 30%,
-            #fed7aa, #f97316, #7c2d12, #1e1b4b);
+            rgba(254,215,170,0.9), rgba(249,115,22,0.8), rgba(124,45,18,0.4), transparent);
           box-shadow:
-            inset -8px -8px 20px rgba(0,0,0,0.5),
             inset 4px 4px 12px rgba(254,215,170,0.3),
             0 0 40px rgba(249,115,22,0.4);
           animation: thinking 0.9s ease-in-out infinite;
@@ -91,9 +89,8 @@ export default function SphereAI({
         /* SPEAKING */
         .sphere-speaking .sphere-inner {
           background: radial-gradient(circle at 35% 30%,
-            #a7f3d0, #10b981, #065f46, #1e1b4b);
+            rgba(167,243,208,0.9), rgba(16,185,129,0.8), rgba(6,95,70,0.4), transparent);
           box-shadow:
-            inset -8px -8px 20px rgba(0,0,0,0.5),
             0 0 50px rgba(16,185,129,0.45);
           animation: speaking 1.2s ease-in-out infinite;
         }

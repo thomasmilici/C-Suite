@@ -98,57 +98,48 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
         );
     }
 
-    // OPERATIONAL STATE: Masonry-style Grid (Bento)
-    // Grid 4x4 with grid-flow-row-dense to compact gaps automatically.
-    // The sphere is forced into the center (col-start-2 span-2, row-start-2 span-2).
+    // OPERATIONAL STATE: Symmetric 4x4 Grid (Tetris-style)
+    // Grid 4x4 fissa. Sfera posizionata assolutamente al centro.
+    // Nessun posizionamento sciolto (auto-flow "dense" rimosso in favore di esatte coordinate).
 
-    // Determine sizes (col-span, row-span) based on the tile type to create variety.
-    const getTileSize = (tileKey) => {
-        switch (tileKey) {
-            case 'AiPendingActionTop':
-            case 'AiPendingActionBot':
-            case 'TileSteeringFocus':
-                // Wide but short tiles
-                return 'col-span-2 row-span-1';
-            case 'TileRadar':
-            case 'TilePulse':
-            case 'TileDecisionLog':
-                // Tall tiles
-                return 'col-span-1 row-span-2';
-            case 'BriefingRoom':
-            case 'ProactiveAlerts':
-                // Large/featured tiles
-                return 'col-span-2 row-span-2';
-            default:
-                // Standard square-ish
-                return 'col-span-1 row-span-1';
+    // Mappa esplicita delle posizioni (Tetris perfetto) per 7 tile
+    const getSlotPosition = (index) => {
+        switch (index) {
+            case 0: return "col-start-1 col-span-2 row-start-1 row-span-1"; // AiPendingActionTop (alto sx)
+            case 1: return "col-start-3 col-span-2 row-start-1 row-span-1"; // TileSteeringFocus (alto dx)
+            case 2: return "col-start-1 col-span-1 row-start-2 row-span-2"; // TileRadar (sx)
+            case 3: return "col-start-4 col-span-1 row-start-2 row-span-2"; // TileCompass (dx)
+            case 4: return "col-start-1 col-span-2 row-start-4 row-span-1"; // BriefingRoom (basso sx)
+            case 5: return "col-start-3 col-span-1 row-start-4 row-span-1"; // TilePulse (basso metà dx)
+            case 6: return "col-start-4 col-span-1 row-start-4 row-span-1"; // TileDecisionLog (basso dx)
+            default: return "hidden"; // Fallback se superiamo i 7 tile
         }
     };
 
     return (
-        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-4 grid-rows-4 gap-4 grid-flow-row-dense relative">
+        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-4 grid-rows-4 gap-4 relative">
 
-            {/* Map tiles dynamically. Browser automatically fills gaps due to grid-flow-row-dense */}
+            {/* 1. Mappatura Esplicita (No "dense" gaps) */}
             {prefs.map((tileKey, index) => {
                 if (!tileKey) return null;
-                const sizeClasses = getTileSize(tileKey);
+                const slotClass = getSlotPosition(index);
 
                 return (
                     <div
                         key={`${tileKey}-${index}`}
-                        className={`w-full h-full flex flex-col ${sizeClasses}`}
+                        className={`w-full h-full flex flex-col ${slotClass}`}
                     >
                         <TileWrapper tileKey={tileKey} tileProps={tileProps} />
                     </div>
                 );
             })}
 
-            {/* Absolute/Fixed center area reserved exclusively for the AI Sphere */}
+            {/* 2. Sfera Ancora al Centro (2x2 centrale) */}
             <div
                 className="col-start-2 col-span-2 row-start-2 row-span-2 flex items-center justify-center relative w-full h-full pointer-events-none z-50"
             >
-                {/* Visual anchor for the sphere */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] flex items-center justify-center rounded-full overflow-hidden bg-transparent">
+                {/* Il "buco" è riservato unicamente a lei */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] flex items-center justify-center">
                     <ShadowCosSphere isSpeaking={isSpeaking} />
                 </div>
             </div>
