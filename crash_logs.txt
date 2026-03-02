@@ -1,0 +1,5 @@
+CONSOLE ERROR: [2026-03-02T21:37:50.689Z]  @firebase/firestore: Firestore (12.9.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+
+CONSOLE ERROR: [2026-03-02T21:37:50.689Z]  @firebase/firestore: Firestore (12.9.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+
+PUPPETEER EXCEPTION: Navigation timeout of 15000 ms exceeded
