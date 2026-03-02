@@ -31,20 +31,20 @@ const TILE_REGISTRY = {
 // We expose 4 positions: 0,1,2,3 (before center) and 4,5,6,7 (after center) for up to 8 tiles
 const FALLBACK_LAYOUT = ['TileRadar', 'AiPendingActionTop', 'TileSteeringFocus', 'TileCompass', 'TilePulse', 'TileDecisionLog', 'BriefingRoom'];
 
-const cardClass = "bg-[#161b2b] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),_0_8px_20px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col";
+const cardClass = "bg-[#161b2b] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),_0_8px_20px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col w-full h-full";
 
-function TileWrapper({ tileKey, tileProps }) {
+function TileWrapper({ tileKey, tileProps, innerClass = "p-6" }) {
     const Tile = TILE_REGISTRY[tileKey];
     if (!Tile) {
         return (
-            <div className={`${cardClass} items-center justify-center p-4`}>
+            <div className={`${cardClass} items-center justify-center`}>
                 <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">{tileKey}</p>
             </div>
         );
     }
     return (
-        <div className={`${cardClass} p-4`}>
-            <div className="flex-1 overflow-y-auto thin-scroll">
+        <div className={cardClass}>
+            <div className={`flex-1 overflow-y-auto thin-scroll relative ${innerClass}`}>
                 <Tile props={tileProps} />
             </div>
         </div>
@@ -123,13 +123,13 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
             {/* Colonna 2+3: Top Center (Larga) - Tagliata in basso per la sfera */}
             <div
-                className="col-start-2 col-span-2 row-start-1 h-full min-h-0 pb-[100px]"
+                className="col-start-2 col-span-2 row-start-1 h-full min-h-0"
                 style={{
                     WebkitMaskImage: hudTopMask,
                     maskImage: hudTopMask,
                 }}
             >
-                <TileWrapper tileKey="BriefingRoom" tileProps={tileProps} />
+                <TileWrapper tileKey="BriefingRoom" tileProps={tileProps} innerClass="p-6 pb-[130px]" />
             </div>
 
             {/* Colonna 4: Top Right */}
@@ -147,24 +147,24 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
             {/* Colonna 2: Bottom Center-Left - Tagliata in alto a destra */}
             <div
-                className="col-start-2 col-span-1 row-start-2 h-full min-h-0 pt-[100px]"
+                className="col-start-2 col-span-1 row-start-2 h-full min-h-0"
                 style={{
                     WebkitMaskImage: hudBottomLeftMask,
                     maskImage: hudBottomLeftMask,
                 }}
             >
-                <TileWrapper tileKey="TilePulse" tileProps={tileProps} />
+                <TileWrapper tileKey="TilePulse" tileProps={tileProps} innerClass="p-6 pt-[130px]" />
             </div>
 
             {/* Colonna 3: Bottom Center-Right - Tagliata in alto a sinistra */}
             <div
-                className="col-start-3 col-span-1 row-start-2 h-full min-h-0 pt-[100px]"
+                className="col-start-3 col-span-1 row-start-2 h-full min-h-0"
                 style={{
                     WebkitMaskImage: hudBottomRightMask,
                     maskImage: hudBottomRightMask,
                 }}
             >
-                <TileWrapper tileKey="TileDecisionLog" tileProps={tileProps} />
+                <TileWrapper tileKey="TileDecisionLog" tileProps={tileProps} innerClass="p-6 pt-[130px]" />
             </div>
 
             {/* Colonna 4: Bottom Right */}
