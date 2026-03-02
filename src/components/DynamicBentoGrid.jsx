@@ -98,70 +98,78 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
         );
     }
 
-    // OPERATIONAL STATE: 3-Column Bento (PromptPal style)
-    // Griglia fissa a 3 colonne, senza auto-flow e posizionamento denso staccato.
-    // Ogni colonna ha flex-col e gap-6 per impilare blocchi ad altezza piena.
+    // OPERATIONAL STATE: PromptPal Layout Match
+    // Griglia fissa a 4 colonne e 2 righe, con la Sfera centrale che interseca la riga 1 e 2 al centro perfetto (tra col 2 e 3).
+    const hudTopMask = 'radial-gradient(circle at 50% max(calc(100% + 15px), 100%), transparent 130px, black 132px)';
+
+    // Maschere asimmetriche per le due card sotto la sfera
+    const hudBottomLeftMask = 'radial-gradient(circle at 100% -15px, transparent 130px, black 132px)';
+    const hudBottomRightMask = 'radial-gradient(circle at 0% -15px, transparent 130px, black 132px)';
 
     return (
-        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-3 gap-6 relative">
+        <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-4 grid-rows-2 gap-6 relative">
 
-            {/* COLONNA 1 (Sinistra) */}
-            <div className="col-span-1 flex flex-col gap-6 h-full">
-                {/* Hitl / Pending Actions (in cima) */}
-                <div className="flex-1 min-h-0 flex flex-col">
-                    <TileWrapper tileKey="AiPendingActionTop" tileProps={tileProps} />
-                </div>
-                {/* Decision Log (in basso) */}
-                <div className="flex-1 min-h-0 flex flex-col">
-                    <TileWrapper tileKey="TileDecisionLog" tileProps={tileProps} />
-                </div>
+            {/* LA SFERA AI AL CENTRO ASSOLUTO (Sopra tutto) */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none w-[240px] h-[240px] flex items-center justify-center bg-transparent">
+                <ShadowCosSphere isSpeaking={isSpeaking} />
             </div>
 
-            {/* COLONNA 2 (Hero / Centro) */}
-            {/* Questa colonna abbraccia la sfera al centro ("Hug Effect") */}
-            <div className="col-span-1 flex flex-col gap-0 h-full relative items-center justify-between">
+            {/* --- RIGA 1 --- */}
 
-                {/* HUD Top: Steering Focus */}
-                {/* Usa mask-image per tagliare il bordo inferiore a mezzaluna per far spazio alla sfera */}
-                <div
-                    className="w-full flex-1 min-h-0 flex flex-col pb-[120px]"
-                    style={{
-                        WebkitMaskImage: 'radial-gradient(circle at 50% calc(100% + 10px), transparent 130px, black 132px)',
-                        maskImage: 'radial-gradient(circle at 50% calc(100% + 10px), transparent 130px, black 132px)',
-                    }}
-                >
-                    <TileWrapper tileKey="TileSteeringFocus" tileProps={tileProps} />
-                </div>
-
-                {/* La Sfera Assoluta e Centrata */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none w-[240px] h-[240px] flex items-center justify-center bg-transparent">
-                    <ShadowCosSphere isSpeaking={isSpeaking} />
-                </div>
-
-                {/* HUD Bottom: Pulse o Insight */}
-                {/* Usa mask-image per tagliare il bordo superiore a mezzaluna inversa */}
-                <div
-                    className="w-full flex-1 min-h-0 flex flex-col pt-[120px]"
-                    style={{
-                        WebkitMaskImage: 'radial-gradient(circle at 50% -10px, transparent 130px, black 132px)',
-                        maskImage: 'radial-gradient(circle at 50% -10px, transparent 130px, black 132px)',
-                    }}
-                >
-                    <TileWrapper tileKey="TilePulse" tileProps={tileProps} />
-                </div>
-
+            {/* Colonna 1: Top Left */}
+            <div className="col-start-1 col-span-1 row-start-1 h-full min-h-0">
+                <TileWrapper tileKey="AiPendingActionTop" tileProps={tileProps} />
             </div>
 
-            {/* COLONNA 3 (Destra) */}
-            <div className="col-span-1 flex flex-col gap-6 h-full">
-                {/* Radar (in cima) */}
-                <div className="flex-1 min-h-0 flex flex-col">
-                    <TileWrapper tileKey="TileRadar" tileProps={tileProps} />
-                </div>
-                {/* Strategic Themes o Briefing Room (in basso) */}
-                <div className="flex-1 min-h-0 flex flex-col">
-                    <TileWrapper tileKey="BriefingRoom" tileProps={tileProps} />
-                </div>
+            {/* Colonna 2+3: Top Center (Larga) - Tagliata in basso per la sfera */}
+            <div
+                className="col-start-2 col-span-2 row-start-1 h-full min-h-0 pb-[100px]"
+                style={{
+                    WebkitMaskImage: hudTopMask,
+                    maskImage: hudTopMask,
+                }}
+            >
+                <TileWrapper tileKey="BriefingRoom" tileProps={tileProps} />
+            </div>
+
+            {/* Colonna 4: Top Right */}
+            <div className="col-start-4 col-span-1 row-start-1 h-full min-h-0">
+                <TileWrapper tileKey="TileRadar" tileProps={tileProps} />
+            </div>
+
+
+            {/* --- RIGA 2 --- */}
+
+            {/* Colonna 1: Bottom Left */}
+            <div className="col-start-1 col-span-1 row-start-2 h-full min-h-0">
+                <TileWrapper tileKey="TileSteeringFocus" tileProps={tileProps} />
+            </div>
+
+            {/* Colonna 2: Bottom Center-Left - Tagliata in alto a destra */}
+            <div
+                className="col-start-2 col-span-1 row-start-2 h-full min-h-0 pt-[100px]"
+                style={{
+                    WebkitMaskImage: hudBottomLeftMask,
+                    maskImage: hudBottomLeftMask,
+                }}
+            >
+                <TileWrapper tileKey="TilePulse" tileProps={tileProps} />
+            </div>
+
+            {/* Colonna 3: Bottom Center-Right - Tagliata in alto a sinistra */}
+            <div
+                className="col-start-3 col-span-1 row-start-2 h-full min-h-0 pt-[100px]"
+                style={{
+                    WebkitMaskImage: hudBottomRightMask,
+                    maskImage: hudBottomRightMask,
+                }}
+            >
+                <TileWrapper tileKey="TileDecisionLog" tileProps={tileProps} />
+            </div>
+
+            {/* Colonna 4: Bottom Right */}
+            <div className="col-start-4 col-span-1 row-start-2 h-full min-h-0">
+                <TileWrapper tileKey="TileCompass" tileProps={tileProps} />
             </div>
 
         </div>
