@@ -99,12 +99,24 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
     }
 
     // OPERATIONAL STATE: PromptPal Layout Match
-    // Griglia fissa a 4 colonne e 2 righe, con la Sfera centrale che interseca la riga 1 e 2 al centro perfetto (tra col 2 e 3).
-    const hudTopMask = 'radial-gradient(circle at 50% max(calc(100% + 15px), 100%), transparent 130px, black 132px)';
+    // Griglia fissa a 4 colonne e 2 righe.
+    // Il gap della griglia è "gap-6" = 24px (12px per lato verso il centro).
+    // La Sfera animata (anello cyan) ha raggio visivo 96px.
+    // L'alone della sfera completa a raggio 120px. 
+    // Per far coincidere perfettamente spazio visivo e clip, il raggio della maschera sarà 120px.
+    // Posizioni dei centri calcolate matematicamente per combaciare coi 24px di gap.
 
-    // Maschere asimmetriche per le due card sotto la sfera
-    const hudBottomLeftMask = 'radial-gradient(circle at 100% -15px, transparent 130px, black 132px)';
-    const hudBottomRightMask = 'radial-gradient(circle at 0% -15px, transparent 130px, black 132px)';
+    const radius = 120;
+    const offset = 12; // Metà di gap-6 (24px)
+
+    // Top Card: Taglio centrato orizzontalmente, sfonda il basso di 12px (offset)
+    const hudTopMask = `radial-gradient(circle at 50% calc(100% + ${offset}px), transparent ${radius}px, black ${radius + 1}px)`;
+
+    // Bot Left Card (Col 2): Taglio in alto a destra. Centro del taglio è fuori dalla card a destra di 12px e sopra di 12px.
+    const hudBottomLeftMask = `radial-gradient(circle at calc(100% + ${offset}px) -${offset}px, transparent ${radius}px, black ${radius + 1}px)`;
+
+    // Bot Right Card (Col 3): Taglio in alto a sinistra. Centro del taglio è fuori dalla card a sinistra di 12px e sopra di 12px.
+    const hudBottomRightMask = `radial-gradient(circle at -${offset}px -${offset}px, transparent ${radius}px, black ${radius + 1}px)`;
 
     return (
         <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-4 grid-rows-2 gap-6 relative">
@@ -129,7 +141,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
                     maskImage: hudTopMask,
                 }}
             >
-                <TileWrapper tileKey="BriefingRoom" tileProps={tileProps} innerClass="p-6 pb-[130px]" />
+                <TileWrapper tileKey="BriefingRoom" tileProps={tileProps} innerClass={`p-6 pb-[120px]`} />
             </div>
 
             {/* Colonna 4: Top Right */}
@@ -153,7 +165,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
                     maskImage: hudBottomLeftMask,
                 }}
             >
-                <TileWrapper tileKey="TilePulse" tileProps={tileProps} innerClass="p-6 pt-[130px]" />
+                <TileWrapper tileKey="TilePulse" tileProps={tileProps} innerClass="p-6 pt-[120px]" />
             </div>
 
             {/* Colonna 3: Bottom Center-Right - Tagliata in alto a sinistra */}
@@ -164,7 +176,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
                     maskImage: hudBottomRightMask,
                 }}
             >
-                <TileWrapper tileKey="TileDecisionLog" tileProps={tileProps} innerClass="p-6 pt-[130px]" />
+                <TileWrapper tileKey="TileDecisionLog" tileProps={tileProps} innerClass="p-6 pt-[120px]" />
             </div>
 
             {/* Colonna 4: Bottom Right */}
