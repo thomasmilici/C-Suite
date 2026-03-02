@@ -157,16 +157,7 @@ export const CommandNeuralCore: React.FC<CommandNeuralCoreProps> = ({
       ctx.save();
       ctx.translate(center, center);
 
-      // 3. RADIAL ENERGY FIELD (BACKGROUND)
-      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, ringRadius * 1.5 * ringScale);
-
       const rgbValues = rgbaBase.substring(rgbaBase.indexOf('(') + 1, rgbaBase.lastIndexOf(','));
-      grad.addColorStop(0, `rgba(${rgbValues}, ${radialOpacity})`);
-      grad.addColorStop(1, `rgba(${rgbValues}, 0)`);
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(0, 0, ringRadius * 1.5 * ringScale, 0, Math.PI * 2);
-      ctx.fill();
 
       // Apply rotation if thinking
       if (state === 'thinking') {
