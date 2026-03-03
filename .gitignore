@@ -37,3 +37,13 @@ dist-ssr
 *.sln
 *.sw?
 nul
+
+# Agentic Workflow — file intermedi e credenziali Python
+.tmp/
+credentials.json
+token.json
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
