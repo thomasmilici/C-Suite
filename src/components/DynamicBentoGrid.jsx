@@ -1,4 +1,5 @@
 import React from 'react';
+import { Zap, BarChart3 } from 'lucide-react';
 import { useMission } from '../context/MissionContext';
 import { ShadowCosSphere } from './ui/ShadowCosSphere';
 import { OnboardingTaskTile } from './tiles/OnboardingTaskTile';
@@ -68,8 +69,30 @@ function TileWrapper({ tileKey, tileProps, innerClass = "p-4" }) {
             </div>
         );
     }
+
+    const label = tileProps?.extras?.label;
+    const type = tileProps?.extras?.type; // 'priority' or 'kpi'
+
     return (
         <div className={cardClass}>
+            {label && (type === 'priority' || type === 'kpi') && (
+                <div className="shrink-0 bg-white/[0.02] border-b border-white/[0.05] px-4 py-2.5 flex items-center gap-2.5">
+                    <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${type === 'priority' ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
+                        {type === 'priority' 
+                            ? <Zap className="w-3.5 h-3.5 text-amber-400" />
+                            : <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
+                        }
+                    </div>
+                    <div className="min-w-0 pr-2">
+                        <p className="text-[8px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">
+                            {type === 'priority' ? 'Focus Prioritario' : 'Metrica Target'}
+                        </p>
+                        <p className={`text-[11px] font-mono font-bold leading-tight truncate ${type === 'priority' ? 'text-amber-100/90' : 'text-emerald-100/90'}`}>
+                            {label}
+                        </p>
+                    </div>
+                </div>
+            )}
             <div className={`flex-1 overflow-y-auto thin-scroll relative ${innerClass}`}>
                 <Tile props={tileProps} />
             </div>

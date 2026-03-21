@@ -61,6 +61,16 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
         setExecuting(true);
         setError(null);
         try {
+            if (action.isSuggested) {
+                // Mock execution for Proactive generated actions
+                setTimeout(() => {
+                    setDone(true);
+                    toast.success('✓ Iniziativa lanciata con successo');
+                    onApproved(action.id);
+                }, 1000);
+                return;
+            }
+
             const fn = httpsCallable(functions, 'executeApprovedAction');
             const result = await fn({ pendingId: action.id });
             if (result.data?.data?.success) {
@@ -73,13 +83,22 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
         } catch (e) {
             setError(e.message || 'Errore di rete.');
         } finally {
-            setExecuting(false);
+            if (!action.isSuggested) setExecuting(false);
         }
     };
 
     const handleReject = async () => {
         setRejecting(true);
         try {
+            if (action.isSuggested) {
+                setTimeout(() => {
+                    setDone(true);
+                    toast('Azione scartata', { icon: '✖' });
+                    onRejected(action.id);
+                }, 400);
+                return;
+            }
+
             const fn = httpsCallable(functions, 'rejectPendingAction');
             await fn({ pendingId: action.id });
             setDone(true);
@@ -88,7 +107,7 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
         } catch (e) {
             setError(e.message);
         } finally {
-            setRejecting(false);
+            if (!action.isSuggested) setRejecting(false);
         }
     };
 
@@ -170,7 +189,7 @@ const PendingActionCard = ({ action, onApproved, onRejected }) => {
     );
 };
 
-export const AiPendingActionTile = ({ contextId = null, position = 'top' }) => {
+export const AiPendingActionTile = ({ contextId = null, position = 'top', extras }) => {
     const [pendingActions, setPendingActions] = useState([]);
     const [resolvedIds, setResolvedIds] = useState(new Set());
 
@@ -212,6 +231,38 @@ export const AiPendingActionTile = ({ contextId = null, position = 'top' }) => {
         : pendingActions.slice(2);
 
     if (displayedActions.length === 0) {
+        // If Iper-Proattivo and we have priorities, show suggested pre-computed actions
+        if (extras?.isIperProattivo && extras?.priorities?.length > 0) {
+            const suggestedActions = extras.priorities.map((p, i) => ({
+                id: `suggested-${i}`,
+                proposedAction: 'createStrategicTheme',
+                summary: `Avvia iniziativa pre-approvata per l'obiettivo: "${p}". Il CoS AI orchestrerà i task necessari.`,
+                actionIntent: 'NEW_ENTITY',
+                isSuggested: true
+            })).slice(0, position === 'top' ? 2 : 2); // Show up to 2
+
+            return (
+                <div className="flex flex-col gap-2 w-full px-4 pt-2 pb-4 overflow-y-auto no-scrollbar">
+                    <div className="px-1 mb-2">
+                        <span className="text-[9px] font-mono text-indigo-400 uppercase tracking-widest border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 rounded-full inline-block mb-1.5">
+                            Delegation Engine: Attivo
+                        </span>
+                        <p className="text-[10px] text-zinc-500 leading-snug">Azioni ad alto impatto pre-calcolate sulle tue priorità correnti. In attesa di autorizzazione.</p>
+                    </div>
+                    <AnimatePresence mode="popLayout">
+                        {suggestedActions.map(action => (
+                            <PendingActionCard
+                                key={action.id}
+                                action={action}
+                                onApproved={handleResolved}
+                                onRejected={handleResolved}
+                            />
+                        ))}
+                    </AnimatePresence>
+                </div>
+            );
+        }
+
         return (
             <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 font-mono text-xs opacity-50 p-6 text-center">
                 <span className="block mb-1">~ STANDBY ~</span>

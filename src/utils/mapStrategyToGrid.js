@@ -146,22 +146,22 @@ export function mapStrategyToGrid(mission) {
   // ═══════════════════════════════════════════════════════════════════════════
 
   const PRIORITY_KW = [
-    [/forecast|predict|ai|intelligence|anali|insight/i, 'TileIntelligence'  ],
+    [/forecast|predict|ai|intelligence|anali|insight|orchestration/i, 'TileIntelligence'  ],
     [/risk|threat|signal|danger|vulnerab/i,              'TileRadar'         ],
     [/layout|fix|focus|steering|priorit|agenda|regia/i,  'TileSteeringFocus' ],
     [/compass|strateg|direction|align|obiettiv/i,        'TileCompass'       ],
-    [/decision|scelta|log|approv|choice/i,               'TileDecisionLog'   ],
+    [/decision|scelta|log|approv|choice|time-to|time to/i,'TileDecisionLog'   ],
     [/pulse|mood|daily|energia|giornata/i,               'TilePulse'         ],
     [/brief|context|situation|scenario/i,                'BriefingRoom'      ],
     [/pending|queue|review|hitl|action|azione/i,         'AiPendingActionTop'],
   ];
 
   const KPI_KW = [
-    [/decision|time.to|speed|cycle|latency/i,    'TileDecisionLog'   ],
-    [/risk|threat|signal|level|exposure/i,        'TileRadar'         ],
-    [/intelligence|insight|data|score|forecast/i, 'TileIntelligence'  ],
-    [/pulse|mood|nps|team|energia/i,              'TilePulse'         ],
-    [/compass|align|objectiv|obiettiv/i,          'TileCompass'       ],
+    [/decision|time\.to|time-to|speed|cycle|latency/i, 'TileDecisionLog'   ],
+    [/risk|threat|signal|level|exposure/i,              'TileRadar'         ],
+    [/intelligence|insight|data|score|forecast|accuracy/i,'TileIntelligence'],
+    [/pulse|mood|nps|team|energia/i,                    'TilePulse'         ],
+    [/compass|align|objectiv|obiettiv/i,                'TileCompass'       ],
   ];
 
   function resolveComp(text, kwMap, pool, used) {
@@ -231,14 +231,14 @@ export function mapStrategyToGrid(mission) {
   if (isIperProat) {
     if (ultraWide) {
       // ── 4×1 ULTRA-WIDE: AiPendingActionTop claims the entire Row 1 ──────
-      place('AiPendingActionTop', 'row1', '4x1');
+      place('AiPendingActionTop', 'row1', '4x1', { extras: { isIperProattivo: true, priorities } });
       // Row 1 fully consumed → NORTH starts from rows 2+3+4 of col A
       // EAST starts from rows 2+3+4 of col D
       _placeNorthFrom(['A2s', 'A3s', 'A4']);
       _placeEastFrom(['D2s', 'D3s', 'D4']);
     } else {
       // ── 2×1 WIDE: AiPendingActionTop in center-top ──────────────────────
-      place('AiPendingActionTop', 'B1', '2x1');
+      place('AiPendingActionTop', 'B1', '2x1', { extras: { isIperProattivo: true, priorities } });
       // A1 → first NORTH tile; D1 → first EAST tile
       _placeNorthFrom(['A1', 'A2', 'A4']);
       _placeEastFrom(['D1', 'D2', 'D4']);
@@ -250,11 +250,13 @@ export function mapStrategyToGrid(mission) {
   //  BriefingRoom is rerouted to the SOUTH slot (B4).
   // ═══════════════════════════════════════════════════════════════════════════
   } else if (northMini) {
-    const singleComp = resolveComp(priorities[0], PRIORITY_KW, northDefaults, usedComps);
-    place(singleComp, 'A1wide', '2x1'); // spans cols A+B, row 1
+    const p0 = priorities[0];
+    const singleComp = resolveComp(p0, PRIORITY_KW, northDefaults, usedComps);
+    place(singleComp, 'A1wide', '2x1', { extras: { label: p0, type: 'priority' } }); // spans cols A+B, row 1
     // D1 gets the primary KPI tile
-    const d1Comp = resolveComp(kpis[0] || '', KPI_KW, eastDefaults, usedComps);
-    place(d1Comp, 'D1', '1x1');
+    const k0 = kpis[0] || '';
+    const d1Comp = resolveComp(k0, KPI_KW, eastDefaults, usedComps);
+    place(d1Comp, 'D1', '1x1', { extras: { label: k0, type: 'kpi' } });
     // Remaining EAST tiles
     _placeEastFrom(['D2', 'D4']);
     // SOUTH gets BriefingRoom or TilePulse (BriefingRoom displaced from WEST)
@@ -267,7 +269,7 @@ export function mapStrategyToGrid(mission) {
   } else {
     // ── NORMAL SCENARIO ────────────────────────────────────────────────────
     const westTile = hasVision ? 'BriefingRoom' : PLACEHOLDER;
-    place(westTile, 'B1', '2x1'); // WEST: vision/annual objectives
+    place(westTile, 'B1', '2x1', { extras: { label: mission?.vision, type: 'vision' } }); // WEST: vision/annual objectives
     _placeNorthFrom(['A1', 'A2', 'A2s', 'A3s', 'A4']);
     _placeEastFrom(['D1', 'D2', 'D2s', 'D3s', 'D4']);
   }
@@ -296,27 +298,29 @@ export function mapStrategyToGrid(mission) {
       // Consolidate into first available tall slot with renderMode:'stack'
       const tallSlot = slotsWithSizes.find(s => s.size === '1x2') || slotsWithSizes[0];
       if (!tallSlot) return;
-      const anchor = resolveComp(priorities[0] || '', PRIORITY_KW, northDefaults, usedComps);
+      const p0 = priorities[0] || '';
+      const anchor = resolveComp(p0, PRIORITY_KW, northDefaults, usedComps);
       place(anchor, tallSlot.slot, tallSlot.size, {
         renderMode: 'stack',
-        extras: priorities.slice(1), // all priorities passed as extras for stacking
+        extras: { label: p0, type: 'priority', overflow: priorities.slice(1) },
       });
       return;
     }
 
     // Build component list from priorities
-    const comps = priorities.slice(0, availableSlots.length).map(p =>
-      resolveComp(p, PRIORITY_KW, northDefaults, usedComps)
-    );
+    const nodes = priorities.slice(0, availableSlots.length).map(p => ({
+      comp: resolveComp(p, PRIORITY_KW, northDefaults, usedComps),
+      text: p
+    }));
     // Pad to at least 2 for visual symmetry
-    while (comps.length < Math.min(2, availableSlots.length)) {
-      comps.push(resolveComp('', PRIORITY_KW, northDefaults, usedComps) || PLACEHOLDER);
+    while (nodes.length < Math.min(2, availableSlots.length)) {
+      nodes.push({ comp: resolveComp('', PRIORITY_KW, northDefaults, usedComps) || PLACEHOLDER, text: '' });
     }
 
     // Adaptive slot selection based on how many tiles we have
-    const slots = _pickNorthSlots(availableSlots, comps.length);
-    comps.slice(0, slots.length).forEach((comp, i) => {
-      place(comp, slots[i].slot, slots[i].size);
+    const slots = _pickNorthSlots(availableSlots, nodes.length);
+    nodes.slice(0, slots.length).forEach((node, i) => {
+      place(node.comp, slots[i].slot, slots[i].size, { extras: { label: node.text, type: 'priority' } });
     });
   }
 
@@ -334,13 +338,13 @@ export function mapStrategyToGrid(mission) {
       const regularSlots = slotsWithSizes.slice(0, 3);
       kpis.slice(0, regularSlots.length).forEach((k, i) => {
         const comp = resolveComp(k, KPI_KW, eastDefaults, usedComps);
-        place(comp, regularSlots[i].slot, '1x1');
+        place(comp, regularSlots[i].slot, '1x1', { extras: { label: k, type: 'kpi' } });
       });
       const carouselSlot = slotsWithSizes[slotsWithSizes.length - 1];
       if (carouselSlot && !usedSlots.has(carouselSlot.slot)) {
         place('KpiCarousel', carouselSlot.slot, '1x1', {
           renderMode: 'carousel',
-          extras: kpis.slice(3),
+          extras: { kpis: kpis.slice(3) },
         });
       }
       return;
@@ -348,12 +352,13 @@ export function mapStrategyToGrid(mission) {
 
     if (eastMini) {
       // ── GOVERNANCE RULE 3: Anti-Gap — flank the sphere (D2s) ────────────
-      const singleKpi = resolveComp(kpis[0] || '', KPI_KW, eastDefaults, usedComps);
+      const k0 = kpis[0] || '';
+      const singleKpi = resolveComp(k0, KPI_KW, eastDefaults, usedComps);
       // Place the single KPI at D2s (next to sphere) instead of corner D1
       const flankSlot = availableSlots.includes('D2s') ? 'D2s'
                       : availableSlots.includes('D2')  ? 'D2'
                       : availableSlots[0];
-      place(singleKpi, flankSlot, '1x1');
+      place(singleKpi, flankSlot, '1x1', { extras: { label: k0, type: 'kpi' } });
       // Fill the rest of EAST with placeholders for symmetry
       availableSlots
         .filter(s => s !== flankSlot)
@@ -362,15 +367,16 @@ export function mapStrategyToGrid(mission) {
     }
 
     // NORMAL: adaptive fill
-    const comps = kpis.slice(0, availableSlots.length).map(k =>
-      resolveComp(k, KPI_KW, eastDefaults, usedComps)
-    );
-    while (comps.length < Math.min(2, availableSlots.length)) {
-      comps.push(resolveComp('', KPI_KW, eastDefaults, usedComps) || PLACEHOLDER);
+    const nodes = kpis.slice(0, availableSlots.length).map(k => ({
+      comp: resolveComp(k, KPI_KW, eastDefaults, usedComps),
+      text: k
+    }));
+    while (nodes.length < Math.min(2, availableSlots.length)) {
+      nodes.push({ comp: resolveComp('', KPI_KW, eastDefaults, usedComps) || PLACEHOLDER, text: '' });
     }
-    const slots = _pickEastSlots(availableSlots, comps.length);
-    comps.slice(0, slots.length).forEach((comp, i) => {
-      place(comp, slots[i].slot, slots[i].size);
+    const slots = _pickEastSlots(availableSlots, nodes.length);
+    nodes.slice(0, slots.length).forEach((node, i) => {
+      place(node.comp, slots[i].slot, slots[i].size, { extras: { label: node.text, type: 'kpi' } });
     });
   }
 
