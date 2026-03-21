@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 @theme {
   --color-technical: #E0E0E0;
@@ -594,5 +594,91 @@
   .thin-scroll::-webkit-scrollbar {
     width: 0px;
     background: transparent;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   *  X-MATRIX GRID — 4×4 Static Layout (Smartphone Standard)
+   *
+   *  16 slot inviolabili: colonne A-D × righe 1-4
+   *  Coordinate naming:  A1 | B1 | C1 | D1
+   *                      A2 | B2 | C2 | D2   ← B2, C2, B3, C3 = SPHERE ONLY
+   *                      A3 | B3 | C3 | D3
+   *                      A4 | B4 | C4 | D4
+   *
+   *  Ogni slot è una bounding box autonoma:
+   *  - niente overflow cross-slot
+   *  - niente position:absolute cross-slot
+   *  - la Sfera vive in un vero slot della griglia (non floated)
+   * ══════════════════════════════════════════════════════════════════════ */
+
+  .xmatrix-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 12px;
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  /* ── SPHERE ZONE: B2+C2+B3+C3 ─────────────────────────────────────────
+   * Occupa un vero blocco della griglia — nessun tile può sovrapporsi.
+   * pointer-events: none sulla zona, auto sul componente interno.
+   */
+  .xmatrix-sphere-zone {
+    grid-column: 2 / 4;
+    grid-row: 2 / 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  .xmatrix-sphere-zone > * {
+    pointer-events: auto;
+  }
+
+  /* ── SLOT HELPERS ──────────────────────────────────────────────────────
+   * Ogni classe piazza il wrapper del tile nella cella corretta.
+   */
+
+  /* Top row */
+  .xmatrix-slot-A1 { grid-column: 1;     grid-row: 1; }
+  .xmatrix-slot-B1 { grid-column: 2 / 4; grid-row: 1; }   /* 2 cols wide */
+  .xmatrix-slot-C1 { grid-column: 3;     grid-row: 1; }
+  .xmatrix-slot-D1 { grid-column: 4;     grid-row: 1; }
+
+  /* Middle-left column (rows 2+3) — tall merged variant */
+  .xmatrix-slot-A2 { grid-column: 1;     grid-row: 2 / 4; } /* 2 rows tall */
+
+  /* Middle-left column — single-row variants (Hoshin 4-tile North) */
+  .xmatrix-slot-A2s { grid-column: 1;    grid-row: 2; }     /* row 2 only */
+  .xmatrix-slot-A3s { grid-column: 1;    grid-row: 3; }     /* row 3 only */
+
+  /* Middle-right column (rows 2+3) — tall merged variant */
+  .xmatrix-slot-D2 { grid-column: 4;     grid-row: 2 / 4; } /* 2 rows tall */
+
+  /* Middle-right column — single-row variants (Hoshin 4-tile East) */
+  .xmatrix-slot-D2s { grid-column: 4;    grid-row: 2; }     /* row 2 only */
+  .xmatrix-slot-D3s { grid-column: 4;    grid-row: 3; }     /* row 3 only */
+
+  /* Bottom row */
+  .xmatrix-slot-A4 { grid-column: 1;     grid-row: 4; }
+  .xmatrix-slot-B4 { grid-column: 2 / 4; grid-row: 4; }   /* 2 cols wide */
+  .xmatrix-slot-C4 { grid-column: 3;     grid-row: 4; }
+  .xmatrix-slot-D4 { grid-column: 4;     grid-row: 4; }
+
+  /* Base rule: every slot self-clips, no cross-boundary overflow */
+  .xmatrix-grid > * {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Sphere zone is the only exception — it must never clip the glow */
+  .xmatrix-grid > .xmatrix-sphere-zone {
+    overflow: visible;
   }
 }
