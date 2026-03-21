@@ -126,7 +126,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
     // isSetupComplete === false → show the calibration CTA instead of the grid
     if (!isSetupComplete) {
         return (
-            <div className="w-full max-w-[1600px] mx-auto h-[calc(100vh-80px)] p-6 bg-[#0d111c] grid grid-cols-3 grid-rows-2 gap-4">
+            <div className="w-full h-[calc(100vh-80px)] csuite-grid opacity-50 pointer-events-none">
                 {/* TL placeholder */}
                 <div className={`${cardClass} items-center justify-center opacity-20`}>
                     <div className="w-8 h-8 rounded-full border border-white/10" />
@@ -163,7 +163,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
     return (
         <div
-            className="xmatrix-grid w-full max-w-[1600px] mx-auto bg-[#0d111c] p-4"
+            className="csuite-grid w-full"
             style={{ height: 'calc(100vh - 80px)' }}
         >
             {/* ── SPHERE — occupies real grid slot B2→C3, never overlaps ── */}

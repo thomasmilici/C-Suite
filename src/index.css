@@ -626,13 +626,16 @@
    * pointer-events: none sulla zona, auto sul componente interno.
    */
   .xmatrix-sphere-zone {
-    grid-column: 2 / 4;
-    grid-row: 2 / 4;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 388px;
+    height: 388px;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    z-index: 0;   /* Aura must bleed UNDER the adjacent tiles */
+    z-index: 50; /* MUST be above tiles so its opaque border masks their corners */
     pointer-events: none;
   }
 
@@ -640,22 +643,32 @@
     pointer-events: auto;
   }
 
-  /* ── SPECIAL MULTI-SPAN SLOTS ──────────────────────────────────────────────
-   * Used by governance scenarios that need non-standard spans in row 1.
-   */
-
-  /* ── C-SUITE PROMPTPAL CLOSED COMPASS SLOTS ────────────────────────────── */
-  .compass-slot-N1 { grid-column: 1 / 3; grid-row: 1; }
-  .compass-slot-N2 { grid-column: 3 / 5; grid-row: 1; }
+  /* ── C-SUITE PROMPTPAL CLOSED COMPASS SLOTS (9-TILE LAYOUT) ────────────── */
+  .csuite-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 1.2fr) 1.5fr 1.5fr minmax(280px, 1.2fr);
+    grid-template-rows: 1.5fr 1fr 1fr 1.5fr; /* Perfectly symmetrical 50% split at row 2/3 seam */
+    gap: 24px;
+    height: 100%;
+    width: 100%;
+    position: relative;
+    background-color: #060a14;
+    padding: 24px;
+    @apply mx-auto max-w-[1920px];
+  }
   
-  .compass-slot-W1 { grid-column: 1; grid-row: 2; }
-  .compass-slot-W2 { grid-column: 1; grid-row: 3; }
+  .compass-slot-N1 { grid-column: 2 / 4; grid-row: 1 / 3; }
   
-  .compass-slot-E1 { grid-column: 4; grid-row: 2; }
-  .compass-slot-E2 { grid-column: 4; grid-row: 3; }
+  .compass-slot-W1 { grid-column: 1; grid-row: 1 / 3; }
+  .compass-slot-W2 { grid-column: 1; grid-row: 3 / 4; }
+  .compass-slot-W3 { grid-column: 1; grid-row: 4 / 5; }
   
-  .compass-slot-S1 { grid-column: 1 / 3; grid-row: 4; }
-  .compass-slot-S2 { grid-column: 3 / 5; grid-row: 4; }
+  .compass-slot-E1 { grid-column: 4; grid-row: 1 / 2; }
+  .compass-slot-E2 { grid-column: 4; grid-row: 2 / 3; }
+  .compass-slot-E3 { grid-column: 4; grid-row: 3 / 5; }
+  
+  .compass-slot-S1 { grid-column: 2 / 3; grid-row: 3 / 5; }
+  .compass-slot-S2 { grid-column: 3 / 4; grid-row: 3 / 5; }
 
   /* Anti-Gap minimalist: single priority expands to cols A+B (row 1) */
   .xmatrix-slot-A1wide { grid-column: 1 / 3; grid-row: 1; }
