@@ -53,7 +53,7 @@ const TILE_REGISTRY = {
 };
 
 // ── SHARED CARD STYLE ──────────────────────────────────────────────────────────
-const cardClass = "bg-[#110f1c]/70 backdrop-blur-3xl border border-white/[0.08] border-t-white/[0.15] shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),_0_10px_40px_rgba(0,0,0,0.6)] rounded-[32px] overflow-hidden flex flex-col w-full h-full relative transition-all duration-300 group";
+const cardClass = "bg-[#060a14]/90 backdrop-blur-3xl border border-slate-800 shadow-[inset_0_1px_2px_rgba(255,255,255,0.02),_0_10px_40px_rgba(0,0,0,0.8)] rounded-[20px] overflow-hidden flex flex-col w-full h-full relative transition-all duration-300 group hover:border-cyan-900/40";
 
 // ── TILE WRAPPER ───────────────────────────────────────────────────────────────
 // Renders a single tile inside its glass card shell.
@@ -71,29 +71,29 @@ function TileWrapper({ tileKey, tileProps, innerClass = "p-4" }) {
     }
 
     const label = tileProps?.extras?.label;
-    const type = tileProps?.extras?.type; // 'priority' or 'kpi'
+    const type = tileProps?.extras?.type || ''; 
+    const isPriority = type.startsWith('priority');
+    const priorityPrefix = type === 'priority_nw' ? 'Daily Steering Focus' : type === 'priority_ne' ? 'Strategy Topics' : 'Focus';
 
     return (
         <div className={cardClass}>
-            {label && (type === 'priority' || type === 'kpi') && (
-                <div className="shrink-0 bg-white/[0.02] border-b border-white/[0.05] px-4 py-2.5 flex items-center gap-2.5">
-                    <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${type === 'priority' ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
-                        {type === 'priority' 
-                            ? <Zap className="w-3.5 h-3.5 text-amber-400" />
-                            : <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
-                        }
-                    </div>
+            {label && (isPriority || type === 'kpi') && (
+                <div className="shrink-0 pt-4 px-5 pb-1 flex items-center justify-between z-10">
                     <div className="min-w-0 pr-2">
-                        <p className="text-[8px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">
-                            {type === 'priority' ? 'Focus Prioritario' : 'Metrica Target'}
-                        </p>
-                        <p className={`text-[11px] font-mono font-bold leading-tight truncate ${type === 'priority' ? 'text-amber-100/90' : 'text-emerald-100/90'}`}>
+                        <p className="text-[13px] font-sans font-semibold text-slate-100 truncate tracking-wide">
+                            <span className="text-slate-500 font-normal mr-2">{isPriority ? `${priorityPrefix} —` : 'Target Metrico —'}</span>
                             {label}
                         </p>
                     </div>
+                    {isPriority && (
+                        <button className="shrink-0 px-2.5 py-1.5 bg-[#0a192f] border border-cyan-800/60 text-cyan-400 text-[9px] uppercase font-mono tracking-widest rounded flex items-center gap-1.5 hover:bg-cyan-950 transition-colors shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+                            <span className="w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee] animate-pulse"></span>
+                            Execute
+                        </button>
+                    )}
                 </div>
             )}
-            <div className={`flex-1 overflow-y-auto thin-scroll relative ${innerClass}`}>
+            <div className={`flex-1 overflow-y-auto no-scrollbar relative ${innerClass}`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 <Tile props={tileProps} />
             </div>
         </div>

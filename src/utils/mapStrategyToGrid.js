@@ -20,8 +20,8 @@ export function mapStrategyToGrid(mission) {
   const k2 = kpis[1] || '95% Accuracy';
 
   return [
-    { component: 'TileSteeringFocus',  slot: 'N1', cssClass: 'compass-slot-N1', extras: { label: p1, type: 'priority' } },
-    { component: 'AiPendingActionTop', slot: 'N2', cssClass: 'compass-slot-N2', extras: { label: p2, type: 'priority', isIperProattivo: isIperProat, priorities } },
+    { component: 'TileSteeringFocus',  slot: 'N1', cssClass: 'compass-slot-N1', extras: { label: p1, type: 'priority_nw' } },
+    { component: 'AiPendingActionTop', slot: 'N2', cssClass: 'compass-slot-N2', extras: { label: p2, type: 'priority_ne', isIperProattivo: isIperProat, priorities } },
     { component: 'TileIntelligence',   slot: 'W1', cssClass: 'compass-slot-W1', extras: { label: 'Strategic Intelligence' } },
     { component: 'BriefingRoom',       slot: 'W2', cssClass: 'compass-slot-W2', extras: { label: vStar, type: 'vision' } },
     { component: 'MissionSummaryTile', slot: 'E1', cssClass: 'compass-slot-E1', extras: { label: k1, type: 'kpi' } },
