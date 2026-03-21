@@ -39,8 +39,8 @@ export function mapStrategyToGrid(mission) {
   /** Sphere bounding box in 1-indexed grid coords (used for span overlap math). */
   const SPHERE = { colStart: 2, colEnd: 3, rowStart: 2, rowEnd: 3 };
 
-  /** Reusable filler component (can appear multiple times — not deduped). */
-  const PLACEHOLDER = 'ProactiveAlerts';
+  /** Reusable intelligent filler: shows real mission data in empty symmetry slots. */
+  const PLACEHOLDER = 'MissionSummaryTile';
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  MISSION DATA

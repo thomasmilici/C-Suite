@@ -1,0 +1,140 @@
+import React from 'react';
+import { Target, Zap, BarChart3, Layers } from 'lucide-react';
+import { useMission } from '../../context/MissionContext';
+
+/**
+ * MissionSummaryTile
+ * ─────────────────────────────────────────────────────────────────────────────
+ * An intelligent "filled placeholder" that shows real mission calibration data
+ * (vision, priorities, kpis, orchestrationStyle) instead of a blank slot.
+ *
+ * Used by mapStrategyToGrid as PLACEHOLDER in symmetry-fill slots.
+ * Falls back gracefully if no calibration data is available.
+ *
+ * Props (passed via tileProps):
+ *   - section?: 'vision' | 'priorities' | 'kpis' | 'style' | 'auto'
+ *     If 'auto' (default), picks the most data-rich section to display.
+ */
+export function MissionSummaryTile({ section = 'auto' }) {
+    const { mission } = useMission();
+
+    const vision            = mission?.vision            || null;
+    const priorities        = Array.isArray(mission?.priorities) ? mission.priorities : [];
+    const kpis              = Array.isArray(mission?.kpis)       ? mission.kpis       : [];
+    const orchestrationStyle = mission?.orchestrationStyle       || null;
+
+    // Auto-pick: show the most informative section
+    let displaySection = section;
+    if (section === 'auto') {
+        if (vision)                  displaySection = 'vision';
+        else if (priorities.length)  displaySection = 'priorities';
+        else if (kpis.length)        displaySection = 'kpis';
+        else if (orchestrationStyle) displaySection = 'style';
+        else                         displaySection = 'empty';
+    }
+
+    // ── Empty state ────────────────────────────────────────────────────────────
+    if (displaySection === 'empty' || !mission) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center opacity-30 p-4 text-center">
+                <div className="w-6 h-6 rounded-full border border-white/10 mb-2" />
+                <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">
+                    — non calibrato —
+                </p>
+            </div>
+        );
+    }
+
+    // ── Vision section ─────────────────────────────────────────────────────────
+    if (displaySection === 'vision') {
+        return (
+            <div className="flex flex-col gap-2 p-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                    <Target className="w-3 h-3 text-indigo-400" />
+                    <span className="text-[9px] font-mono text-indigo-400/70 uppercase tracking-widest">
+                        North Star
+                    </span>
+                </div>
+                <p className="text-xs text-white/70 leading-relaxed font-mono line-clamp-4">
+                    {vision}
+                </p>
+            </div>
+        );
+    }
+
+    // ── Priorities section ─────────────────────────────────────────────────────
+    if (displaySection === 'priorities') {
+        return (
+            <div className="flex flex-col gap-2 p-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                    <Zap className="w-3 h-3 text-amber-400" />
+                    <span className="text-[9px] font-mono text-amber-400/70 uppercase tracking-widest">
+                        Priorità
+                    </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                    {priorities.slice(0, 4).map((p, i) => (
+                        <div key={i} className="flex items-start gap-1.5">
+                            <span className="text-[9px] font-mono text-amber-500/50 mt-0.5 flex-shrink-0">
+                                {String(i + 1).padStart(2, '0')}
+                            </span>
+                            <span className="text-[10px] text-white/60 font-mono leading-tight line-clamp-2">
+                                {p}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    // ── KPIs section ──────────────────────────────────────────────────────────
+    if (displaySection === 'kpis') {
+        return (
+            <div className="flex flex-col gap-2 p-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                    <BarChart3 className="w-3 h-3 text-emerald-400" />
+                    <span className="text-[9px] font-mono text-emerald-400/70 uppercase tracking-widest">
+                        KPI
+                    </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                    {kpis.slice(0, 4).map((k, i) => (
+                        <div key={i} className="flex items-start gap-1.5">
+                            <div className="w-1 h-1 rounded-full bg-emerald-500/50 mt-1.5 flex-shrink-0" />
+                            <span className="text-[10px] text-white/60 font-mono leading-tight line-clamp-2">
+                                {k}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    // ── Orchestration style section ────────────────────────────────────────────
+    if (displaySection === 'style') {
+        const styleColors = {
+            'Iper-Proattivo': 'text-red-400 border-red-500/20 bg-red-500/5',
+            'Standard':       'text-indigo-400 border-indigo-500/20 bg-indigo-500/5',
+            'Delegatore':     'text-blue-400 border-blue-500/20 bg-blue-500/5',
+            'Reattivo':       'text-zinc-400 border-zinc-500/20 bg-zinc-500/5',
+        };
+        const colorClass = styleColors[orchestrationStyle] || styleColors['Standard'];
+        return (
+            <div className="flex flex-col gap-2 p-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                    <Layers className="w-3 h-3 text-white/40" />
+                    <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">
+                        Stile
+                    </span>
+                </div>
+                <span className={`inline-flex self-start px-2 py-0.5 rounded-lg border text-[10px] font-mono font-semibold ${colorClass}`}>
+                    {orchestrationStyle}
+                </span>
+            </div>
+        );
+    }
+
+    return null;
+}
