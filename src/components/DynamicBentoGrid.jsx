@@ -1,7 +1,6 @@
 import React from 'react';
 import { Zap, BarChart3 } from 'lucide-react';
 import { useMission } from '../context/MissionContext';
-import { ShadowCosSphere } from './ui/ShadowCosSphere';
 import { OnboardingTaskTile } from './tiles/OnboardingTaskTile';
 import { TileCompass } from './tiles/TileCompass';
 import { TilePulse } from './tiles/TilePulse';
@@ -166,11 +165,6 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
             className="csuite-grid w-full"
             style={{ height: 'calc(100vh - 80px)' }}
         >
-            {/* ── SPHERE — occupies real grid slot B2→C3, never overlaps ── */}
-            <div className="xmatrix-sphere-zone">
-                <ShadowCosSphere isSpeaking={isSpeaking} />
-            </div>
-
             {/* ── TILES — each placed in its CSS grid slot by cssClass ─── */}
             {gridDescriptors.map(({ component, slot, cssClass, renderMode, extras }) => {
                 // Merge governance metadata into tileProps so each tile can
