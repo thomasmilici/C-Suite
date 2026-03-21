@@ -53,7 +53,7 @@ const TILE_REGISTRY = {
 };
 
 // ── SHARED CARD STYLE ──────────────────────────────────────────────────────────
-const cardClass = "bg-[#161b2b] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),_0_8px_20px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col w-full h-full";
+const cardClass = "bg-[#110f1c]/70 backdrop-blur-3xl border border-white/[0.08] border-t-white/[0.15] shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),_0_10px_40px_rgba(0,0,0,0.6)] rounded-[32px] overflow-hidden flex flex-col w-full h-full relative transition-all duration-300 group";
 
 // ── TILE WRAPPER ───────────────────────────────────────────────────────────────
 // Renders a single tile inside its glass card shell.
