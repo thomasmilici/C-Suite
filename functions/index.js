@@ -2112,17 +2112,27 @@ exports.startMissionOnboarding = onCall({
     const systemInstructionText = [
         "Sei il Copilota Strategico AI di un Chief of Staff.",
         "Il tuo compito e' condurre una brevissima intervista di ESATTAMENTE 3 domande per capire:",
-        "1. La VISIONE strategica per quest'anno.",
-        "2. Le PRIORITA' assolute (2-3 max).",
-        "3. Lo STILE di orchestrazione preferito (es. proattivo/reattivo, delegatore/centralizzatore).",
+        "1. La VISIONE strategica per quest'anno (North Star).",
+        "2. Le PRIORITA' assolute operative (2-4 elementi, testo breve per ciascuna).",
+        "3. Lo STILE di orchestrazione preferito: rispondi SEMPRE con uno di questi valori esatti:",
+        "   'Iper-Proattivo' | 'Standard' | 'Delegatore' | 'Reattivo'.",
         "",
         "REGOLE FERREE:",
         "- Fai UNA sola domanda alla volta. Tono diretto, professionale, empatico.",
         "- Quando l'utente ha risposto a 3 domande (messages contiene 3 o piu' turni utente), NON fare altre domande.",
-        "- Invece, rispondi SOLO con un JSON valido in questo formato, senza altro testo:",
-        `{\"done\": true, \"masterPrompt\": \"Sintesi densa del mandato, priorita' e stile.\", \"layoutPreferences\": [...]  }`,
+        "- Invece, rispondi SOLO con un JSON valido nel seguente formato, senza altro testo o markdown:",
+        "{",
+        "  \"done\": true,",
+        "  \"masterPrompt\": \"Sintesi densa del mandato, priorita' e stile (2-3 frasi).\",",
+        "  \"vision\": \"Frase sintetica della North Star dell'utente.\",",
+        "  \"priorities\": [\"Priorita' 1\", \"Priorita' 2\", \"Priorita' 3\"],",
+        "  \"kpis\": [\"KPI o metrica 1\", \"KPI o metrica 2\"],",
+        "  \"orchestrationStyle\": \"Iper-Proattivo | Standard | Delegatore | Reattivo\",",
+        `  \"layoutPreferences\": [\"TileA\", \"TileB\", ...]`,
+        "}",
         `I tile disponibili sono: ${AVAILABLE_TILES.join(", ")}.`,
         "Ordina layoutPreferences in base all'urgenza e priorita' emerse dall'intervista (max 8 tile).",
+        "Estrai priorities e kpis direttamente dalle risposte dell'utente, non inventare.",
         "- Se l'utente non ha ancora risposto a 3 domande, fai la prossima domanda come testo semplice."
     ].join("\n");
 
@@ -2200,8 +2210,13 @@ exports.startMissionOnboarding = onCall({
                     logger.info("[startMissionOnboarding] Interview complete. Returning data to client.");
                     return {
                         done: true,
-                        masterPrompt: parsed.masterPrompt,
-                        layoutPreferences: parsed.layoutPreferences,
+                        masterPrompt:        parsed.masterPrompt,
+                        layoutPreferences:   parsed.layoutPreferences,
+                        // X-Matrix calibration fields
+                        vision:              parsed.vision              || null,
+                        priorities:          Array.isArray(parsed.priorities)   ? parsed.priorities   : [],
+                        kpis:                Array.isArray(parsed.kpis)         ? parsed.kpis         : [],
+                        orchestrationStyle:  parsed.orchestrationStyle || "Standard",
                     };
                 }
             } catch (_parseErr) {
@@ -2252,7 +2267,16 @@ exports.forceMissionSetup = onCall({
         );
     }
 
-    const { masterPrompt, layoutPreferences, missionName = "Missione Principale" } = data || {};
+    const {
+        masterPrompt,
+        layoutPreferences,
+        missionName       = "Missione Principale",
+        // X-Matrix calibration fields (optional but expected after onboarding v2)
+        vision            = null,
+        priorities        = [],
+        kpis              = [],
+        orchestrationStyle = "Standard",
+    } = data || {};
 
     if (!masterPrompt || !Array.isArray(layoutPreferences) || layoutPreferences.length === 0) {
         throw new HttpsError(
@@ -2290,6 +2314,13 @@ exports.forceMissionSetup = onCall({
         layoutPreferences,
         status: "active",
         isSetupComplete: true,
+        // ── X-Matrix calibration fields ────────────────────────────────────
+        // These feed mapStrategyToGrid() → DynamicBentoGrid layout engine.
+        vision,
+        priorities:         Array.isArray(priorities)  ? priorities  : [],
+        kpis:               Array.isArray(kpis)        ? kpis        : [],
+        orchestrationStyle: orchestrationStyle || "Standard",
+        // ───────────────────────────────────────────────────────────────────
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         createdBy: uid,
         onboardingCompletedAt: admin.firestore.FieldValue.serverTimestamp(),

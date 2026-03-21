@@ -42,9 +42,17 @@ export function OnboardingModal({ onClose }) {
             const data = result.data;
 
             if (data.done) {
-                // Interview complete: the AI returned masterPrompt + layoutPreferences.
+                // Interview complete: the AI returned masterPrompt + layoutPreferences
+                // plus the X-Matrix calibration fields (vision, priorities, kpis, orchestrationStyle).
                 // Hand off to Step 2 to atomically create the mission in Firestore.
-                await commitMission(data.masterPrompt, data.layoutPreferences);
+                await commitMission(
+                    data.masterPrompt,
+                    data.layoutPreferences,
+                    data.vision             || null,
+                    data.priorities         || [],
+                    data.kpis               || [],
+                    data.orchestrationStyle || 'Standard',
+                );
             } else if (data.question) {
                 setMessages(prev => [...prev, { role: 'ai', text: data.question }]);
                 setQuestionNum(prev => prev + 1);
@@ -61,24 +69,42 @@ export function OnboardingModal({ onClose }) {
 
     // ── Step 2: Commit the mission to Firestore via forceMissionSetup ──────────
     // This runs atomically: archives any existing active missions, creates the new one.
-    async function commitMission(masterPrompt, layoutPreferences) {
+    // Now also persists the X-Matrix calibration fields so mapStrategyToGrid() can
+    // immediately build a data-driven layout on next render.
+    async function commitMission(
+        masterPrompt,
+        layoutPreferences,
+        vision,
+        priorities,
+        kpis,
+        orchestrationStyle,
+    ) {
         setCommitting(true);
         setMessages(prev => [...prev, {
             role: 'ai',
             text: '⚙️ Mandato calibrato. Sto configurando la tua missione...',
         }]);
         try {
-            const result = await forceMissionSetup({ masterPrompt, layoutPreferences });
+            const result = await forceMissionSetup({
+                masterPrompt,
+                layoutPreferences,
+                // X-Matrix calibration fields
+                vision,
+                priorities,
+                kpis,
+                orchestrationStyle,
+            });
             const { missionId } = result.data;
 
             // Switch MissionContext to the newly created mission.
-            // The snapshot listener in MissionContext will pick up the new doc automatically.
+            // The onSnapshot listener in MissionContext picks up the new doc automatically
+            // (<1s) and triggers a re-render of DynamicBentoGrid with real tile data.
             setActiveMissionId(missionId);
 
             setDone(true);
             setMessages(prev => [...prev, {
                 role: 'ai',
-                text: '✅ Mandato strategico calibrato. Il tuo Copilota AI è ora pronto.',
+                text: '✅ Mandato strategico calibrato. Il tuo layout si aggiorna ora.',
             }]);
         } catch (err) {
             const msg = err?.code === 'functions/permission-denied'
