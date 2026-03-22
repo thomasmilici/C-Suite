@@ -202,6 +202,12 @@ service cloud.firestore {
       allow write: if isCOSOrAdmin();
     }
 
+    // ── Hoshin Matrix ─────────────────────────────────────────────────────────
+    match /hoshinMatrix/{matrixId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isCOSOrAdmin();
+    }
+
     // ── Mission subcollections (intelligence_archives under a mission) ────────
     match /missions/{missionId}/{subcollection}/{docId} {
       allow read: if isCOSOrAdmin();

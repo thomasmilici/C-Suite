@@ -26,8 +26,15 @@ export function MissionSummaryTile({ section = 'auto' }) {
 
     const { matrixData } = useHoshinMatrix(mission?.id);
     let daysToReview = null;
-    if (matrixData?.updatedAt) {
-        const updatedDate = matrixData.updatedAt.toDate ? matrixData.updatedAt.toDate() : new Date(matrixData.updatedAt);
+    
+    // Fallback to createdAt or exactly now if both are pending writes
+    const rawDate = matrixData?.updatedAt || matrixData?.createdAt;
+    
+    if (matrixData && rawDate !== undefined) {
+        const updatedDate = rawDate && rawDate.toDate 
+            ? rawDate.toDate() 
+            : rawDate ? new Date(rawDate) : new Date();
+            
         const nextReviewDate = new Date(updatedDate);
         nextReviewDate.setDate(nextReviewDate.getDate() + 30);
         const today = new Date();
