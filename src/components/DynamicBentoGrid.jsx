@@ -118,6 +118,7 @@ function TileWrapper({ tileKey, tileProps, innerClass = "p-4" }) {
 export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSignal, onOpenOKR }) {
     const { mission, isSetupComplete } = useMission();
 
+    const gridRef = useRef(null);
     const [activeStrategyNode, setActiveStrategyNode] = useState(null);
     const tileProps = { user, isAdmin, onOpenSignal, onOpenOKR, activeStrategyNode, setActiveStrategyNode };
 
