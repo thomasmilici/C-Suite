@@ -182,29 +182,29 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
     // isSetupComplete === false → show the calibration CTA instead of the grid
     if (!isSetupComplete) {
         return (
-            <div className="w-full h-[calc(100vh-80px)] csuite-grid opacity-50 pointer-events-none">
+            <div className="w-full h-[calc(100vh-80px)] csuite-grid bg-black/50">
                 {/* TL placeholder */}
-                <div className={`${cardClass} items-center justify-center opacity-20`}>
+                <div className={`${cardClass} items-center justify-center opacity-20 pointer-events-none`}>
                     <div className="w-8 h-8 rounded-full border border-white/10" />
                 </div>
 
                 {/* Center — Onboarding CTA (spans 2 rows) */}
-                <div className="row-span-2 col-start-2 row-start-1">
+                <div className="row-span-2 col-start-2 row-start-1 relative z-50">
                     <OnboardingTaskTile missionName={mission?.name} />
                 </div>
 
                 {/* TR placeholder */}
-                <div className={`${cardClass} items-center justify-center opacity-20`}>
+                <div className={`${cardClass} items-center justify-center opacity-20 pointer-events-none`}>
                     <div className="w-8 h-8 rounded-full border border-white/10" />
                 </div>
 
                 {/* BL placeholder */}
-                <div className={`${cardClass} items-center justify-center opacity-20`}>
+                <div className={`${cardClass} items-center justify-center opacity-20 pointer-events-none`}>
                     <div className="w-8 h-8 rounded-full border border-white/10" />
                 </div>
 
                 {/* BR placeholder */}
-                <div className={`${cardClass} items-center justify-center opacity-20`}>
+                <div className={`${cardClass} items-center justify-center opacity-20 pointer-events-none`}>
                     <div className="w-8 h-8 rounded-full border border-white/10" />
                 </div>
             </div>
