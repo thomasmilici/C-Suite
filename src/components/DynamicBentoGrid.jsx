@@ -243,7 +243,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
                   {/* ── TILE NORD (indaco) ── */}
                   <div style={{
-                    gridColumn: '1/2', gridRow: '1/2',
+                    gridColumn: '1/3', gridRow: '1/2',
                     background: 'rgba(99,102,241,0.09)',
                     border: '1px solid rgba(99,102,241,0.20)',
                     borderRadius: '16px',
