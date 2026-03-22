@@ -101,7 +101,7 @@ const SignalRow = ({ signal }) => {
 };
 
 // --- Main tile ---
-export const TileRadar = ({ isAdmin, onOpenModal, eventId }) => {
+export const TileRadar = ({ isAdmin, onOpenModal, eventId, extras }) => {
     const { activeMissionId } = React.useContext(MissionContext);
     const [signals, setSignals] = useState([]);
 
@@ -136,6 +136,13 @@ export const TileRadar = ({ isAdmin, onOpenModal, eventId }) => {
                     <RadarIcon className="w-3.5 h-3.5 text-emerald-400" /> Risk Radar
                 </h3>
                 <div className="flex items-center gap-3">
+                    {extras?.accountability?.[0] && (
+                        <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-full border border-white/10" title="Accountability Owner">
+                            <div className="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[9px] font-bold border border-indigo-500/50">
+                                {extras.accountability[0].ownerName ? extras.accountability[0].ownerName.charAt(0).toUpperCase() : '?'}
+                            </div>
+                        </div>
+                    )}
                     {hasSignals && (
                         <span className="text-[10px] font-mono" style={{ color: threatColor }}>
                             ● {maxVal >= 70 ? 'CRITICO' : maxVal >= 40 ? 'ATTENZIONE' : 'STABILE'}

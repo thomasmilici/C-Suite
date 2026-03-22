@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Zap, BarChart3 } from 'lucide-react';
 import { useMission } from '../context/MissionContext';
 import { OnboardingTaskTile } from './tiles/OnboardingTaskTile';
@@ -118,8 +118,65 @@ function TileWrapper({ tileKey, tileProps, innerClass = "p-4" }) {
 export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSignal, onOpenOKR }) {
     const { mission, isSetupComplete } = useMission();
 
-    // tileProps passed to every tile — operational context, not layout
     const tileProps = { user, isAdmin, onOpenSignal, onOpenOKR };
+
+    // ── HOSHIN KANRI CORRELATION LINES (FASE 4) ───────────────────────────────
+    const gridRef = useRef(null);
+    const [svgLines, setSvgLines] = useState([]);
+
+    useEffect(() => {
+        if (!isSetupComplete || !gridRef.current) return;
+        
+        const updateLines = () => {
+            const container = gridRef.current;
+            const rect = container.getBoundingClientRect();
+            const newLines = [];
+
+            const getCenter = (cssClass) => {
+                const el = container.querySelector(`.${cssClass}`);
+                if (!el) return null;
+                const r = el.getBoundingClientRect();
+                return {
+                    x: r.left - rect.left + r.width / 2,
+                    y: r.top - rect.top + r.height / 2,
+                    left: r.left - rect.left,
+                    right: r.right - rect.left,
+                    top: r.top - rect.top,
+                    bottom: r.bottom - rect.top
+                };
+            };
+
+            const drawLine = (start, end, color) => {
+                if (!start || !end) return;
+                // Curva Bezier orizzontale morbida per simulare circuiti X-Matrix
+                const midX = start.x + (end.x - start.x) / 2;
+                const path = `M ${start.x} ${start.y} C ${midX} ${start.y}, ${midX} ${end.y}, ${end.x} ${end.y}`;
+                newLines.push({ path, endX: end.x, endY: end.y, startX: start.x, startY: start.y, color });
+            };
+
+            // Dati Nord (Priorità B1) ai layer West (Obj A1) ed Est (KPI D1)
+            const nord = getCenter('xmatrix-slot-B1');
+            const ovest1 = getCenter('xmatrix-slot-A1');
+            const est1 = getCenter('xmatrix-slot-D1');
+            
+            if (nord && ovest1) drawLine({ x: nord.left + 50, y: nord.y }, { x: ovest1.right - 10, y: ovest1.y }, 'rgba(99, 102, 241, 0.35)');
+            if (nord && est1) drawLine({ x: nord.right - 50, y: nord.y }, { x: est1.left + 10, y: est1.y }, 'rgba(236, 72, 153, 0.35)');
+
+            // Dati Sud (Goals B4) ai layer West (Obj A4) ed Est (KPI D4)
+            const sud = getCenter('xmatrix-slot-B4');
+            const ovest4 = getCenter('xmatrix-slot-A4');
+            const est4 = getCenter('xmatrix-slot-D4');
+
+            if (sud && ovest4) drawLine({ x: sud.left + 50, y: sud.y }, { x: ovest4.right - 10, y: ovest4.y }, 'rgba(52, 211, 153, 0.35)');
+            if (sud && est4) drawLine({ x: sud.right - 50, y: sud.y }, { x: est4.left + 10, y: est4.y }, 'rgba(250, 204, 21, 0.35)');
+
+            setSvgLines(newLines);
+        };
+
+        const t = setTimeout(updateLines, 400); // Wait for grid reflow
+        window.addEventListener('resize', updateLines);
+        return () => { clearTimeout(t); window.removeEventListener('resize', updateLines); };
+    }, [isSetupComplete, mission]);
 
     // ── ONBOARDING STATE ───────────────────────────────────────────────────────
     // isSetupComplete === false → show the calibration CTA instead of the grid
@@ -161,7 +218,18 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
     const gridDescriptors = mapStrategyToGrid(mission);
 
     return (
-        <div className="csuite-grid w-full">
+        <div ref={gridRef} className="csuite-grid w-full relative">
+            {/* ── SVG LAYER (Background correlations) ─── */}
+            <svg className="absolute inset-0 pointer-events-none z-0 w-full h-full">
+                {svgLines.map((line, i) => (
+                    <g key={i}>
+                        <path d={line.path} fill="none" stroke={line.color} strokeWidth="1.5" strokeDasharray="4 4" className="animate-pulse" />
+                        <circle cx={line.startX} cy={line.startY} r="3" fill={line.color} />
+                        <circle cx={line.endX} cy={line.endY} r="3" fill={line.color} className="animate-pulse" />
+                    </g>
+                ))}
+            </svg>
+
             {/* ── TILES — each placed in its CSS grid slot by cssClass ─── */}
             {gridDescriptors.map(({ component, slot, cssClass, renderMode, extras }) => {
                 // Merge governance metadata into tileProps so each tile can

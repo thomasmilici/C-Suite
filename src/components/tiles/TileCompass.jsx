@@ -51,7 +51,7 @@ const ProgressRing = ({ progress = 0, status = 'on-track', size = 36 }) => {
     );
 };
 
-export const TileCompass = ({ isAdmin, onOpenModal, eventId }) => {
+export const TileCompass = ({ isAdmin, onOpenModal, eventId, extras }) => {
     const { activeMissionId } = React.useContext(MissionContext);
     const [okrs, setOkrs] = useState([]);
 
@@ -85,6 +85,13 @@ export const TileCompass = ({ isAdmin, onOpenModal, eventId }) => {
                     <Compass className="w-3.5 h-3.5 text-indigo-400" /> Strategic Themes
                 </h3>
                 <div className="flex items-center gap-2">
+                    {extras?.accountability?.[0] && (
+                        <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-full border border-white/10" title="Accountability Owner">
+                            <div className="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[9px] font-bold border border-indigo-500/50">
+                                {extras.accountability[0].ownerName ? extras.accountability[0].ownerName.charAt(0).toUpperCase() : '?'}
+                            </div>
+                        </div>
+                    )}
                     {okrs.length > 0 && (
                         <span className="text-[10px] text-zinc-500 font-mono px-2 py-1 border border-white/5 bg-white/[0.03] rounded-lg">
                             Q1 2026 · Ø {avgProgress}%

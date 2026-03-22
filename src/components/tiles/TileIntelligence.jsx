@@ -562,7 +562,7 @@ export const ReportsArchiveModal = ({ onClose, adminName, onOpenReport }) => {
 };
 
 // ── MAIN TILE ────────────────────────────────────────────────────────────────
-export const TileIntelligence = ({ adminName, eventId }) => {
+export const TileIntelligence = ({ adminName, eventId, extras }) => {
     const { activeMissionId } = React.useContext(MissionContext);
     const [customTopic, setCustomTopic] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -719,6 +719,13 @@ export const TileIntelligence = ({ adminName, eventId }) => {
                         <Zap className="w-3.5 h-3.5 text-indigo-400" /> Intelligence Reports
                     </h3>
                     <div className="flex items-center gap-2">
+                        {extras?.accountability?.[0] && (
+                            <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-full border border-white/10" title="Accountability Owner">
+                                <div className="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[9px] font-bold border border-indigo-500/50">
+                                    {extras.accountability[0].ownerName ? extras.accountability[0].ownerName.charAt(0).toUpperCase() : '?'}
+                                </div>
+                            </div>
+                        )}
                         {isGenerating && (
                             <div className="flex items-center gap-1.5 text-[10px] font-mono text-indigo-400">
                                 <Loader2 className="w-3 h-3 animate-spin" />

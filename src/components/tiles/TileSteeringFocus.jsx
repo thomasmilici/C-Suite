@@ -3,7 +3,7 @@ import { useMission } from '../../context/MissionContext';
 import { updateMission } from '../../services/missionService';
 import { StatusPill } from '../ui/StatusPill';
 
-export function TileSteeringFocus() {
+export function TileSteeringFocus({ extras }) {
     const { mission, activeMissionId } = useMission();
     const [focuses, setFocuses] = useState(['', '', '']);
     const [isSaving, setIsSaving] = useState(false);
@@ -55,7 +55,16 @@ export function TileSteeringFocus() {
                     <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
                     <h3 className="text-sm font-semibold tracking-wide text-white">Daily Steering Focus</h3>
                 </div>
-                <StatusPill status={isSaving ? "Saving..." : "Active"} color={isSaving ? "amber" : "blue"} />
+                <div className="flex items-center gap-2">
+                    {extras?.accountability?.[0] && (
+                        <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-full border border-white/10" title="Accountability Owner">
+                            <div className="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[9px] font-bold border border-indigo-500/50">
+                                {extras.accountability[0].ownerName ? extras.accountability[0].ownerName.charAt(0).toUpperCase() : '?'}
+                            </div>
+                        </div>
+                    )}
+                    <StatusPill status={isSaving ? "Saving..." : "Active"} color={isSaving ? "amber" : "blue"} />
+                </div>
             </div>
 
             <div className="flex-1 flex flex-col gap-3">
