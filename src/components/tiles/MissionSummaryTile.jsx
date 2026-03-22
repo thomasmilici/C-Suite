@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, Zap, BarChart3, Layers } from 'lucide-react';
+import { Target, Zap, BarChart3, Layers, RefreshCcw } from 'lucide-react';
 import { useMission } from '../../context/MissionContext';
 
 /**
@@ -46,8 +46,10 @@ export function MissionSummaryTile({ section = 'auto' }) {
     }
 
     // ── Vision section ─────────────────────────────────────────────────────────
+    let content = null;
+
     if (displaySection === 'vision') {
-        return (
+        content = (
             <div className="flex flex-col gap-2 p-1">
                 <div className="flex items-center gap-1.5 mb-1">
                     <Target className="w-3 h-3 text-indigo-400" />
@@ -63,8 +65,8 @@ export function MissionSummaryTile({ section = 'auto' }) {
     }
 
     // ── Priorities section ─────────────────────────────────────────────────────
-    if (displaySection === 'priorities') {
-        return (
+    else if (displaySection === 'priorities') {
+        content = (
             <div className="flex flex-col gap-2 p-1">
                 <div className="flex items-center gap-1.5 mb-1">
                     <Zap className="w-3 h-3 text-amber-400" />
@@ -89,8 +91,8 @@ export function MissionSummaryTile({ section = 'auto' }) {
     }
 
     // ── KPIs section ──────────────────────────────────────────────────────────
-    if (displaySection === 'kpis') {
-        return (
+    else if (displaySection === 'kpis') {
+        content = (
             <div className="flex flex-col gap-2 p-1">
                 <div className="flex items-center gap-1.5 mb-1">
                     <BarChart3 className="w-3 h-3 text-emerald-400" />
@@ -113,7 +115,7 @@ export function MissionSummaryTile({ section = 'auto' }) {
     }
 
     // ── Orchestration style section ────────────────────────────────────────────
-    if (displaySection === 'style') {
+    else if (displaySection === 'style') {
         const styleColors = {
             'Iper-Proattivo': 'text-red-400 border-red-500/20 bg-red-500/5',
             'Standard':       'text-indigo-400 border-indigo-500/20 bg-indigo-500/5',
@@ -121,7 +123,7 @@ export function MissionSummaryTile({ section = 'auto' }) {
             'Reattivo':       'text-zinc-400 border-zinc-500/20 bg-zinc-500/5',
         };
         const colorClass = styleColors[orchestrationStyle] || styleColors['Standard'];
-        return (
+        content = (
             <div className="flex flex-col gap-2 p-1">
                 <div className="flex items-center gap-1.5 mb-1">
                     <Layers className="w-3 h-3 text-white/40" />
@@ -136,5 +138,27 @@ export function MissionSummaryTile({ section = 'auto' }) {
         );
     }
 
-    return null;
+    if (!content) return null;
+
+    return (
+        <div className="relative w-full h-full flex flex-col group/tile">
+            {content}
+            <button
+                onClick={async () => {
+                    if (mission?.id) {
+                        try {
+                            const { updateMission } = await import('../../services/missionService');
+                            await updateMission(mission.id, { isSetupComplete: false });
+                        } catch (err) {
+                            console.error('Failed to recalibrate:', err);
+                        }
+                    }
+                }}
+                className="absolute top-1 right-1 p-1.5 opacity-0 group-hover/tile:opacity-100 transition-opacity text-zinc-500 hover:text-cyan-400 hover:bg-cyan-950/50 rounded-md shadow-sm border border-transparent hover:border-cyan-800/30"
+                title="Ricalibra Mandato"
+            >
+                <RefreshCcw className="w-3 h-3" />
+            </button>
+        </div>
+    );
 }

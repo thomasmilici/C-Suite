@@ -161,10 +161,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
     const gridDescriptors = mapStrategyToGrid(mission);
 
     return (
-        <div
-            className="csuite-grid w-full"
-            style={{ height: 'calc(100vh - 80px)' }}
-        >
+        <div className="csuite-grid w-full">
             {/* ── TILES — each placed in its CSS grid slot by cssClass ─── */}
             {gridDescriptors.map(({ component, slot, cssClass, renderMode, extras }) => {
                 // Merge governance metadata into tileProps so each tile can

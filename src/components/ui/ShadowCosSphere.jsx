@@ -1,12 +1,21 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { CommandNeuralCore } from '../CommandNeuralCore/CommandNeuralCore';
+import { AiStateContext } from '../layout/AppShell';
+import { Mic } from 'lucide-react';
 
 /**
  * ShadowCosSphere — Sfera animata del Shadow CoS (PromptPal Aesthetic)
  * Wraps the CommandNeuralCore component to maintain existing proxy API
  * while injecting massive ambient neon glows that bleed into the surrounding layout.
  */
-export function ShadowCosSphere({ isSpeaking = false, isThinking = false, volume = 0 }) {
+export function ShadowCosSphere({ isSpeaking: propIsSpeaking, isThinking: propIsThinking, volume: propVolume }) {
+  const { isSpeaking: ctxSpeaking, isThinking: ctxThinking, volume: ctxVolume, isLiveActive, handleLiveToggle } = useContext(AiStateContext);
+  
+  // Condense props (allowing overrides if needed)
+  const isSpeaking = propIsSpeaking || ctxSpeaking;
+  const isThinking = propIsThinking || ctxThinking;
+  const volume = propVolume || ctxVolume;
+
   let state = "idle";
 
   if (isSpeaking) {
@@ -18,7 +27,19 @@ export function ShadowCosSphere({ isSpeaking = false, isThinking = false, volume
   }
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center pointer-events-none rounded-full overflow-visible">
+    <div 
+      onClick={handleLiveToggle}
+      className={`relative w-full h-full flex items-center justify-center rounded-full overflow-visible transition-transform duration-300 cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${isLiveActive ? 'scale-[1.05]' : ''}`}
+      title="Tocca per parlare con il CoS"
+    >
+      
+      {/* Mobile Hint (Visible only on touch devices / small screens) */}
+      {!isLiveActive && (
+        <div className="md:hidden absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-indigo-500/20 text-indigo-300 text-[10px] font-mono uppercase tracking-widest px-3 py-1.5 rounded-full border border-indigo-500/30 animate-pulse">
+            <Mic className="w-3 h-3" />
+            Tocca per Parlare
+        </div>
+      )}
       
       {/* L'Apertura Incastonata (The Deep Encastred Ring) */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] rounded-full border border-[rgba(6,182,212,0.15)] bg-[#030712] shadow-[inset_0_15px_40px_rgba(0,0,0,0.9),0_0_20px_rgba(6,182,212,0.05)] flex items-center justify-center pointer-events-none">

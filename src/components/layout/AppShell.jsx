@@ -26,6 +26,7 @@ export const AiStateContext = createContext({
     isLiveActive: false,
     isSpeaking: false,
     volume: 0,
+    handleLiveToggle: () => {},
 });
 
 // Legacy shim — kept so existing consumers don't break while migrating to MissionContext.jsx
@@ -143,7 +144,7 @@ export const AppShell = ({ children, user, isAdmin }) => {
 
     return (
         <MissionContext.Provider value={{ activeMissionId, setActiveMissionId }}>
-            <AiStateContext.Provider value={{ isThinking, isLiveActive, isSpeaking, volume }}>
+            <AiStateContext.Provider value={{ isThinking, isLiveActive, isSpeaking, volume, handleLiveToggle }}>
                 <div className="min-h-screen text-gray-200 font-sans selection:bg-zinc-800 relative">
                     <Toaster
                         position="bottom-right"
@@ -221,7 +222,7 @@ export const AppShell = ({ children, user, isAdmin }) => {
                     </div>
 
                     {/* Footer Credits + Ricalibra button */}
-                    <div className="fixed bottom-4 left-6 z-30 hidden md:flex items-center gap-3">
+                    <div className="fixed bottom-4 left-6 z-30 flex items-center gap-3">
                         <AppCredits />
                         <button
                             onClick={async () => {
