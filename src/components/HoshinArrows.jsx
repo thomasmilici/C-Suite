@@ -8,8 +8,8 @@ export function HoshinArrows({
 }) {
   const getStyle = (active, urgent, color, glowColor, pos) => ({
     position: 'absolute',
-    width: '32px',
-    height: '32px',
+    width: '44px',
+    height: '44px',
     cursor: 'default',
     opacity: active ? 1.0 : 0.15,
     filter: active 

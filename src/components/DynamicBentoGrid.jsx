@@ -234,8 +234,8 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
                   padding: '12px',
                   boxSizing: 'border-box',
                   display: 'grid',
-                  gridTemplateColumns: '1fr 140px 280px',
-                  gridTemplateRows: '220px 220px 180px',
+                  gridTemplateColumns: '1fr 260px 220px',
+                  gridTemplateRows: '200px 260px 200px',
                   gap: '12px',
                   overflow: 'hidden',
                   background: `
