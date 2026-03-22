@@ -656,6 +656,53 @@
     @apply mx-auto max-w-[1920px];
   }
 
+  /* ── HOSHIN KANRI PURE X-MATRIX GRID (9-ZONES) ────────────── */
+  .xmatrix-pure-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    min-height: calc(100vh - 80px);
+    background-color: #060a14;
+    padding: 16px;
+    position: relative;
+    @apply mx-auto max-w-[1920px];
+  }
+
+  @media (min-width: 1024px) {
+    .xmatrix-pure-grid {
+      display: grid;
+      /* Left (West: 1fr), Center (North/South: 1.5fr), Right (East: 1fr) */
+      grid-template-columns: 1fr 1.5fr 1fr;
+      /* Top (North: 1fr), Center (Cross: 1.5fr), Bottom (South: 1fr) */
+      grid-template-rows: 1fr 1.5fr 1fr;
+      padding: 24px;
+      height: 100%;
+      min-height: 0;
+    }
+    
+    /* Le 4 Aree Intersezione (NW, NE, SW, SE) */
+    .xmatrix-area-nw { grid-column: 1; grid-row: 1; min-height: 0; }
+    .xmatrix-area-ne { grid-column: 3; grid-row: 1; min-height: 0; }
+    .xmatrix-area-sw { grid-column: 1; grid-row: 3; min-height: 0; }
+    .xmatrix-area-se { grid-column: 3; grid-row: 3; min-height: 0; }
+
+    /* Gli Assi Principali (N, S, E, W) */
+    .xmatrix-axis-n { grid-column: 2; grid-row: 1; display: flex; flex-direction: row; gap: 12px; min-height: 0; min-width: 0; overflow-x: auto; } /* Top Priorities (Colonne) */
+    .xmatrix-axis-s { grid-column: 2; grid-row: 3; display: flex; flex-direction: row; gap: 12px; min-height: 0; min-width: 0; overflow-x: auto; } /* Long-Term Goals (Colonne) */
+    .xmatrix-axis-w { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; } /* Annual Obj (Righe) */
+    .xmatrix-axis-e { grid-column: 3; grid-row: 2; display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; } /* KPIs (Righe) */
+    
+    .xmatrix-axis-n > div, .xmatrix-axis-s > div, .xmatrix-axis-w > div, .xmatrix-axis-e > div {
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    /* Il Centro Vuoto (Croce) */
+    .xmatrix-center-empty { grid-column: 2; grid-row: 2; pointer-events: none; }
+  }
+
   /* Desktop layout */
   @media (min-width: 1024px) {
     .csuite-grid {

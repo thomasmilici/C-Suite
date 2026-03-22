@@ -5,7 +5,6 @@ import { DynamicBentoGrid } from '../components/DynamicBentoGrid';
 import { OKRManager } from '../components/modals/OKRManager';
 import { SignalInput } from '../components/modals/SignalInput';
 import { ReportsArchiveModal } from '../components/tiles/TileIntelligence';
-import { ShadowCosSphere } from '../components/ui/ShadowCosSphere';
 import { AiPendingActionTile } from '../components/AiPendingActionTile';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -47,12 +46,8 @@ export const Dashboard = ({ user }) => {
             <h1 className="text-2xl font-bold text-white tracking-tight">Shadow CoS</h1>
             <p className="text-sm text-cyan-400 mt-2 font-mono uppercase tracking-widest">In ascolto operativo</p>
          </div>
-         
-         {/* La Sfera interattiva grande */}
-         <div className="relative w-80 h-80 flex items-center justify-center z-10">
-            <ShadowCosSphere isSpeaking={isSpeaking} />
-         </div>
 
+         {/* Azioni in Sospeso (Human-in-the-Loop) */}
          <div className="w-full max-w-md mt-16 z-20">
             <AiPendingActionTile position="bottom" />
          </div>
@@ -68,10 +63,6 @@ export const Dashboard = ({ user }) => {
           onOpenSignal={() => setShowSignalModal(true)}
           onOpenOKR={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }}
         />
-        {/* Posizionamento assoluto della Sfera al centro della X-Matrix Grid */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto z-10 w-[380px] h-[380px] flex items-center justify-center">
-            <ShadowCosSphere isSpeaking={isSpeaking} />
-        </div>
       </div>
 
       {/* Portals */}
