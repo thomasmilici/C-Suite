@@ -2345,3 +2345,62 @@ exports.forceMissionSetup = onCall({
 
     return { missionId: newMissionRef.id };
 });
+
+// ── RESET DASHBOARD ────────────────────────────────────────────────────────
+// Called manually by COS/ADMIN to clear the dashboard (archive all active
+// signals, events, pending actions). Useful for demo/red teaming reset.
+exports.resetDashboard = onCall({
+    cors: true,
+    invoker: "public",
+}, async (request) => {
+    const { auth: callAuth } = request;
+
+    if (!callAuth) throw new HttpsError("unauthenticated", "Autenticazione richiesta.");
+
+    const uid = callAuth.uid;
+    const email = callAuth.token?.email || null;
+    const role = await getUserRole(uid);
+
+    if (!hasMinRole(role, "COS")) {
+        throw new HttpsError("permission-denied", "Permessi insufficienti (COS+ richiesto).");
+    }
+
+    const db = admin.firestore();
+    const batch = db.batch();
+    let count = 0;
+
+    // 1. Archive Signals
+    const signalsSnap = await db.collection("signals").where("status", "==", "active").get();
+    signalsSnap.docs.forEach(doc => {
+        batch.update(doc.ref, { status: "archived", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        count++;
+    });
+
+    // 2. Archive Events
+    const eventsSnap = await db.collection("events").where("status", "==", "active").get();
+    eventsSnap.docs.forEach(doc => {
+        batch.update(doc.ref, { status: "archived", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        count++;
+    });
+
+    // 3. Reject Pending AI Actions
+    const pendingSnap = await db.collection("pending_ai_actions").where("status", "==", "pending").get();
+    pendingSnap.docs.forEach(doc => {
+        batch.update(doc.ref, { status: "rejected", resolvedAt: admin.firestore.FieldValue.serverTimestamp() });
+        count++;
+    });
+
+    if (count > 0) {
+        await batch.commit();
+    }
+
+    await writeAuditLog({
+        uid, email, role,
+        action: "RESET_DASHBOARD",
+        result: "success",
+        diff: `Archived ${count} active items.`,
+    });
+
+    logger.info(`[resetDashboard] Dashboard reset by ${email}. Archived ${count} items.`);
+    return { success: true, archivedCount: count };
+});

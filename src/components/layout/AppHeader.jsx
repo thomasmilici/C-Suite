@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Shield, User, LogOut, ChevronDown, Settings, RefreshCcw } from 'lucide-react';
+import { Shield, User, LogOut, ChevronDown, Settings, RefreshCcw, Trash2 } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { useNavigate, Link } from 'react-router-dom';
 import { MissionContext } from './AppShell';
-import { subscribeMissions, updateMission } from '../../services/missionService';
+import { subscribeMissions, updateMission, resetDashboard } from '../../services/missionService';
 export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
     const navigate = useNavigate();
     const { activeMissionId, setActiveMissionId } = React.useContext(MissionContext);
@@ -141,6 +141,28 @@ export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
                                 >
                                     <RefreshCcw className="w-3.5 h-3.5" />
                                     Ricalibra Mandato
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        setShowUserMenu(false);
+                                        const confirmed = window.confirm("Sei sicuro di voler pulire la dashboard? Tutti gli eventi e segnali attivi verranno archiviati.");
+                                        if (confirmed) {
+                                            const toastId = toast.loading("Archiviazione dashboard in corso...");
+                                            try {
+                                                const res = await resetDashboard();
+                                                toast.success(`Dashboard ripulita! Archiviati ${res.archivedCount} elementi.`, { id: toastId });
+                                                // Optional: Also recalibrate mission (go back to step 0)
+                                                // await updateMission(activeMissionId, { isSetupComplete: false });
+                                            } catch (err) {
+                                                console.error(err);
+                                                toast.error('Impossibile resettare la dashboard: permessi insufficienti.', { id: toastId });
+                                            }
+                                        }
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 transition-colors"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Reset Dashboard
                                 </button>
                                 <div className="h-px bg-white/5 my-1" />
                                 <button

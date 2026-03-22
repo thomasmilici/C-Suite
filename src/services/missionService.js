@@ -1,5 +1,6 @@
 import { collection, getDocs, doc, setDoc, getDoc, updateDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../firebase';
 
 export async function getMissions() {
     const q = query(collection(db, 'missions'), orderBy('name'));
@@ -42,4 +43,10 @@ export async function updateMission(id, fields) {
         ...fields,
         updatedAt: new Date()
     });
+}
+
+export async function resetDashboard() {
+    const fn = httpsCallable(functions, 'resetDashboard');
+    const result = await fn();
+    return result.data;
 }
