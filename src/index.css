@@ -781,3 +781,20 @@
     overflow: visible;
   }
 }
+
+@keyframes hoshinPulse {
+  0%, 100% { opacity: 1.0; filter: drop-shadow(0 0 8px var(--glow)); }
+  50%       { opacity: 0.6; filter: drop-shadow(0 0 4px var(--glow)); }
+}
+
+@keyframes hoshinFlash {
+  0%, 100% { opacity: 1.0; }
+  50%       { opacity: 0.2; }
+}
+
+.arrow-pulse {
+  animation: hoshinPulse 2.5s ease-in-out infinite;
+}
+.arrow-flash {
+  animation: hoshinFlash 0.8s ease-in-out infinite;
+}

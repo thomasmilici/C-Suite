@@ -13,6 +13,7 @@ import { ProactiveAlerts } from './modules/Intelligence/ProactiveAlerts';
 import { BriefingRoom } from './modules/Briefing/BriefingRoom';
 import { MissionSummaryTile } from './tiles/MissionSummaryTile';
 import { mapStrategyToGrid } from '../utils/mapStrategyToGrid';
+import { HoshinArrows } from './HoshinArrows';
 
 // ── TILE REGISTRY ──────────────────────────────────────────────────────────────
 // Maps component keys (from mapStrategyToGrid) → React components.
@@ -122,6 +123,85 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
     const k1 = kpis[0] || '-40% Time-to-Decision';
     const k2 = kpis[1] || '95% Accuracy';
 
+    // ── HOSHIN ARROWS STATE LOGIC ──
+    const nordTileRef = useRef(null);
+    const estTileRef = useRef(null);
+    const ovestTileRef = useRef(null);
+    const sudTileRef = useRef(null);
+
+    const today = new Date().toDateString();
+
+    const nordEmpty = priorities.length === 0 || priorities.every(p => !p || p.trim() === '');
+    const nordActive = nordEmpty;
+    const isPast10AM = new Date().getHours() >= 10;
+    const nordUrgent = isPast10AM && nordEmpty;
+
+    const signals = mission?.signals || [];
+    const hasHighSeveritySignal = signals.some(s => s.severity === 'high' || s.severity === 'critical');
+    const hasRisk = signals.length > 0;
+    const metrics = mission?.metrics || [];
+    const hasMetTarget = metrics.some(m => m.current >= m.target);
+    const estActive = hasRisk || hasMetTarget;
+    const estUrgent = hasHighSeveritySignal;
+
+    const decisions = mission?.decisions || [];
+    const hasDecisionToday = decisions.some(d => new Date(d.createdAt?.toDate ? d.createdAt.toDate() : d.createdAt).toDateString() === today);
+    const okrs = mission?.okrs || [];
+    const hasSoonOkr = okrs.some(o => {
+      if (!o.dueDate) return false;
+      const days = (new Date(o.dueDate?.toDate ? o.dueDate.toDate() : o.dueDate) - new Date()) / (1000 * 60 * 60 * 24);
+      return days >= 0 && days <= 7;
+    });
+    const ovestActive = !hasDecisionToday || hasSoonOkr;
+    const ovestUrgent = false;
+
+    const reports = mission?.intelligenceReports || [];
+    const hasRecentReport = reports.some(r => {
+      if (!r.createdAt) return false;
+      const hours = (new Date() - new Date(r.createdAt?.toDate ? r.createdAt.toDate() : r.createdAt)) / (1000 * 60 * 60);
+      return hours <= 24;
+    });
+    const pulseUpdates = mission?.pulseUpdates || [];
+    const hasPulseToday = pulseUpdates.some(p => new Date(p.timestamp?.toDate ? p.timestamp.toDate() : p.timestamp).toDateString() === today);
+    const sudActive = hasRecentReport || hasPulseToday;
+    const sudUrgent = false;
+
+    useEffect(() => {
+        if (nordTileRef.current) {
+          nordTileRef.current.style.borderColor = nordActive ? 'rgba(99,102,241,0.45)' : 'rgba(99,102,241,0.20)';
+          nordTileRef.current.style.boxShadow = nordActive 
+            ? '0 4px 32px rgba(0,0,0,0.35), 0 0 24px rgba(99,102,241,0.12) inset, 0 0 1px rgba(99,102,241,0.5)' 
+            : '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)';
+        }
+    }, [nordActive]);
+
+    useEffect(() => {
+        if (estTileRef.current) {
+          estTileRef.current.style.borderColor = estActive ? 'rgba(249,115,22,0.45)' : 'rgba(249,115,22,0.18)';
+          estTileRef.current.style.boxShadow = estActive 
+            ? '0 4px 32px rgba(0,0,0,0.35), 0 0 24px rgba(249,115,22,0.12) inset, 0 0 1px rgba(249,115,22,0.5)' 
+            : '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)';
+        }
+    }, [estActive]);
+
+    useEffect(() => {
+        if (ovestTileRef.current) {
+          ovestTileRef.current.style.borderColor = ovestActive ? 'rgba(234,179,8,0.45)' : 'rgba(234,179,8,0.18)';
+          ovestTileRef.current.style.boxShadow = ovestActive 
+            ? '0 4px 32px rgba(0,0,0,0.35), 0 0 24px rgba(234,179,8,0.12) inset, 0 0 1px rgba(234,179,8,0.5)' 
+            : '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)';
+        }
+    }, [ovestActive]);
+
+    useEffect(() => {
+        if (sudTileRef.current) {
+          sudTileRef.current.style.borderColor = sudActive ? 'rgba(34,197,94,0.45)' : 'rgba(34,197,94,0.18)';
+          sudTileRef.current.style.boxShadow = sudActive 
+            ? '0 4px 32px rgba(0,0,0,0.35), 0 0 24px rgba(34,197,94,0.12) inset, 0 0 1px rgba(34,197,94,0.5)' 
+            : '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)';
+        }
+    }, [sudActive]);
+
     return (
         <div className="flex flex-col w-full h-full">
             {/* STEP 4: BANDA HOSHIN SOTTO LA NAVBAR */}
@@ -147,187 +227,140 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
                 </div>
             </div>
 
-            {/* ── Sfondo globale ── */}
-            <div style={{
-              minHeight: 'calc(100vh - 88px)',
-              padding: '12px',
-              boxSizing: 'border-box',
-              background: `
-                radial-gradient(ellipse at 50% 0%,   rgba(99,102,241,0.09) 0%, transparent 50%),
-                radial-gradient(ellipse at 0%  50%,  rgba(234,179,8,0.06)  0%, transparent 45%),
-                radial-gradient(ellipse at 100% 50%, rgba(249,115,22,0.06) 0%, transparent 45%),
-                radial-gradient(ellipse at 50% 100%, rgba(34,197,94,0.07)  0%, transparent 50%)
-              `,
-            }}>
-
-              {/* IL QUADRATO GRANDE — container principale */}
-              <div style={{
-                position: 'relative',
-                width: '100%',
-                aspectRatio: '1 / 1',
-                maxHeight: 'calc(100vh - 110px)',
-                maxWidth: 'calc(100vh - 110px)',
-                margin: '0 auto',
-                borderRadius: '24px',
-                border: '1px solid rgba(255,255,255,0.07)',
-                overflow: 'hidden',
-                boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
-              }}>
-
-                {/* ── GRIGLIA 2x2 DEI WIDGET ── */}
+            {/* ── BENTO GRID ASIMMETRICA ── */}
+            <div className="w-full relative custom-scrollbar overflow-x-hidden md:overflow-x-auto overflow-y-auto">
                 <div style={{
-                  position: 'absolute',
-                  inset: 0,
+                  minWidth: '1000px',
+                  minHeight: 'calc(100vh - 88px)',
+                  padding: '12px',
+                  boxSizing: 'border-box',
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gridTemplateRows: '1fr 1fr',
-                  gap: '2px',
-                  zIndex: 1,
+                  gridTemplateColumns: 'minmax(300px, 1fr) 180px minmax(300px, 1fr)',
+                  gridTemplateRows: '1fr 1fr 240px',
+                  gap: '12px',
+                  background: `
+                    radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.07) 0%, transparent 50%),
+                    radial-gradient(ellipse at 85% 40%, rgba(249,115,22,0.06) 0%, transparent 50%),
+                    radial-gradient(ellipse at 15% 70%, rgba(234,179,8,0.05) 0%, transparent 45%),
+                    radial-gradient(ellipse at 55% 95%, rgba(34,197,94,0.06) 0%, transparent 45%)
+                  `,
                 }}>
 
-                  {/* QUADRANTE NORD-OVEST → asse NORD */}
+                  {/* ── TILE NORD (indaco) ── */}
                   <div style={{
+                    gridColumn: '1/2', gridRow: '1/2',
                     background: 'rgba(99,102,241,0.09)',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    borderRight: '1px solid rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(99,102,241,0.20)',
+                    borderRadius: '16px',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    boxShadow: '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    padding: '16px',
-                    gap: '8px',
-                  }}>
-                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(99,102,241,0.10)', borderTop: '2px solid rgba(99,102,241,0.5)', borderRadius: '12px', border: '1px solid rgba(99,102,241,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                    transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
+                  }} ref={nordTileRef}>
+                    <div className="flex-1 overflow-auto thick-scrollbar">
                       <TileWrapper tileKey="TileSteeringFocus" tileProps={{ ...tileProps, extras: { label: p1, type: 'priority_nw' } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
-                    </div>
-                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(99,102,241,0.07)', borderTop: '2px solid rgba(99,102,241,0.35)', borderRadius: '12px', border: '1px solid rgba(99,102,241,0.14)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
-                      <TileWrapper tileKey="AiPendingActionTop" tileProps={{ ...tileProps, extras: { label: p2, type: 'priority_ne', isIperProattivo: mission?.orchestrationStyle === 'Iper-Proattivo', priorities } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
+                      <TileWrapper tileKey="AiPendingActionTop" tileProps={{ ...tileProps, extras: { label: p2, type: 'priority_ne', isIperProattivo: mission?.orchestrationStyle === 'Iper-Proattivo', priorities } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', borderTop: '1px solid rgba(255,255,255,0.05)' }} />
                     </div>
                   </div>
 
-                  {/* QUADRANTE NORD-EST → asse EST */}
+                  {/* ── TILE EST (arancione) ── */}
                   <div style={{
-                    background: 'rgba(249,115,22,0.07)',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    borderLeft: '1px solid rgba(255,255,255,0.04)',
+                    gridColumn: '3/4', gridRow: '1/3',
+                    background: 'rgba(249,115,22,0.08)',
+                    border: '1px solid rgba(249,115,22,0.18)',
+                    borderRadius: '16px',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    boxShadow: '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    padding: '16px',
-                    gap: '8px',
-                  }}>
-                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(249,115,22,0.10)', borderTop: '2px solid rgba(249,115,22,0.5)', borderRadius: '12px', border: '1px solid rgba(249,115,22,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                    gap: '10px',
+                    padding: '10px',
+                    transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
+                  }} ref={estTileRef}>
+                    <div className="flex-1 w-full min-h-[0] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)]">
                       <TileWrapper tileKey="MissionSummaryTile" tileProps={{ ...tileProps, extras: { label: k1, type: 'kpi' } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
-                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(249,115,22,0.07)', borderTop: '2px solid rgba(249,115,22,0.35)', borderRadius: '12px', border: '1px solid rgba(249,115,22,0.14)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
-                      <TileWrapper tileKey="TileRadar" tileProps={{ ...tileProps, extras: { label: k2, type: 'kpi' } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
+                    <div className="flex-1 w-full min-h-[0] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)]">
+                      <TileWrapper tileKey="TileCompass" tileProps={{ ...tileProps, extras: { label: k2, type: 'kpi' } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
+                    </div>
+                    <div className="flex-1 w-full min-h-[0] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)]">
+                      <TileWrapper tileKey="TileRadar" tileProps={{ ...tileProps }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
                   </div>
 
-                  {/* QUADRANTE SUD-OVEST → asse OVEST */}
+                  {/* ── WIDGET FRECCE CENTRALE ── */}
                   <div style={{
-                    background: 'rgba(234,179,8,0.07)',
-                    borderTop: '1px solid rgba(255,255,255,0.04)',
-                    borderRight: '1px solid rgba(255,255,255,0.04)',
+                    gridColumn: '2/3', gridRow: '1/3',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                  }}>
+                    <HoshinArrows 
+                      nordActive={nordActive} nordUrgent={nordUrgent}
+                      estActive={estActive} estUrgent={estUrgent}
+                      ovestActive={ovestActive} ovestUrgent={ovestUrgent}
+                      sudActive={sudActive} sudUrgent={sudUrgent}
+                    />
+                  </div>
+
+                  {/* ── TILE OVEST (ambra) ── */}
+                  <div style={{
+                    gridColumn: '1/2', gridRow: '2/3',
+                    background: 'rgba(234,179,8,0.08)',
+                    border: '1px solid rgba(234,179,8,0.18)',
+                    borderRadius: '16px',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    boxShadow: '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    padding: '16px',
-                    gap: '8px',
-                  }}>
-                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(234,179,8,0.10)', borderTop: '2px solid rgba(234,179,8,0.5)', borderRadius: '12px', border: '1px solid rgba(234,179,8,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                    gap: '10px',
+                    padding: '10px',
+                    transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
+                  }} ref={ovestTileRef}>
+                    <div className="flex-1 min-h-[0] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)]">
                       <TileWrapper tileKey="BriefingRoom" tileProps={{ ...tileProps }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
-                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(234,179,8,0.07)', borderTop: '2px solid rgba(234,179,8,0.35)', borderRadius: '12px', border: '1px solid rgba(234,179,8,0.14)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                    <div className="flex-1 min-h-[0] overflow-hidden rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)]">
                       <TileWrapper tileKey="TileDecisionLog" tileProps={{ ...tileProps }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
                   </div>
 
-                  {/* QUADRANTE SUD-EST → asse SUD */}
+                  {/* ── TILE SUD (verde) ── */}
                   <div style={{
-                    background: 'rgba(34,197,94,0.07)',
-                    borderTop: '1px solid rgba(255,255,255,0.04)',
-                    borderLeft: '1px solid rgba(255,255,255,0.04)',
+                    gridColumn: '1/4', gridRow: '3/4',
+                    background: 'rgba(34,197,94,0.08)',
+                    border: '1px solid rgba(34,197,94,0.18)',
+                    borderRadius: '16px',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    boxShadow: '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
                     overflow: 'hidden',
                     display: 'flex',
-                    flexDirection: 'column',
-                    padding: '16px',
-                    gap: '8px',
-                  }}>
-                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(34,197,94,0.10)', borderTop: '2px solid rgba(34,197,94,0.5)', borderRadius: '12px', border: '1px solid rgba(34,197,94,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                    flexDirection: 'row',
+                    gap: '10px',
+                    padding: '10px',
+                    transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
+                  }} ref={sudTileRef}>
+                    <div className="flex-1 overflow-hidden rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)]">
                       <TileWrapper tileKey="TileIntelligence" tileProps={{ ...tileProps }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
-                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(34,197,94,0.07)', borderTop: '2px solid rgba(34,197,94,0.35)', borderRadius: '12px', border: '1px solid rgba(34,197,94,0.14)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                    <div className="flex-1 overflow-hidden rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)]">
                       <TileWrapper tileKey="TilePulse" tileProps={{ ...tileProps }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
                   </div>
 
                 </div>
-
-                {/* ── X SVG OVERLAY ── */}
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  zIndex: 2,
-                  pointerEvents: 'none',
-                }}>
-                  <svg
-                    width="100%"
-                    height="100%"
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                    style={{ display: 'block' }}
-                  >
-                    <line
-                      x1="0" y1="0" x2="100" y2="100"
-                      stroke="rgba(255,255,255,0.10)"
-                      strokeWidth="0.3"
-                    />
-                    <line
-                      x1="100" y1="0" x2="0" y2="100"
-                      stroke="rgba(255,255,255,0.10)"
-                      strokeWidth="0.3"
-                    />
-                    <circle
-                      cx="50" cy="50" r="6"
-                      fill="rgba(255,255,255,0.04)"
-                      stroke="rgba(255,255,255,0.15)"
-                      strokeWidth="0.4"
-                    />
-                    <text x="50" y="6"
-                      textAnchor="middle"
-                      fill="rgba(165,180,252,0.5)"
-                      fontSize="3.5"
-                      fontFamily="monospace"
-                      letterSpacing="0.5"
-                    >NORD — PRIORITÀ TATTICHE</text>
-                    <text x="50" y="97"
-                      textAnchor="middle"
-                      fill="rgba(187,247,208,0.5)"
-                      fontSize="3.5"
-                      fontFamily="monospace"
-                      letterSpacing="0.5"
-                    >SUD — OBIETTIVI A LUNGO TERMINE</text>
-                    <text
-                      x="3" y="50"
-                      fill="rgba(253,230,138,0.5)"
-                      fontSize="3.5"
-                      fontFamily="monospace"
-                      letterSpacing="0.5"
-                      transform="rotate(-90, 3, 50)"
-                      textAnchor="middle"
-                    >OVEST — OBJ. ANNUALI</text>
-                    <text
-                      x="97" y="50"
-                      fill="rgba(254,215,170,0.5)"
-                      fontSize="3.5"
-                      fontFamily="monospace"
-                      letterSpacing="0.5"
-                      transform="rotate(90, 97, 50)"
-                      textAnchor="middle"
-                    >EST — KPI &amp; RISULTATI</text>
-                  </svg>
-                </div>
-              </div>
             </div>
             {/* ── Sfondo globale ── */}
                 <style jsx>{`
