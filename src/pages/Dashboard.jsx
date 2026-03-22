@@ -1,10 +1,12 @@
-﻿import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AiStateContext, MissionContext } from '../components/layout/AppShell';
 import { DynamicBentoGrid } from '../components/DynamicBentoGrid';
 import { OKRManager } from '../components/modals/OKRManager';
 import { SignalInput } from '../components/modals/SignalInput';
 import { ReportsArchiveModal } from '../components/tiles/TileIntelligence';
+import { ShadowCosSphere } from '../components/ui/ShadowCosSphere';
+import { AiPendingActionTile } from '../components/AiPendingActionTile';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -39,14 +41,38 @@ export const Dashboard = ({ user }) => {
 
   return (
     <>
-      <DynamicBentoGrid
-        user={user}
-        isAdmin={isAdmin}
-        isSpeaking={isSpeaking}
-        hasHighSignals={hasHighSignals}
-        onOpenSignal={() => setShowSignalModal(true)}
-        onOpenOKR={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }}
-      />
+      {/* MOBILE AI-FIRST VIEW: Visibile solo su smartphone/tablet piccoli */}
+      <div className="lg:hidden flex flex-col items-center justify-center min-h-[calc(100vh-140px)] w-full relative px-4 pt-12 pb-24">
+         <div className="text-center mb-8 animate-fade-in-up">
+            <h1 className="text-2xl font-bold text-white tracking-tight">Shadow CoS</h1>
+            <p className="text-sm text-cyan-400 mt-2 font-mono uppercase tracking-widest">In ascolto operativo</p>
+         </div>
+         
+         {/* La Sfera interattiva grande */}
+         <div className="relative w-80 h-80 flex items-center justify-center z-10">
+            <ShadowCosSphere isSpeaking={isSpeaking} />
+         </div>
+
+         <div className="w-full max-w-md mt-16 z-20">
+            <AiPendingActionTile position="bottom" />
+         </div>
+      </div>
+
+      {/* DESKTOP X-MATRIX GRID: Visibile dai 1024px in su */}
+      <div className="hidden lg:block w-full relative">
+        <DynamicBentoGrid
+          user={user}
+          isAdmin={isAdmin}
+          isSpeaking={isSpeaking}
+          hasHighSignals={hasHighSignals}
+          onOpenSignal={() => setShowSignalModal(true)}
+          onOpenOKR={(okr) => { setSelectedOKR(okr || null); setShowOKRModal(true); }}
+        />
+        {/* Posizionamento assoluto della Sfera al centro della X-Matrix Grid */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto z-10 w-[380px] h-[380px] flex items-center justify-center">
+            <ShadowCosSphere isSpeaking={isSpeaking} />
+        </div>
+      </div>
 
       {/* Portals */}
       {showSignalModal && createPortal(
