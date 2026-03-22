@@ -229,16 +229,14 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
             {/* ── BENTO GRID ASIMMETRICA ── */}
             <div style={{ flex:1, minHeight:0, overflow:'hidden', display:'flex', flexDirection:'column' }}>
                 <div style={{
-                  minWidth: '1000px',
                   flex: 1,
                   minHeight: 0,
                   padding: '12px',
                   boxSizing: 'border-box',
                   display: 'grid',
-                  gridTemplateColumns: '3fr 160px 380px',
-                  gridTemplateRows: '1.2fr 1fr 0.85fr',
+                  gridTemplateColumns: '2fr 160px 1fr',
+                  gridTemplateRows: '35% 35% 30%',
                   gap: '12px',
-                  overflow: 'hidden',
                   background: `
                     radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.07) 0%, transparent 50%),
                     radial-gradient(ellipse at 85% 40%, rgba(249,115,22,0.06) 0%, transparent 50%),
@@ -249,7 +247,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
                   {/* ── TILE NORD (indaco) ── */}
                   <div style={{
-                    gridColumn: '1/3', gridRow: '1/2',
+                    gridColumn: '1/2', gridRow: '1/2',
                     background: 'rgba(99,102,241,0.09)',
                     border: '1px solid rgba(99,102,241,0.20)',
                     borderRadius: '16px',
