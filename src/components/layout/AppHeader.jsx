@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { Shield, User, LogOut, ChevronDown, Settings, RefreshCcw } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { useNavigate, Link } from 'react-router-dom';
@@ -128,7 +129,12 @@ export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
                                     onClick={async () => {
                                         setShowUserMenu(false);
                                         if (activeMissionId) {
-                                            await updateMission(activeMissionId, { isSetupComplete: false });
+                                            try {
+                                                await updateMission(activeMissionId, { isSetupComplete: false });
+                                            } catch (err) {
+                                                console.error(err);
+                                                toast.error('Impossibile ricalibrare: permessi insufficienti.');
+                                            }
                                         }
                                     }}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"

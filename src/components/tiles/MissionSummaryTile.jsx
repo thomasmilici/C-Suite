@@ -1,4 +1,5 @@
 import React from 'react';
+import toast from 'react-hot-toast';
 import { Target, Zap, BarChart3, Layers, RefreshCcw } from 'lucide-react';
 import { useMission } from '../../context/MissionContext';
 
@@ -151,6 +152,7 @@ export function MissionSummaryTile({ section = 'auto' }) {
                             await updateMission(mission.id, { isSetupComplete: false });
                         } catch (err) {
                             console.error('Failed to recalibrate:', err);
+                            toast.error('Impossibile ricalibrare: permessi insufficienti.');
                         }
                     }
                 }}

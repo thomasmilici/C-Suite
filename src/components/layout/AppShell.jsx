@@ -9,7 +9,7 @@ import { BottomNav } from '../ui/BottomNav';
 import { AppCredits } from '../ui/AppCredits';
 import { CommandBar } from '../CommandBar';
 import { CopilotDialogue } from '../CopilotDialogue';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { useLiveSession } from '../../hooks/useLiveSession';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
@@ -227,7 +227,12 @@ export const AppShell = ({ children, user, isAdmin }) => {
                         <button
                             onClick={async () => {
                                 if (activeMissionId) {
-                                    await updateMission(activeMissionId, { isSetupComplete: false });
+                                    try {
+                                        await updateMission(activeMissionId, { isSetupComplete: false });
+                                    } catch (err) {
+                                        console.error(err);
+                                        toast.error('Impossibile stralciare mandato: privilegi COS/Admin richiesti.');
+                                    }
                                 }
                             }}
                             title="Ricalibra Mandato Strategico"
