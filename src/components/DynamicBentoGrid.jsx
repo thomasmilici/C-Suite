@@ -227,15 +227,16 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
             </div>
 
             {/* ── BENTO GRID ASIMMETRICA ── */}
-            <div className="w-full relative custom-scrollbar overflow-x-hidden md:overflow-x-auto overflow-y-auto">
+            <div className="w-full relative flex-1 flex flex-col custom-scrollbar overflow-x-hidden md:overflow-x-auto overflow-y-auto">
                 <div style={{
                   minWidth: '1000px',
-                  height: 'calc(100vh - 88px)',
+                  flex: 1,
+                  minHeight: 0,
                   padding: '12px',
                   boxSizing: 'border-box',
                   display: 'grid',
-                  gridTemplateColumns: '1fr 260px 220px',
-                  gridTemplateRows: '200px 260px 200px',
+                  gridTemplateColumns: '1fr 200px 320px',
+                  gridTemplateRows: '1fr 1fr 1fr',
                   gap: '12px',
                   overflow: 'hidden',
                   background: `
@@ -268,7 +269,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
                   {/* ── TILE EST (arancione) ── */}
                   <div style={{
-                    gridColumn: '3/4', gridRow: '1/4',
+                    gridColumn: '3/4', gridRow: '1/3',
                     background: 'rgba(249,115,22,0.08)',
                     border: '1px solid rgba(249,115,22,0.18)',
                     borderRadius: '16px',
@@ -338,7 +339,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
                   {/* ── TILE SUD (verde) ── */}
                   <div style={{
-                    gridColumn: '1/3', gridRow: '3/4',
+                    gridColumn: '1/4', gridRow: '3/4',
                     background: 'rgba(34,197,94,0.08)',
                     border: '1px solid rgba(34,197,94,0.18)',
                     borderRadius: '16px',
