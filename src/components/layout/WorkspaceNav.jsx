@@ -49,9 +49,6 @@ export const WorkspaceNav = () => {
                         <NavLink to="/themes" className={getNavLinkClass}>
                             Strategia
                         </NavLink>
-                        <NavLink to="/hoshin" className={getNavLinkClass}>
-                            Hoshin Matrix
-                        </NavLink>
                         <NavLink to="/stakeholder" className={getNavLinkClass}>
                             Stakeholder
                         </NavLink>

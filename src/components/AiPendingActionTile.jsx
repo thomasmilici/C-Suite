@@ -231,37 +231,6 @@ export const AiPendingActionTile = ({ contextId = null, position = 'top', extras
         : pendingActions.slice(2);
 
     if (displayedActions.length === 0) {
-        // If Iper-Proattivo and we have priorities, show suggested pre-computed actions
-        if (extras?.isIperProattivo && extras?.priorities?.length > 0) {
-            const suggestedActions = extras.priorities.map((p, i) => ({
-                id: `suggested-${i}`,
-                proposedAction: 'createStrategicTheme',
-                summary: `Avvia iniziativa pre-approvata per l'obiettivo: "${p}". Il CoS AI orchestrerà i task necessari.`,
-                actionIntent: 'NEW_ENTITY',
-                isSuggested: true
-            })).slice(0, position === 'top' ? 2 : 2); // Show up to 2
-
-            return (
-                <div className="flex flex-col gap-2 w-full px-4 pt-2 pb-4 overflow-y-auto no-scrollbar">
-                    <div className="px-1 mb-2">
-                        <span className="text-[9px] font-mono text-indigo-400 uppercase tracking-widest border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 rounded-full inline-block mb-1.5">
-                            Delegation Engine: Attivo
-                        </span>
-                        <p className="text-[10px] text-zinc-500 leading-snug">Azioni ad alto impatto pre-calcolate sulle tue priorità correnti. In attesa di autorizzazione.</p>
-                    </div>
-                    <AnimatePresence mode="popLayout">
-                        {suggestedActions.map(action => (
-                            <PendingActionCard
-                                key={action.id}
-                                action={action}
-                                onApproved={handleResolved}
-                                onRejected={handleResolved}
-                            />
-                        ))}
-                    </AnimatePresence>
-                </div>
-            );
-        }
 
         return (
             <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 font-mono text-xs opacity-50 p-6 text-center">

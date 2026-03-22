@@ -96,7 +96,7 @@ export const TileCompass = ({ isAdmin, onOpenModal, eventId, extras, activeStrat
                     )}
                     {okrs.length > 0 && (
                         <span className="text-[10px] text-zinc-500 font-mono px-2 py-1 border border-white/5 bg-white/[0.03] rounded-lg">
-                            Q1 2026 · Ø {avgProgress}%
+                            ACTIVE · Ø {avgProgress}%
                         </span>
                     )}
                     {isAdmin && (
@@ -165,15 +165,7 @@ export const TileCompass = ({ isAdmin, onOpenModal, eventId, extras, activeStrat
                                 </div>
                             </div>
                             
-                            {/* Human in the loop context */}
-                            {isFocused && okr.progress < 50 && (
-                                <div className="mt-2 border-t border-white/[0.04] pt-2 flex items-center justify-between animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                                    <span className="text-[9px] text-indigo-300">💡 AI: Suggerito pivot strategico</span>
-                                    <div className="flex gap-1">
-                                        <button className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] rounded font-bold uppercase transition-colors">Esplora</button>
-                                    </div>
-                                </div>
-                            )}
+                            {/* Human in the loop context intentionally removed to clear mockups */}
                         </motion.div>
                     )}) : (
                         <motion.div

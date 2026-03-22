@@ -100,16 +100,7 @@ export function TileSteeringFocus({ activeStrategyNode, setActiveStrategyNode, e
                                 />
                             </div>
                             
-                            {/* Inline Actions (Human in the loop) */}
-                            {isFocused && (
-                                <div className="mt-1 pl-6 pr-2 animate-fade-in flex items-center justify-between">
-                                    <span className="text-[10px] text-blue-300/80 font-mono">⚡ AI Pattern Detect: High Leverage</span>
-                                    <div className="flex gap-2">
-                                        <button className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white text-[9px] uppercase tracking-wider font-bold rounded shadow-[0_0_8px_rgba(37,99,235,0.4)] transition-colors">Go</button>
-                                        <button className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[9px] uppercase tracking-wider font-bold rounded transition-colors">No-Go</button>
-                                    </div>
-                                </div>
-                            )}
+                            {/* Inline Actions intentionally removed to clear mockups */}
                         </div>
                     );
                 })}
