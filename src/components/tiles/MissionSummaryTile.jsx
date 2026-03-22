@@ -154,10 +154,10 @@ export function MissionSummaryTile({ section = 'auto' }) {
                         }
                     }
                 }}
-                className="absolute top-1 right-1 p-1.5 opacity-0 group-hover/tile:opacity-100 transition-opacity text-zinc-500 hover:text-cyan-400 hover:bg-cyan-950/50 rounded-md shadow-sm border border-transparent hover:border-cyan-800/30"
+                className="absolute top-1 right-1 p-1.5 opacity-40 hover:opacity-100 transition-opacity text-zinc-400 hover:text-cyan-400 hover:bg-cyan-950/50 rounded-md shadow-sm border border-transparent hover:border-cyan-800/30"
                 title="Ricalibra Mandato"
             >
-                <RefreshCcw className="w-3 h-3" />
+                <RefreshCcw className="w-4 h-4" />
             </button>
         </div>
     );

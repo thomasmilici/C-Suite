@@ -1,14 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, User, LogOut, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Shield, User, LogOut, ChevronDown, Settings, RefreshCcw } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { useNavigate, Link } from 'react-router-dom';
 import { MissionContext } from './AppShell';
-import { subscribeMissions } from '../../services/missionService';
-
+import { MissionContext } from './AppShell';
+import { subscribeMissions, updateMission } from '../../services/missionService';
 export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
     const navigate = useNavigate();
     const { activeMissionId, setActiveMissionId } = React.useContext(MissionContext);
     const [missions, setMissions] = useState([]);
+    const [showUserMenu, setShowUserMenu] = useState(false);
+    const menuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setShowUserMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         return subscribeMissions(data => {
@@ -80,35 +92,65 @@ export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
                         </div>
                     )}
 
-                    {/* User Profile / Admin Badge */}
-                    <div className="hidden sm:flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
-                        <div className="w-5 h-5 rounded bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                            {isAdmin ? <Shield className="w-3 h-3" /> : <User className="w-3 h-3" />}
-                        </div>
-                        <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">
-                            {user?.displayName || 'User'}
-                        </span>
-                    </div>
-
-                    {/* Admin Action */}
-                    {isAdmin && (
-                        <button
-                            onClick={() => navigate('/admin')}
-                            className="hidden md:flex items-center gap-1.5 text-[10px] font-mono text-red-400 hover:text-red-300 transition-colors uppercase tracking-widest"
+                    {/* User Profile Dropdown */}
+                    <div className="relative" ref={menuRef}>
+                        <button 
+                            onClick={() => setShowUserMenu(!showUserMenu)}
+                            className="hidden sm:flex items-center gap-2 px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg border border-white/5 transition-colors"
                         >
-                            <Shield className="w-3 h-3" />
-                            Admin
+                            <div className="w-5 h-5 rounded bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                                {isAdmin ? <Shield className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                            </div>
+                            <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">
+                                {user?.displayName || 'User'}
+                            </span>
+                            <ChevronDown className={`w-3 h-3 text-zinc-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
                         </button>
-                    )}
 
-                    {/* Logout */}
-                    <button
-                        onClick={handleLogout}
-                        className="p-2 text-zinc-500 hover:text-white transition-colors"
-                        title="Logout"
-                    >
-                        <LogOut className="w-4 h-4" />
-                    </button>
+                        {/* Dropdown Menu */}
+                        {showUserMenu && (
+                            <div className="absolute right-0 top-full mt-2 w-56 bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl py-1 z-50 overflow-hidden">
+                                <div className="px-3 py-2 border-b border-white/5 mb-1">
+                                    <p className="text-xs font-semibold text-white truncate">{user?.displayName || 'Utente'}</p>
+                                    <p className="text-[10px] text-zinc-500 font-mono truncate">{user?.email}</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setShowUserMenu(false);
+                                        // Placeholder for settings navigation
+                                        console.log("Navigating to settings...");
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                                >
+                                    <Settings className="w-3.5 h-3.5" />
+                                    Impostazioni
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        setShowUserMenu(false);
+                                        if (activeMissionId) {
+                                            await updateMission(activeMissionId, { isSetupComplete: false });
+                                        }
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                                >
+                                    <RefreshCcw className="w-3.5 h-3.5" />
+                                    Ricalibra Mandato
+                                </button>
+                                <div className="h-px bg-white/5 my-1" />
+                                <button
+                                    onClick={() => {
+                                        setShowUserMenu(false);
+                                        handleLogout();
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                                >
+                                    <LogOut className="w-3.5 h-3.5" />
+                                    Logout
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </header>
