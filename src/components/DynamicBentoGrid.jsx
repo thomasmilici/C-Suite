@@ -147,96 +147,190 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
                 </div>
             </div>
 
-            {/* STEP 1: CSS GRID COCKPIT */}
-            <div className="w-full relative custom-scrollbar overflow-x-hidden md:overflow-x-auto overflow-y-auto">
-                <div className="min-w-[1000px] md:min-w-0" style={{ 
-                    display: 'grid', 
-                    minHeight: 'calc(100vh - 88px)', 
-                    gridTemplateColumns: 'minmax(280px, 1fr) 160px minmax(280px, 1fr)',
-                    gridTemplateRows: 'auto 160px auto',
-                    gap: '12px',
-                    padding: '12px',
-                    background: 'radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.06) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(249,115,22,0.05) 0%, transparent 60%), radial-gradient(ellipse at 50% 90%, rgba(34,197,94,0.05) 0%, transparent 50%), radial-gradient(ellipse at 50% 10%, rgba(234,179,8,0.04) 0%, transparent 50%)'
+            {/* ── Sfondo globale ── */}
+            <div style={{
+              minHeight: 'calc(100vh - 88px)',
+              padding: '12px',
+              boxSizing: 'border-box',
+              background: `
+                radial-gradient(ellipse at 50% 0%,   rgba(99,102,241,0.09) 0%, transparent 50%),
+                radial-gradient(ellipse at 0%  50%,  rgba(234,179,8,0.06)  0%, transparent 45%),
+                radial-gradient(ellipse at 100% 50%, rgba(249,115,22,0.06) 0%, transparent 45%),
+                radial-gradient(ellipse at 50% 100%, rgba(34,197,94,0.07)  0%, transparent 50%)
+              `,
+            }}>
+
+              {/* IL QUADRATO GRANDE — container principale */}
+              <div style={{
+                position: 'relative',
+                width: '100%',
+                aspectRatio: '1 / 1',
+                maxHeight: 'calc(100vh - 110px)',
+                maxWidth: 'calc(100vh - 110px)',
+                margin: '0 auto',
+                borderRadius: '24px',
+                border: '1px solid rgba(255,255,255,0.07)',
+                overflow: 'hidden',
+                boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+              }}>
+
+                {/* ── GRIGLIA 2x2 DEI WIDGET ── */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gridTemplateRows: '1fr 1fr',
+                  gap: '2px',
+                  zIndex: 1,
                 }}>
-                    
-                    {/* ZONA NORD */}
-                    <div style={{ gridColumn: '1 / -1', gridRow: '1', display: 'flex', flexDirection: 'column' }} className="gap-2">
-                        <div style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }} className="inline-flex items-center gap-[6px] px-[10px] py-[3px] rounded-full font-mono text-[9px] tracking-[0.18em] uppercase self-start mb-2">
-                            ◈ NORD — PRIORITÀ TATTICHE
-                        </div>
-                        <div className="flex flex-row gap-[12px] w-full items-stretch">
-                            <div className="flex-1 overflow-hidden" style={{ minHeight: '220px' }}>
-                                <TileWrapper tileKey="TileSteeringFocus" tileProps={{ ...tileProps, extras: { label: p1, type: 'priority_nw' } }} customStyle={{ background: 'rgba(99,102,241,0.08)', borderTop: '2px solid rgba(99,102,241,0.4)' }} />
-                            </div>
-                            <div className="flex-1 overflow-hidden" style={{ minHeight: '220px' }}>
-                                <TileWrapper tileKey="AiPendingActionTop" tileProps={{ ...tileProps, extras: { label: p2, type: 'priority_ne', isIperProattivo: mission?.orchestrationStyle === 'Iper-Proattivo', priorities } }} customStyle={{ background: 'rgba(99,102,241,0.06)', borderTop: '2px solid rgba(99,102,241,0.3)' }} />
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* ZONA OVEST */}
-                    <div style={{ gridColumn: '1', gridRow: '2', display: 'flex', flexDirection: 'column' }} className="gap-[10px] overflow-y-auto no-scrollbar">
-                        <div style={{ background: 'rgba(234,179,8,0.12)', color: '#fde68a', border: '1px solid rgba(234,179,8,0.3)' }} className="inline-flex items-center gap-[6px] px-[10px] py-[3px] rounded-full font-mono text-[9px] tracking-[0.18em] uppercase self-start mb-2">
-                            ◈ OVEST — OBIETTIVI ANNUALI
-                        </div>
-                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="BriefingRoom" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(234,179,8,0.07)', borderTop: '2px solid rgba(234,179,8,0.35)' }} /></div>
-                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="TileDecisionLog" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(234,179,8,0.06)', borderTop: '2px solid rgba(234,179,8,0.3)' }} /></div>
-                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="TileCompass" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(234,179,8,0.05)', borderTop: '2px solid rgba(234,179,8,0.25)' }} /></div>
+                  {/* QUADRANTE NORD-OVEST → asse NORD */}
+                  <div style={{
+                    background: 'rgba(99,102,241,0.09)',
+                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    borderRight: '1px solid rgba(255,255,255,0.04)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '16px',
+                    gap: '8px',
+                  }}>
+                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(99,102,241,0.10)', borderTop: '2px solid rgba(99,102,241,0.5)', borderRadius: '12px', border: '1px solid rgba(99,102,241,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                      <TileWrapper tileKey="TileSteeringFocus" tileProps={{ ...tileProps, extras: { label: p1, type: 'priority_nw' } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
+                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(99,102,241,0.07)', borderTop: '2px solid rgba(99,102,241,0.35)', borderRadius: '12px', border: '1px solid rgba(99,102,241,0.14)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                      <TileWrapper tileKey="AiPendingActionTop" tileProps={{ ...tileProps, extras: { label: p2, type: 'priority_ne', isIperProattivo: mission?.orchestrationStyle === 'Iper-Proattivo', priorities } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
+                    </div>
+                  </div>
 
-                    {/* ZONA CENTRO */}
-                    <div style={{ gridColumn: '2', gridRow: '2' }} className="flex items-center justify-center p-0">
-                        <div style={{
-                            width: '160px',
-                            height: '160px',
-                            position: 'relative',
-                            borderRadius: '16px',
-                            background: 'rgba(255,255,255,0.04)',
-                            backdropFilter: 'blur(20px)',
-                            WebkitBackdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <svg width="80" height="80" viewBox="0 0 100 100">
-                                <polygon points="0,0 100,0 50,50" fill="rgba(99,102,241,0.6)" stroke="white" strokeOpacity="0.15" strokeWidth="0.5" />
-                                <polygon points="100,0 100,100 50,50" fill="rgba(249,115,22,0.6)" stroke="white" strokeOpacity="0.15" strokeWidth="0.5" />
-                                <polygon points="0,100 100,100 50,50" fill="rgba(34,197,94,0.6)" stroke="white" strokeOpacity="0.15" strokeWidth="0.5" />
-                                <polygon points="0,0 0,100 50,50" fill="rgba(234,179,8,0.6)" stroke="white" strokeOpacity="0.15" strokeWidth="0.5" />
-                            </svg>
-                        </div>
+                  {/* QUADRANTE NORD-EST → asse EST */}
+                  <div style={{
+                    background: 'rgba(249,115,22,0.07)',
+                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    borderLeft: '1px solid rgba(255,255,255,0.04)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '16px',
+                    gap: '8px',
+                  }}>
+                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(249,115,22,0.10)', borderTop: '2px solid rgba(249,115,22,0.5)', borderRadius: '12px', border: '1px solid rgba(249,115,22,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                      <TileWrapper tileKey="MissionSummaryTile" tileProps={{ ...tileProps, extras: { label: k1, type: 'kpi' } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
+                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(249,115,22,0.07)', borderTop: '2px solid rgba(249,115,22,0.35)', borderRadius: '12px', border: '1px solid rgba(249,115,22,0.14)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                      <TileWrapper tileKey="TileRadar" tileProps={{ ...tileProps, extras: { label: k2, type: 'kpi' } }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
+                    </div>
+                  </div>
 
-                    {/* ZONA EST */}
-                    <div style={{ gridColumn: '3', gridRow: '2', display: 'flex', flexDirection: 'column' }} className="gap-[10px] overflow-y-auto no-scrollbar">
-                        <div style={{ background: 'rgba(249,115,22,0.12)', color: '#fed7aa', border: '1px solid rgba(249,115,22,0.3)' }} className="inline-flex items-center gap-[6px] px-[10px] py-[3px] rounded-full font-mono text-[9px] tracking-[0.18em] uppercase self-start mb-2">
-                            ◈ EST — KPI & RISULTATI
-                        </div>
-                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="MissionSummaryTile" tileProps={{ ...tileProps, extras: { label: k1, type: 'kpi' } }} customStyle={{ background: 'rgba(249,115,22,0.07)', borderTop: '2px solid rgba(249,115,22,0.35)' }} /></div>
-                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="TileRadar" tileProps={{ ...tileProps, extras: { label: k2, type: 'kpi' } }} customStyle={{ background: 'rgba(249,115,22,0.05)', borderTop: '2px solid rgba(249,115,22,0.25)' }} /></div>
-                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="ProactiveAlerts" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(249,115,22,0.05)', borderTop: '2px solid rgba(249,115,22,0.25)' }} /></div>
+                  {/* QUADRANTE SUD-OVEST → asse OVEST */}
+                  <div style={{
+                    background: 'rgba(234,179,8,0.07)',
+                    borderTop: '1px solid rgba(255,255,255,0.04)',
+                    borderRight: '1px solid rgba(255,255,255,0.04)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '16px',
+                    gap: '8px',
+                  }}>
+                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(234,179,8,0.10)', borderTop: '2px solid rgba(234,179,8,0.5)', borderRadius: '12px', border: '1px solid rgba(234,179,8,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                      <TileWrapper tileKey="BriefingRoom" tileProps={{ ...tileProps }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
+                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(234,179,8,0.07)', borderTop: '2px solid rgba(234,179,8,0.35)', borderRadius: '12px', border: '1px solid rgba(234,179,8,0.14)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                      <TileWrapper tileKey="TileDecisionLog" tileProps={{ ...tileProps }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
+                    </div>
+                  </div>
 
-                    {/* ZONA SUD */}
-                    <div style={{ gridColumn: '1 / -1', gridRow: '3', display: 'flex', flexDirection: 'column' }} className="gap-2">
-                        <div style={{ background: 'rgba(34,197,94,0.12)', color: '#bbf7d0', border: '1px solid rgba(34,197,94,0.3)' }} className="inline-flex items-center gap-[6px] px-[10px] py-[3px] rounded-full font-mono text-[9px] tracking-[0.18em] uppercase self-start mb-2">
-                            ◈ SUD — OBIETTIVI A LUNGO TERMINE
-                        </div>
-                        <div className="flex flex-row gap-[12px] w-full items-stretch">
-                            <div className="flex-1 overflow-hidden" style={{ minHeight: '220px' }}>
-                                <TileWrapper tileKey="TileIntelligence" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(34,197,94,0.07)', borderTop: '2px solid rgba(34,197,94,0.35)' }} />
-                            </div>
-                            <div className="flex-1 overflow-hidden" style={{ minHeight: '220px' }}>
-                                <TileWrapper tileKey="TilePulse" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(34,197,94,0.06)', borderTop: '2px solid rgba(34,197,94,0.3)' }} />
-                            </div>
-                        </div>
+                  {/* QUADRANTE SUD-EST → asse SUD */}
+                  <div style={{
+                    background: 'rgba(34,197,94,0.07)',
+                    borderTop: '1px solid rgba(255,255,255,0.04)',
+                    borderLeft: '1px solid rgba(255,255,255,0.04)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '16px',
+                    gap: '8px',
+                  }}>
+                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(34,197,94,0.10)', borderTop: '2px solid rgba(34,197,94,0.5)', borderRadius: '12px', border: '1px solid rgba(34,197,94,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                      <TileWrapper tileKey="TileIntelligence" tileProps={{ ...tileProps }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
                     </div>
+                    <div style={{ flex: 1, minHeight: 0, background: 'rgba(34,197,94,0.07)', borderTop: '2px solid rgba(34,197,94,0.35)', borderRadius: '12px', border: '1px solid rgba(34,197,94,0.14)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 2px 16px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                      <TileWrapper tileKey="TilePulse" tileProps={{ ...tileProps }} customStyle={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
+                    </div>
+                  </div>
+
                 </div>
+
+                {/* ── X SVG OVERLAY ── */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 2,
+                  pointerEvents: 'none',
+                }}>
+                  <svg
+                    width="100%"
+                    height="100%"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    style={{ display: 'block' }}
+                  >
+                    <line
+                      x1="0" y1="0" x2="100" y2="100"
+                      stroke="rgba(255,255,255,0.10)"
+                      strokeWidth="0.3"
+                    />
+                    <line
+                      x1="100" y1="0" x2="0" y2="100"
+                      stroke="rgba(255,255,255,0.10)"
+                      strokeWidth="0.3"
+                    />
+                    <circle
+                      cx="50" cy="50" r="6"
+                      fill="rgba(255,255,255,0.04)"
+                      stroke="rgba(255,255,255,0.15)"
+                      strokeWidth="0.4"
+                    />
+                    <text x="50" y="6"
+                      textAnchor="middle"
+                      fill="rgba(165,180,252,0.5)"
+                      fontSize="3.5"
+                      fontFamily="monospace"
+                      letterSpacing="0.5"
+                    >NORD — PRIORITÀ TATTICHE</text>
+                    <text x="50" y="97"
+                      textAnchor="middle"
+                      fill="rgba(187,247,208,0.5)"
+                      fontSize="3.5"
+                      fontFamily="monospace"
+                      letterSpacing="0.5"
+                    >SUD — OBIETTIVI A LUNGO TERMINE</text>
+                    <text
+                      x="3" y="50"
+                      fill="rgba(253,230,138,0.5)"
+                      fontSize="3.5"
+                      fontFamily="monospace"
+                      letterSpacing="0.5"
+                      transform="rotate(-90, 3, 50)"
+                      textAnchor="middle"
+                    >OVEST — OBJ. ANNUALI</text>
+                    <text
+                      x="97" y="50"
+                      fill="rgba(254,215,170,0.5)"
+                      fontSize="3.5"
+                      fontFamily="monospace"
+                      letterSpacing="0.5"
+                      transform="rotate(90, 97, 50)"
+                      textAnchor="middle"
+                    >EST — KPI &amp; RISULTATI</text>
+                  </svg>
+                </div>
+              </div>
             </div>
-            
-            <style jsx>{`
+            {/* ── Sfondo globale ── */}
+                <style jsx>{`
                 @media (max-width: 1024px) {
                     .min-w-\\[1000px\\] {
                         min-width: 0 !important;
