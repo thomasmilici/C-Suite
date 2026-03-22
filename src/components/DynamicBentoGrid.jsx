@@ -164,24 +164,21 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
     const gridDescriptors = mapStrategyToGrid(mission);
 
     return (
-        <div ref={gridRef} className="csuite-grid w-full relative group/dashboard">
+        <div 
+            ref={gridRef} 
+            className="csuite-grid w-full relative group/dashboard"
+            style={{ height: 'calc(100vh - 80px)' }}
+        >
             {gridDescriptors.map((desc, i) => (
                 <div key={`${desc.slot}-${i}`} className={desc.cssClass}>
                     <TileWrapper 
                         tileKey={desc.component} 
                         tileProps={{ ...tileProps, extras: desc.extras }} 
+                        isActive={activeStrategyNode?.id === desc.extras?.id}
+                        activeStrategyNode={activeStrategyNode}
                     />
                 </div>
             ))}
-            
-            {/* SPHERE ZONE (Placeholder Vuoto Center) */}
-            <div className="xmatrix-sphere-zone">
-                <div className="bento-sphere-junction relative flex items-center justify-center z-50 pointer-events-none">
-                    <div className="w-16 h-16 border border-white/5 rounded-full flex items-center justify-center backdrop-blur-sm bg-black/10">
-                        {/* Nessuna sfera 3D, solo anchor vuoto */}
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }
