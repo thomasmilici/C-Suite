@@ -3,7 +3,6 @@ import { Shield, User, LogOut, ChevronDown, Settings, RefreshCcw } from 'lucide-
 import { AuthService } from '../../services/authService';
 import { useNavigate, Link } from 'react-router-dom';
 import { MissionContext } from './AppShell';
-import { MissionContext } from './AppShell';
 import { subscribeMissions, updateMission } from '../../services/missionService';
 export const AppHeader = ({ user, isAdmin, commandBarSlot }) => {
     const navigate = useNavigate();
