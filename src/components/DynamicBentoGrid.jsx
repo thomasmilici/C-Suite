@@ -249,7 +249,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
                   {/* ── TILE NORD (indaco) ── */}
                   <div style={{
-                    gridColumn: '1/2', gridRow: '1/2',
+                    gridColumn: '1/3', gridRow: '1/2',
                     background: 'rgba(99,102,241,0.09)',
                     border: '1px solid rgba(99,102,241,0.20)',
                     borderRadius: '16px',
@@ -269,7 +269,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
                   {/* ── TILE EST (arancione) ── */}
                   <div style={{
-                    gridColumn: '3/4', gridRow: '1/3',
+                    gridColumn: '3/4', gridRow: '1/4',
                     background: 'rgba(249,115,22,0.08)',
                     border: '1px solid rgba(249,115,22,0.18)',
                     borderRadius: '16px',
@@ -296,7 +296,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
                   {/* ── WIDGET FRECCE CENTRALE ── */}
                   <div style={{
-                    gridColumn: '2/3', gridRow: '1/3',
+                    gridColumn: '2/3', gridRow: '2/3',
                     background: 'rgba(255,255,255,0.02)',
                     border: '1px solid rgba(255,255,255,0.06)',
                     borderRadius: '16px',
@@ -339,7 +339,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
 
                   {/* ── TILE SUD (verde) ── */}
                   <div style={{
-                    gridColumn: '1/4', gridRow: '3/4',
+                    gridColumn: '1/3', gridRow: '3/4',
                     background: 'rgba(34,197,94,0.08)',
                     border: '1px solid rgba(34,197,94,0.18)',
                     borderRadius: '16px',
