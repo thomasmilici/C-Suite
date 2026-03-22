@@ -231,13 +231,14 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
             <div className="w-full relative custom-scrollbar overflow-x-hidden md:overflow-x-auto overflow-y-auto">
                 <div style={{
                   minWidth: '1000px',
-                  minHeight: 'calc(100vh - 88px)',
+                  height: 'calc(100vh - 88px)',
                   padding: '12px',
                   boxSizing: 'border-box',
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(300px, 1fr) 180px minmax(300px, 1fr)',
-                  gridTemplateRows: '1fr 1fr 240px',
+                  gridTemplateColumns: '1fr 140px 280px',
+                  gridTemplateRows: '220px 220px 180px',
                   gap: '12px',
+                  overflow: 'hidden',
                   background: `
                     radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.07) 0%, transparent 50%),
                     radial-gradient(ellipse at 85% 40%, rgba(249,115,22,0.06) 0%, transparent 50%),

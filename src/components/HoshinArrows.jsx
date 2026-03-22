@@ -8,8 +8,8 @@ export function HoshinArrows({
 }) {
   const getStyle = (active, urgent, color, glowColor, pos) => ({
     position: 'absolute',
-    width: '36px',
-    height: '36px',
+    width: '32px',
+    height: '32px',
     cursor: 'default',
     opacity: active ? 1.0 : 0.15,
     filter: active 
@@ -27,51 +27,34 @@ export function HoshinArrows({
 
   return (
     <>
-      {/* Cerchio centrale */}
       <div style={{
-        width: '28px', height: '28px',
-        borderRadius: '50%',
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.12)',
         position: 'absolute',
         top: '50%', left: '50%',
         transform: 'translate(-50%,-50%)',
+        width: '20px', height: '20px',
+        borderRadius: '50%',
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.15)'
       }} />
 
       {/* Nord */}
-      <svg 
-        viewBox="0 0 36 36" 
-        className={getClassName(nordActive, nordUrgent)} 
-        style={getStyle(nordActive, nordUrgent, '#818cf8', 'rgba(129,140,248,0.8)', { top: '16px', left: '50%', transform: 'translateX(-50%)' })}
-      >
-        <polygon points="18,4 32,28 4,28" fill="#818cf8" strokeWidth="0" />
+      <svg viewBox="0 0 32 32" className={getClassName(nordActive, nordUrgent)} style={getStyle(nordActive, nordUrgent, '#818cf8', 'rgba(129,140,248,0.8)', { top: '20px', left: '50%', transform: 'translateX(-50%)' })}>
+        <polygon points="16,2 30,28 2,28" fill="#818cf8" strokeWidth="0" />
       </svg>
 
       {/* Est */}
-      <svg 
-        viewBox="0 0 36 36" 
-        className={getClassName(estActive, estUrgent)} 
-        style={getStyle(estActive, estUrgent, '#fb923c', 'rgba(251,146,60,0.8)', { top: '50%', right: '16px', transform: 'translateY(-50%)' })}
-      >
-        <polygon points="32,18 8,4 8,32" fill="#fb923c" strokeWidth="0" />
+      <svg viewBox="0 0 32 32" className={getClassName(estActive, estUrgent)} style={getStyle(estActive, estUrgent, '#fb923c', 'rgba(251,146,60,0.8)', { top: '50%', right: '20px', transform: 'translateY(-50%)' })}>
+        <polygon points="30,16 4,2 4,30" fill="#fb923c" strokeWidth="0" />
       </svg>
 
       {/* Sud */}
-      <svg 
-        viewBox="0 0 36 36" 
-        className={getClassName(sudActive, sudUrgent)} 
-        style={getStyle(sudActive, sudUrgent, '#4ade80', 'rgba(74,222,128,0.8)', { bottom: '16px', left: '50%', transform: 'translateX(-50%)' })}
-      >
-        <polygon points="18,32 32,8 4,8" fill="#4ade80" strokeWidth="0" />
+      <svg viewBox="0 0 32 32" className={getClassName(sudActive, sudUrgent)} style={getStyle(sudActive, sudUrgent, '#4ade80', 'rgba(74,222,128,0.8)', { bottom: '20px', left: '50%', transform: 'translateX(-50%)' })}>
+        <polygon points="16,30 30,4 2,4" fill="#4ade80" strokeWidth="0" />
       </svg>
 
       {/* Ovest */}
-      <svg 
-        viewBox="0 0 36 36" 
-        className={getClassName(ovestActive, ovestUrgent)} 
-        style={getStyle(ovestActive, ovestUrgent, '#fbbf24', 'rgba(251,191,36,0.8)', { top: '50%', left: '16px', transform: 'translateY(-50%)' })}
-      >
-        <polygon points="4,18 28,4 28,32" fill="#fbbf24" strokeWidth="0" />
+      <svg viewBox="0 0 32 32" className={getClassName(ovestActive, ovestUrgent)} style={getStyle(ovestActive, ovestUrgent, '#fbbf24', 'rgba(251,191,36,0.8)', { top: '50%', left: '20px', transform: 'translateY(-50%)' })}>
+        <polygon points="2,16 28,2 28,30" fill="#fbbf24" strokeWidth="0" />
       </svg>
     </>
   );
