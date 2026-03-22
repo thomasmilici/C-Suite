@@ -227,7 +227,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
             </div>
 
             {/* ── BENTO GRID ASIMMETRICA ── */}
-            <div className="w-full relative flex-1 flex flex-col custom-scrollbar overflow-x-hidden md:overflow-x-auto overflow-y-auto">
+            <div style={{ flex:1, minHeight:0, overflow:'hidden', display:'flex', flexDirection:'column' }}>
                 <div style={{
                   minWidth: '1000px',
                   flex: 1,
