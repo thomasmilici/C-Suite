@@ -51,7 +51,9 @@ const ProgressRing = ({ progress = 0, status = 'on-track', size = 36 }) => {
     );
 };
 
-export const TileCompass = ({ isAdmin, onOpenModal, eventId, extras }) => {
+import { checkCorrelation } from '../../utils/correlations';
+
+export const TileCompass = ({ isAdmin, onOpenModal, eventId, extras, activeStrategyNode, setActiveStrategyNode }) => {
     const { activeMissionId } = React.useContext(MissionContext);
     const [okrs, setOkrs] = useState([]);
 
@@ -111,7 +113,12 @@ export const TileCompass = ({ isAdmin, onOpenModal, eventId, extras }) => {
 
             <div className="space-y-3 flex-grow overflow-y-auto overflow-x-hidden pr-1 scrollbar-thin scrollbar-thumb-white/5">
                 <AnimatePresence>
-                    {okrs.length > 0 ? okrs.map((okr, index) => (
+                    {okrs.length > 0 ? okrs.map((okr, index) => {
+                        const isFocused = activeStrategyNode?.id === okr.id && activeStrategyNode?.type === 'okr';
+                        const isRelated = checkCorrelation(okr.id, 'okr', activeStrategyNode);
+                        const isUnrelated = activeStrategyNode && !isFocused && !isRelated;
+
+                        return (
                         <motion.div
                             layout
                             initial={{ opacity: 0, x: -10 }}
@@ -120,34 +127,55 @@ export const TileCompass = ({ isAdmin, onOpenModal, eventId, extras }) => {
                             whileHover={{ scale: 1.01 }}
                             transition={{ type: 'spring', stiffness: 300, damping: 25, delay: index * 0.05 }}
                             key={okr.id}
-                            className={`group flex items-center gap-4 p-3 rounded-xl border transition-colors
-                                bg-white/[0.02] border-white/[0.05]
+                            onMouseEnter={() => setActiveStrategyNode?.({ id: okr.id, type: 'okr', title: okr.title })}
+                            onMouseLeave={() => setActiveStrategyNode?.(null)}
+                            className={`group p-3 rounded-xl border transition-all duration-300
+                                ${isUnrelated ? 'opacity-30 grayscale' : 'opacity-100'}
+                                ${isFocused ? 'bg-indigo-900/20 border-indigo-500/50 ring-1 ring-indigo-500/30' : 'bg-white/[0.02] border-white/[0.05]'}
+                                ${isRelated ? 'bg-indigo-500/5 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)] border-indigo-400/30' : ''}
                                 ${isAdmin ? 'cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12]' : ''}`}
                             onClick={() => handleEdit(okr)}
                         >
-                            {/* Circular gauge */}
-                            <ProgressRing progress={okr.progress} status={okr.status} size={40} />
+                            <div className="flex items-center gap-4">
+                                {/* Circular gauge */}
+                                <ProgressRing progress={okr.progress} status={okr.status} size={40} />
 
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm text-zinc-200 font-mono truncate group-hover:text-white transition-colors leading-snug">
-                                    {okr.title}
-                                </p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                    {okr.keyResults?.length > 0 && (
-                                        <span className="text-[10px] font-mono text-zinc-600">
-                                            {okr.keyResults.filter(kr => kr.completed).length}/{okr.keyResults.length} KR
-                                        </span>
-                                    )}
-                                    {okr.status === 'risk' && (
-                                        <span className="text-[9px] font-bold font-mono text-red-400 uppercase tracking-wider">
-                                            ⚠ A rischio
-                                        </span>
-                                    )}
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-mono truncate transition-colors leading-snug ${isRelated ? 'text-indigo-300' : 'text-zinc-200 group-hover:text-white'}`}>
+                                        {okr.title}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        {okr.keyResults?.length > 0 && (
+                                            <span className="text-[10px] font-mono text-zinc-600">
+                                                {okr.keyResults.filter(kr => kr.completed).length}/{okr.keyResults.length} KR
+                                            </span>
+                                        )}
+                                        {okr.status === 'risk' && (
+                                            <span className="text-[9px] font-bold font-mono text-red-400 uppercase tracking-wider">
+                                                ⚠ A rischio
+                                            </span>
+                                        )}
+                                        {isRelated && (
+                                            <span className="text-[9px] font-bold font-mono text-indigo-400 ml-auto tracking-widest">
+                                                ● Correlato
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
+                            
+                            {/* Human in the loop context */}
+                            {isFocused && okr.progress < 50 && (
+                                <div className="mt-2 border-t border-white/[0.04] pt-2 flex items-center justify-between animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                                    <span className="text-[9px] text-indigo-300">💡 AI: Suggerito pivot strategico</span>
+                                    <div className="flex gap-1">
+                                        <button className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] rounded font-bold uppercase transition-colors">Esplora</button>
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
-                    )) : (
+                    )}) : (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}

@@ -5,8 +5,9 @@ import { doc, onSnapshot, setDoc, updateDoc, arrayUnion } from 'firebase/firesto
 import { db } from '../../firebase';
 import { format } from 'date-fns';
 import { MissionContext } from '../layout/AppShell';
+import { checkCorrelation } from '../../utils/correlations';
 
-export const TilePulse = ({ eventId }) => {
+export const TilePulse = ({ eventId, activeStrategyNode, setActiveStrategyNode }) => {
   const { activeMissionId } = React.useContext(MissionContext);
   const [items, setItems] = useState([]);
   const [input, setInput] = useState('');
@@ -79,7 +80,12 @@ export const TilePulse = ({ eventId }) => {
 
       <div className="space-y-2.5 flex-grow z-10">
         <AnimatePresence>
-          {items.map((item, i) => (
+          {items.map((item, i) => {
+            const isFocused = activeStrategyNode?.id === item.id && activeStrategyNode?.type === 'pulse';
+            const isRelated = checkCorrelation(item.id, 'pulse', activeStrategyNode);
+            const isUnrelated = activeStrategyNode && !isFocused && !isRelated;
+
+            return (
             <motion.div
               key={item.id}
               layout
@@ -89,7 +95,13 @@ export const TilePulse = ({ eventId }) => {
               whileHover={{ scale: 1.01 }}
               transition={{ type: 'spring', damping: 15 }}
               onClick={() => toggleItem(item)}
-              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all group ${item.completed
+              onMouseEnter={() => setActiveStrategyNode?.({ id: item.id, type: 'pulse' })}
+              onMouseLeave={() => setActiveStrategyNode?.(null)}
+              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-300 group
+                ${isUnrelated ? 'opacity-30 grayscale' : 'opacity-100'}
+                ${isFocused ? 'ring-1 ring-teal-500/40 bg-teal-900/10' : ''}
+                ${isRelated ? 'drop-shadow-[0_0_8px_rgba(45,212,191,0.3)] bg-teal-500/[0.05] border-teal-500/20' : ''}
+                ${item.completed
                   ? 'bg-white/[0.02] border-white/[0.04] opacity-60'
                   : 'bg-white/[0.03] border-white/[0.07] hover:border-teal-500/20 hover:bg-teal-500/[0.03]'
                 }`}
@@ -109,7 +121,7 @@ export const TilePulse = ({ eventId }) => {
                 <X className="w-3 h-3" />
               </button>
             </motion.div>
-          ))}
+          )})}
         </AnimatePresence>
       </div>
 

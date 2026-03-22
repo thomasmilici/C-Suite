@@ -10,84 +10,29 @@ export function mapStrategyToGrid(mission) {
 
   const priorities   = Array.isArray(mission.priorities) ? mission.priorities : [];
   const kpis         = Array.isArray(mission.kpis)       ? mission.kpis       : [];
-  
-  // Ovest: fallback on vision if annualObjectives is empty/missing
-  const annualObjs   = Array.isArray(mission.annualObjectives) && mission.annualObjectives.length > 0 
-                        ? mission.annualObjectives 
-                        : [mission.vision || 'Strategic North Star'];
-                        
-  const longTermObjs = Array.isArray(mission.longTermObjectives) ? mission.longTermObjectives : [];
+  const orgStyle     = (mission.orchestrationStyle || '').trim();
+  const isIperProat  = orgStyle === 'Iper-Proattivo';
 
-  const slots = [];
+  const p1 = priorities[0] || 'AI Orchestration';
+  const p2 = priorities[1] || 'Operatività Autonoma';
+  const vStar = mission.vision || 'Strategic North Star';
+  const k1 = kpis[0] || '-40% Time-to-Decision';
+  const k2 = kpis[1] || '95% Accuracy';
 
-  // FASE 4: UI Implementazione delle intersezioni
-  // TODO: Il frontend leggerà il campo 'correlations' per tracciare vettori/linee (SVG) 
-  // tra Priorità (Nord) e Obiettivi/KPI.
-  // TODO: Il campo 'accountability' guiderà il rendering dei mini-avatar/label dei responsabili.
+  return [
+    // ── CENTER COLUMN (Encastred around sphere) ──────────────────────────────
+    { component: 'TileSteeringFocus',  slot: 'N1', cssClass: 'compass-slot-N1', extras: { label: p1, type: 'priority_nw' } },
+    { component: 'TileDecisionLog',    slot: 'S1', cssClass: 'compass-slot-S1', extras: { label: 'Decision Log', type: 'system' } },
+    { component: 'TilePulse',          slot: 'S2', cssClass: 'compass-slot-S2', extras: { label: 'Accountability Log', type: 'system' } },
 
-  // ── NORD (Alto-Centro): TOP PRIORITIES (D) ──────────────────────────────
-  // Usa lo slot B1 (spans 2 columns: grid-column: 2 / 4)
-  if (priorities.length > 0) {
-      slots.push({
-          component: 'TileSteeringFocus',
-          slot: 'B1',
-          cssClass: 'xmatrix-slot-B1',
-          extras: { 
-              label: priorities[0], 
-              type: 'priority_north',
-              correlations: [{ priorityId: 'p1', kpiId: 'k1', level: 'high', type: 'direct' }],
-              accountability: [{ ownerName: 'TBD', supportNames: [] }]
-          }
-      });
-  }
+    // ── LEFT COLUMN (W) ──────────────────────────────────────────────────────
+    { component: 'BriefingRoom',       slot: 'W1', cssClass: 'compass-slot-W1', extras: { label: 'Intelligence Reports', type: 'system' } },
+    { component: 'TileIntelligence',   slot: 'W2', cssClass: 'compass-slot-W2', extras: { label: vStar, type: 'vision' } },
+    { component: 'TileCompass',        slot: 'W3', cssClass: 'compass-slot-W3', extras: { label: 'OKR / Critical Signals', type: 'system' } },
 
-  // ── SUD (Basso-Centro): LONG-TERM GOALS (A) ─────────────────────────────
-  // Usa lo slot B4 (spans 2 columns: grid-column: 2 / 4)
-  if (longTermObjs.length > 0 || true) {
-      slots.push({
-          component: 'TileCompass',
-          slot: 'B4',
-          cssClass: 'xmatrix-slot-B4',
-          extras: { 
-              label: longTermObjs[0] || 'Long-Term Goal', 
-              type: 'long_term_goal',
-              correlations: [{ priorityId: 'p1', kpiId: 'k1', level: 'medium', type: 'indirect' }],
-              accountability: [{ ownerName: 'TBD', supportNames: [] }]
-          }
-      });
-  }
-
-  // ── OVEST (Sinistra): ANNUAL OBJECTIVES (B) ─────────────────────────────
-  // Usa gli slot A1, A2s, A3s, A4 (singole celle incolonnate a sinistra)
-  const westSlots = ['xmatrix-slot-A1', 'xmatrix-slot-A2s', 'xmatrix-slot-A3s', 'xmatrix-slot-A4'];
-  annualObjs.slice(0, 4).forEach((obj, idx) => {
-      slots.push({
-          component: 'TileIntelligence', // Renderizza qui l'obiettivo
-          slot: `A${idx + 1}`,
-          cssClass: westSlots[idx],
-          extras: { 
-              label: obj, 
-              type: 'annual_objective',
-              accountability: [{ ownerName: 'TBD', supportNames: [] }]
-          }
-      });
-  });
-
-  // ── EST (Destra): KPIs (E) ────────────────────────────────────────────────
-  // Usa gli slot D1, D2s, D3s, D4 (singole celle incolonnate a destra)
-  const eastSlots = ['xmatrix-slot-D1', 'xmatrix-slot-D2s', 'xmatrix-slot-D3s', 'xmatrix-slot-D4'];
-  kpis.slice(0, 4).forEach((kpi, idx) => {
-      slots.push({
-          component: 'TileRadar',
-          slot: `D${idx + 1}`,
-          cssClass: eastSlots[idx],
-          extras: { 
-              label: kpi, 
-              type: 'kpi',
-              accountability: [{ ownerName: 'TBD', supportNames: [] }]
-          }
-      });
-  });
-
-  return slots;
+    // ── RIGHT COLUMN (E) ─────────────────────────────────────────────────────
+    { component: 'AiPendingActionTop', slot: 'E1', cssClass: 'compass-slot-E1', extras: { label: p2, type: 'priority_ne', isIperProattivo: isIperProat, priorities } },
+    { component: 'MissionSummaryTile', slot: 'E2', cssClass: 'compass-slot-E2', extras: { label: k1, type: 'kpi', isHighlighted: true } },
+    { component: 'TileRadar',          slot: 'E3', cssClass: 'compass-slot-E3', extras: { label: k2, type: 'kpi' } },
+  ];
 }

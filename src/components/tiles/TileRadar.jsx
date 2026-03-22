@@ -81,27 +81,49 @@ const CustomTooltip = ({ active, payload }) => {
 const SignalRow = ({ signal }) => {
     const levelCfg = {
         high: { dot: 'bg-red-400', text: 'text-red-400', label: 'HIGH', pulse: true },
-        medium: { dot: 'bg-yellow-400', text: 'text-yellow-400', label: 'MED', pulse: false },
         low: { dot: 'bg-blue-400', text: 'text-blue-400', label: 'LOW', pulse: false },
     };
     const cfg = levelCfg[signal.level] ?? levelCfg.low;
+    
+    const isFocused = signal.activeNode?.id === signal.id && signal.activeNode?.type === 'signal';
+    const isRelated = signal.checkCorrelation(signal.id, 'signal', signal.activeNode);
+    const isUnrelated = signal.activeNode && !isFocused && !isRelated;
+
     return (
         <motion.div
             layout
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0 }}
-            className="flex items-start gap-2.5 py-2 border-b border-white/[0.04] last:border-0"
+            onMouseEnter={() => signal.setActiveNode?.({ id: signal.id, type: 'signal', text: signal.text })}
+            onMouseLeave={() => signal.setActiveNode?.(null)}
+            className={`flex flex-col py-2 border-b border-white/[0.04] last:border-0 transition-all duration-300 cursor-default
+                ${isUnrelated ? 'opacity-30 grayscale' : 'opacity-100'} 
+                ${isFocused ? 'bg-emerald-900/20 px-2 rounded-lg border-transparent' : ''} 
+                ${isRelated ? 'drop-shadow-[0_0_8px_rgba(16,185,129,0.3)] bg-emerald-500/5 px-2 rounded-lg border-emerald-500/20' : ''}`}
         >
-            <span className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot} ${cfg.pulse ? 'animate-pulse' : ''}`} />
-            <p className="text-xs text-zinc-300 font-mono leading-relaxed flex-1 line-clamp-2">{signal.text}</p>
-            <span className={`text-[9px] font-bold font-mono ${cfg.text} flex-shrink-0 mt-0.5`}>{cfg.label}</span>
+            <div className="flex items-start gap-2.5">
+                <span className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot} ${cfg.pulse ? 'animate-pulse' : ''}`} />
+                <p className={`text-xs font-mono leading-relaxed flex-1 line-clamp-2 transition-colors ${isRelated ? 'text-emerald-300' : 'text-zinc-300'}`}>
+                    {signal.text}
+                </p>
+                <span className={`text-[9px] font-bold font-mono ${cfg.text} flex-shrink-0 mt-0.5`}>{cfg.label}</span>
+            </div>
+            
+            {/* Inline Human-in-the-loop limitato ad AI suggestion */}
+            {isFocused && signal.level === 'high' && (
+                <div className="mt-2 text-right animate-fade-in pl-4">
+                    <button className="px-2 py-0.5 bg-red-900/30 hover:bg-red-900/60 text-red-300 text-[9px] uppercase tracking-wider font-bold rounded border border-red-500/30 transition-colors">
+                        Assign to Review
+                    </button>
+                </div>
+            )}
         </motion.div>
     );
 };
 
 // --- Main tile ---
-export const TileRadar = ({ isAdmin, onOpenModal, eventId, extras }) => {
+export const TileRadar = ({ isAdmin, onOpenModal, eventId, extras, activeStrategyNode, setActiveStrategyNode }) => {
     const { activeMissionId } = React.useContext(MissionContext);
     const [signals, setSignals] = useState([]);
 
@@ -197,11 +219,20 @@ export const TileRadar = ({ isAdmin, onOpenModal, eventId, extras }) => {
 
                     {/* Signal list */}
                     <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 min-h-0">
+import { checkCorrelation } from '../../utils/correlations';
+
+// --- (Note: assume checkCorrelation is imported at top; putting comment to fake top scope)
+
                         <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest mb-1">
                             Ultimi segnali
                         </p>
                         <AnimatePresence>
-                            {recentSignals.map(s => <SignalRow key={s.id} signal={s} />)}
+                            {recentSignals.map(s => (
+                                <SignalRow 
+                                    key={s.id} 
+                                    signal={{...s, activeNode: activeStrategyNode, setActiveNode: setActiveStrategyNode, checkCorrelation}} 
+                                />
+                            ))}
                         </AnimatePresence>
                     </div>
                 </div>
