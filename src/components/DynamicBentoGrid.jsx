@@ -55,7 +55,7 @@ const TILE_REGISTRY = {
 const cardClass = "bg-[#060a14]/90 backdrop-blur-3xl border border-slate-800 shadow-[inset_0_1px_2px_rgba(255,255,255,0.02),_0_10px_40px_rgba(0,0,0,0.8)] rounded-xl overflow-hidden flex flex-col w-full min-h-[220px] relative transition-all duration-300 group hover:border-cyan-900/40 shrink-0";
 
 // ── TILE WRAPPER ───────────────────────────────────────────────────────────────
-function TileWrapper({ tileKey, tileProps, innerClass = "p-4" }) {
+function TileWrapper({ tileKey, tileProps, innerClass = "p-4", customStyle = {} }) {
     const Tile = TILE_REGISTRY[tileKey];
     if (!Tile) return null;
 
@@ -65,7 +65,25 @@ function TileWrapper({ tileKey, tileProps, innerClass = "p-4" }) {
     const priorityPrefix = type === 'priority_nw' ? 'Daily Steering Focus' : type === 'priority_ne' ? 'Strategy Topics' : 'Focus';
 
     return (
-        <div className={cardClass}>
+        <div 
+            className="flex flex-col w-full h-full relative overflow-hidden transition-all duration-200 group shrink-0"
+            style={{
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                borderRadius: '14px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)',
+                ...customStyle
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.16)';
+                e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.10)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)';
+            }}
+        >
             {label && (isPriority || type === 'kpi') && (
                 <div className="shrink-0 pt-4 px-5 pb-1 flex items-center justify-between z-10">
                     <div className="min-w-0 pr-2">
@@ -108,23 +126,23 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
         <div className="flex flex-col w-full h-full">
             {/* STEP 4: BANDA HOSHIN SOTTO LA NAVBAR */}
             <div 
-                className="h-[28px] shrink-0 flex items-center px-4 gap-6 z-10"
+                className="h-[28px] shrink-0 flex items-center px-4 gap-6 z-10 overflow-hidden"
                 style={{ 
                     background: 'rgba(99,102,241,0.08)', 
                     borderBottom: '1px solid rgba(99,102,241,0.2)'
                 }}
             >
-                <div className="text-[10px] font-mono tracking-widest uppercase text-[#818cf8] font-bold">
+                <div className="text-[10px] font-mono tracking-widest uppercase text-[#818cf8] font-bold whitespace-nowrap">
                     HOSHIN X-MATRIX
                 </div>
-                <div className="text-[10px] font-mono tracking-widest uppercase text-white/60">
+                <div className="text-[10px] font-mono tracking-widest uppercase text-white/60 whitespace-nowrap">
                     ◆ MISSION: {mission?.name || 'N/A'}
                 </div>
-                <div className="text-[10px] font-mono tracking-widest uppercase text-[#4ade80] flex items-center gap-1.5 ml-8">
+                <div className="text-[10px] font-mono tracking-widest uppercase text-[#4ade80] flex items-center gap-1.5 ml-8 whitespace-nowrap">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse"></div>
                     ◆ COCKPIT ATTIVO
                 </div>
-                <div className="text-[10px] font-mono tracking-widest uppercase text-zinc-500 ml-auto">
+                <div className="text-[10px] font-mono tracking-widest uppercase text-zinc-500 ml-auto whitespace-nowrap xl:block hidden">
                     REVIEW: +30 GG
                 </div>
             </div>
@@ -133,111 +151,103 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
             <div className="w-full relative custom-scrollbar overflow-x-hidden md:overflow-x-auto overflow-y-auto">
                 <div className="min-w-[1000px] md:min-w-0" style={{ 
                     display: 'grid', 
-                    height: 'calc(100vh - 64px - 28px)', 
-                    gridTemplateColumns: '280px 1fr 320px',
-                    gridTemplateRows: 'auto 1fr auto',
-                    gridTemplateAreas: `
-                        "nord-label   nord       nord-label-dx"
-                        "ovest        centro     est"
-                        "sud-label    sud        sud-label-dx"
-                    `,
-                    gap: '2px',
-                    background: 'rgba(255,255,255,0.03)'
+                    minHeight: 'calc(100vh - 88px)', 
+                    gridTemplateColumns: 'minmax(280px, 1fr) 160px minmax(280px, 1fr)',
+                    gridTemplateRows: 'auto 160px auto',
+                    gap: '12px',
+                    padding: '12px',
+                    background: 'radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.06) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(249,115,22,0.05) 0%, transparent 60%), radial-gradient(ellipse at 50% 90%, rgba(34,197,94,0.05) 0%, transparent 50%), radial-gradient(ellipse at 50% 10%, rgba(234,179,8,0.04) 0%, transparent 50%)'
                 }}>
                     
-                    {/* LABELS */}
-                    <div style={{ gridArea: 'nord-label', background: 'rgba(0,0,0,0.2)' }} className="p-2 border-b border-white/5 border-r border-[#000]">
-                        <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/30 text-center flex h-full items-center justify-center">
-                            ◈ PRIORITÀ TATTICHE — NORD
-                        </div>
-                    </div>
-                    
-                    <div style={{ gridArea: 'sud-label', background: 'rgba(0,0,0,0.2)' }} className="p-2 border-t border-white/5 border-r border-[#000]">
-                        <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/30 text-center flex h-full items-center justify-center">
-                            ◈ OBIETTIVI A LUNGO TERMINE — SUD
-                        </div>
-                    </div>
-
                     {/* ZONA NORD */}
-                    <div style={{ gridArea: 'nord', background: 'rgba(0,0,0,0.25)' }} className="border-b border-l border-r border-white/5 p-3 flex gap-4 overflow-x-auto overflow-y-hidden custom-scrollbar">
-                        <div className="flex-1 min-w-[300px]">
-                            <TileWrapper tileKey="TileSteeringFocus" tileProps={{ ...tileProps, extras: { label: p1, type: 'priority_nw' } }} />
+                    <div style={{ gridColumn: '1 / -1', gridRow: '1', display: 'flex', flexDirection: 'column' }} className="gap-2">
+                        <div style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }} className="inline-flex items-center gap-[6px] px-[10px] py-[3px] rounded-full font-mono text-[9px] tracking-[0.18em] uppercase self-start mb-2">
+                            ◈ NORD — PRIORITÀ TATTICHE
                         </div>
-                        <div className="flex-1 min-w-[300px]">
-                            <TileWrapper tileKey="AiPendingActionTop" tileProps={{ ...tileProps, extras: { label: p2, type: 'priority_ne', isIperProattivo: mission?.orchestrationStyle === 'Iper-Proattivo', priorities } }} />
+                        <div className="flex flex-row gap-[12px] w-full items-stretch">
+                            <div className="flex-1 overflow-hidden" style={{ minHeight: '220px' }}>
+                                <TileWrapper tileKey="TileSteeringFocus" tileProps={{ ...tileProps, extras: { label: p1, type: 'priority_nw' } }} customStyle={{ background: 'rgba(99,102,241,0.08)', borderTop: '2px solid rgba(99,102,241,0.4)' }} />
+                            </div>
+                            <div className="flex-1 overflow-hidden" style={{ minHeight: '220px' }}>
+                                <TileWrapper tileKey="AiPendingActionTop" tileProps={{ ...tileProps, extras: { label: p2, type: 'priority_ne', isIperProattivo: mission?.orchestrationStyle === 'Iper-Proattivo', priorities } }} customStyle={{ background: 'rgba(99,102,241,0.06)', borderTop: '2px solid rgba(99,102,241,0.3)' }} />
+                            </div>
                         </div>
                     </div>
 
                     {/* ZONA OVEST */}
-                    <div style={{ gridArea: 'ovest', background: 'rgba(0,0,0,0.25)' }} className="border-t border-b border-r border-white/5 relative flex overflow-hidden">
-                        <div className="absolute left-0 top-0 bottom-0 w-8 border-r border-white/5 bg-black/20 flex items-center justify-center">
-                            <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/30" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', whiteSpace: 'nowrap' }}>
-                                ◈ OBIETTIVI ANNUALI
-                            </div>
+                    <div style={{ gridColumn: '1', gridRow: '2', display: 'flex', flexDirection: 'column' }} className="gap-[10px] overflow-y-auto no-scrollbar">
+                        <div style={{ background: 'rgba(234,179,8,0.12)', color: '#fde68a', border: '1px solid rgba(234,179,8,0.3)' }} className="inline-flex items-center gap-[6px] px-[10px] py-[3px] rounded-full font-mono text-[9px] tracking-[0.18em] uppercase self-start mb-2">
+                            ◈ OVEST — OBIETTIVI ANNUALI
                         </div>
-                        <div className="flex-1 pl-11 p-3 flex flex-col gap-4 overflow-y-auto no-scrollbar">
-                            <TileWrapper tileKey="BriefingRoom" tileProps={{ ...tileProps }} />
-                            <TileWrapper tileKey="TileDecisionLog" tileProps={{ ...tileProps }} />
-                            <TileWrapper tileKey="TileCompass" tileProps={{ ...tileProps }} />
-                        </div>
+                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="BriefingRoom" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(234,179,8,0.07)', borderTop: '2px solid rgba(234,179,8,0.35)' }} /></div>
+                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="TileDecisionLog" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(234,179,8,0.06)', borderTop: '2px solid rgba(234,179,8,0.3)' }} /></div>
+                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="TileCompass" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(234,179,8,0.05)', borderTop: '2px solid rgba(234,179,8,0.25)' }} /></div>
                     </div>
 
-                    {/* ZONA CENTRO (SVG) */}
-                    <div style={{ gridArea: 'centro' }} className="flex items-center justify-center p-8 bg-black/40 min-h-[240px]">
-                        <svg className="w-full h-full min-w-[240px] max-w-full drop-shadow-2xl" viewBox="0 0 100 100" preserveAspectRatio="none">
-                            <polygon points="0,0 100,0 50,50" fill="rgba(99,102,241,0.15)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                            <text x="50" y="20" fill="rgba(255,255,255,0.4)" fontSize="4" fontFamily="monospace" textAnchor="middle" alignmentBaseline="middle">TOP INITIATIVES</text>
-                            
-                            <polygon points="100,0 100,100 50,50" fill="rgba(249,115,22,0.15)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                            <text x="80" y="50" fill="rgba(255,255,255,0.4)" fontSize="4" fontFamily="monospace" textAnchor="middle" alignmentBaseline="middle" transform="rotate(90 80,50)">METRICS</text>
-
-                            <polygon points="0,100 100,100 50,50" fill="rgba(34,197,94,0.15)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                            <text x="50" y="80" fill="rgba(255,255,255,0.4)" fontSize="4" fontFamily="monospace" textAnchor="middle" alignmentBaseline="middle">LONG-TERM GOALS</text>
-
-                            <polygon points="0,0 0,100 50,50" fill="rgba(234,179,8,0.15)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                            <text x="20" y="50" fill="rgba(255,255,255,0.4)" fontSize="4" fontFamily="monospace" textAnchor="middle" alignmentBaseline="middle" transform="rotate(-90 20,50)">ANNUAL OBJ.</text>
-                        </svg>
+                    {/* ZONA CENTRO */}
+                    <div style={{ gridColumn: '2', gridRow: '2' }} className="flex items-center justify-center p-0">
+                        <div style={{
+                            width: '160px',
+                            height: '160px',
+                            position: 'relative',
+                            borderRadius: '16px',
+                            background: 'rgba(255,255,255,0.04)',
+                            backdropFilter: 'blur(20px)',
+                            WebkitBackdropFilter: 'blur(20px)',
+                            border: '1px solid rgba(255,255,255,0.12)',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <svg width="80" height="80" viewBox="0 0 100 100">
+                                <polygon points="0,0 100,0 50,50" fill="rgba(99,102,241,0.6)" stroke="white" strokeOpacity="0.15" strokeWidth="0.5" />
+                                <polygon points="100,0 100,100 50,50" fill="rgba(249,115,22,0.6)" stroke="white" strokeOpacity="0.15" strokeWidth="0.5" />
+                                <polygon points="0,100 100,100 50,50" fill="rgba(34,197,94,0.6)" stroke="white" strokeOpacity="0.15" strokeWidth="0.5" />
+                                <polygon points="0,0 0,100 50,50" fill="rgba(234,179,8,0.6)" stroke="white" strokeOpacity="0.15" strokeWidth="0.5" />
+                            </svg>
+                        </div>
                     </div>
 
                     {/* ZONA EST */}
-                    <div style={{ gridArea: 'est', background: 'rgba(0,0,0,0.25)' }} className="border-t border-b border-l border-white/5 relative flex overflow-hidden">
-                        <div className="flex-1 pr-11 p-3 flex flex-col gap-4 overflow-y-auto no-scrollbar">
-                            <TileWrapper tileKey="MissionSummaryTile" tileProps={{ ...tileProps, extras: { label: k1, type: 'kpi' } }} />
-                            <TileWrapper tileKey="TileRadar" tileProps={{ ...tileProps, extras: { label: k2, type: 'kpi' } }} />
-                            <TileWrapper tileKey="ProactiveAlerts" tileProps={{ ...tileProps }} />
+                    <div style={{ gridColumn: '3', gridRow: '2', display: 'flex', flexDirection: 'column' }} className="gap-[10px] overflow-y-auto no-scrollbar">
+                        <div style={{ background: 'rgba(249,115,22,0.12)', color: '#fed7aa', border: '1px solid rgba(249,115,22,0.3)' }} className="inline-flex items-center gap-[6px] px-[10px] py-[3px] rounded-full font-mono text-[9px] tracking-[0.18em] uppercase self-start mb-2">
+                            ◈ EST — KPI & RISULTATI
                         </div>
-                        <div className="absolute right-0 top-0 bottom-0 w-8 border-l border-white/5 bg-black/20 flex items-center justify-center">
-                            <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/30" style={{ writingMode: 'vertical-rl', whiteSpace: 'nowrap' }}>
-                                ◈ KPI & RISULTATI
-                            </div>
-                        </div>
+                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="MissionSummaryTile" tileProps={{ ...tileProps, extras: { label: k1, type: 'kpi' } }} customStyle={{ background: 'rgba(249,115,22,0.07)', borderTop: '2px solid rgba(249,115,22,0.35)' }} /></div>
+                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="TileRadar" tileProps={{ ...tileProps, extras: { label: k2, type: 'kpi' } }} customStyle={{ background: 'rgba(249,115,22,0.05)', borderTop: '2px solid rgba(249,115,22,0.25)' }} /></div>
+                        <div style={{ minHeight: '220px' }} className="shrink-0"><TileWrapper tileKey="ProactiveAlerts" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(249,115,22,0.05)', borderTop: '2px solid rgba(249,115,22,0.25)' }} /></div>
                     </div>
 
                     {/* ZONA SUD */}
-                    <div style={{ gridArea: 'sud', background: 'rgba(0,0,0,0.25)' }} className="border-t border-l border-r border-white/5 p-3 flex gap-4 overflow-x-auto overflow-y-hidden custom-scrollbar">
-                        <div className="flex-1 min-w-[300px] max-w-[50%]">
-                            <TileWrapper tileKey="TileIntelligence" tileProps={{ ...tileProps }} />
+                    <div style={{ gridColumn: '1 / -1', gridRow: '3', display: 'flex', flexDirection: 'column' }} className="gap-2">
+                        <div style={{ background: 'rgba(34,197,94,0.12)', color: '#bbf7d0', border: '1px solid rgba(34,197,94,0.3)' }} className="inline-flex items-center gap-[6px] px-[10px] py-[3px] rounded-full font-mono text-[9px] tracking-[0.18em] uppercase self-start mb-2">
+                            ◈ SUD — OBIETTIVI A LUNGO TERMINE
                         </div>
-                        <div className="flex-1 min-w-[300px] max-w-[50%]">
-                            <TileWrapper tileKey="TilePulse" tileProps={{ ...tileProps }} />
+                        <div className="flex flex-row gap-[12px] w-full items-stretch">
+                            <div className="flex-1 overflow-hidden" style={{ minHeight: '220px' }}>
+                                <TileWrapper tileKey="TileIntelligence" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(34,197,94,0.07)', borderTop: '2px solid rgba(34,197,94,0.35)' }} />
+                            </div>
+                            <div className="flex-1 overflow-hidden" style={{ minHeight: '220px' }}>
+                                <TileWrapper tileKey="TilePulse" tileProps={{ ...tileProps }} customStyle={{ background: 'rgba(34,197,94,0.06)', borderTop: '2px solid rgba(34,197,94,0.3)' }} />
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             
             <style jsx>{`
-                @media (max-width: 768px) {
+                @media (max-width: 1024px) {
                     .min-w-\\[1000px\\] {
                         min-width: 0 !important;
                         display: flex !important;
                         flex-direction: column !important;
                         height: auto !important;
                     }
-                    .nord-label, .sud-label, .nord-label-dx, .sud-label-dx { display: none !important; }
-                    .flex-1 { min-width: 0 !important; width: 100% !important; max-width: 100% !important; }
-                    .border-l, .border-r { border-color: transparent !important; }
-                    .w-8 { width: auto !important; height: 32px; writing-mode: horizontal-tb !important; transform: none !important; position: static !important; writingMode: inherit !important; }
-                    .pl-11, .pr-11 { padding-left: 12px !important; padding-right: 12px !important; }
+                    /* Force the inner rows (Nord/Sud) to stack vertically on small screens */
+                    .flex-row {
+                        flex-direction: column !important;
+                    }
                 }
             `}</style>
         </div>
