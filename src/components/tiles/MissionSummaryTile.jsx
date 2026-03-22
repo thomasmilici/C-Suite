@@ -1,7 +1,7 @@
 import toast from 'react-hot-toast';
 import { Target, Zap, BarChart3, Layers, RefreshCcw, CalendarClock } from 'lucide-react';
 import { useMission } from '../../context/MissionContext';
-import { useHoshinMatrix } from '../../hooks/useHoshinMatrix';
+
 
 /**
  * MissionSummaryTile
@@ -24,13 +24,12 @@ export function MissionSummaryTile({ section = 'auto' }) {
     const kpis              = Array.isArray(mission?.kpis)       ? mission.kpis       : [];
     const orchestrationStyle = mission?.orchestrationStyle       || null;
 
-    const { matrixData } = useHoshinMatrix(mission?.id);
     let daysToReview = null;
     
     // Fallback to createdAt or exactly now if both are pending writes
-    const rawDate = matrixData?.updatedAt || matrixData?.createdAt;
+    const rawDate = mission?.updatedAt || mission?.createdAt;
     
-    if (matrixData && rawDate !== undefined) {
+    if (mission && rawDate !== undefined) {
         const updatedDate = rawDate && rawDate.toDate 
             ? rawDate.toDate() 
             : rawDate ? new Date(rawDate) : new Date();
