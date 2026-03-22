@@ -11,6 +11,7 @@ import { ProjectDashboard } from './pages/ProjectDashboard';
 import { DailyPage } from './pages/DailyPage';
 import { WeeklyPage } from './pages/WeeklyPage';
 import { StrategicThemesPage } from './pages/StrategicThemesPage';
+import { StakeholderPage } from './pages/StakeholderPage';
 import { ToolboxPage } from './pages/ToolboxPage';
 import { AppShell } from './components/layout/AppShell';
 import { MissionProvider } from './context/MissionContext';
