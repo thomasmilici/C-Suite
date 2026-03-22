@@ -1,7 +1,7 @@
-import React from 'react';
 import toast from 'react-hot-toast';
-import { Target, Zap, BarChart3, Layers, RefreshCcw } from 'lucide-react';
+import { Target, Zap, BarChart3, Layers, RefreshCcw, CalendarClock } from 'lucide-react';
 import { useMission } from '../../context/MissionContext';
+import { useHoshinMatrix } from '../../hooks/useHoshinMatrix';
 
 /**
  * MissionSummaryTile
@@ -23,6 +23,17 @@ export function MissionSummaryTile({ section = 'auto' }) {
     const priorities        = Array.isArray(mission?.priorities) ? mission.priorities : [];
     const kpis              = Array.isArray(mission?.kpis)       ? mission.kpis       : [];
     const orchestrationStyle = mission?.orchestrationStyle       || null;
+
+    const { matrixData } = useHoshinMatrix(mission?.id);
+    let daysToReview = null;
+    if (matrixData?.updatedAt) {
+        const updatedDate = matrixData.updatedAt.toDate ? matrixData.updatedAt.toDate() : new Date(matrixData.updatedAt);
+        const nextReviewDate = new Date(updatedDate);
+        nextReviewDate.setDate(nextReviewDate.getDate() + 30);
+        const today = new Date();
+        const diffTime = nextReviewDate - today;
+        daysToReview = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
 
     // Auto-pick: show the most informative section
     let displaySection = section;
@@ -161,6 +172,14 @@ export function MissionSummaryTile({ section = 'auto' }) {
             >
                 <RefreshCcw className="w-4 h-4" />
             </button>
+            <div className="absolute bottom-1 right-1 flex items-center gap-2">
+                {daysToReview !== null && (
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-mono text-indigo-400 font-bold tracking-widest" title="Giorni alla prossima review della Hoshin Matrix">
+                        <CalendarClock className="w-3 h-3" />
+                        <span>REVIEW: {daysToReview > 0 ? `${daysToReview}G` : 'SCADUTA'}</span>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

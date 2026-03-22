@@ -13,6 +13,7 @@ import { WeeklyPage } from './pages/WeeklyPage';
 import { StrategicThemesPage } from './pages/StrategicThemesPage';
 import { StakeholderPage } from './pages/StakeholderPage';
 import { ToolboxPage } from './pages/ToolboxPage';
+import { HoshinMatrixPage } from './pages/HoshinMatrixPage';
 import { AppShell } from './components/layout/AppShell';
 import { MissionProvider } from './context/MissionContext';
 
@@ -132,6 +133,17 @@ function App() {
               <ProtectedRoute>
                 <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
                   <StrategicThemesPage user={user} />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/hoshin"
+            element={
+              <ProtectedRoute>
+                <AppShell user={user} isAdmin={user?.role === 'ADMIN'}>
+                  <HoshinMatrixPage user={user} />
                 </AppShell>
               </ProtectedRoute>
             }
