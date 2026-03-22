@@ -230,6 +230,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
             <div style={{ flex:1, minHeight:0, overflow:'hidden', display:'flex', flexDirection:'column' }}>
                 <div style={{
                   flex: 1,
+                  height: '100%',
                   minHeight: 0,
                   padding: '12px',
                   boxSizing: 'border-box',
@@ -237,12 +238,7 @@ export function DynamicBentoGrid({ user, isAdmin, isSpeaking = false, onOpenSign
                   gridTemplateColumns: '2fr 160px 1fr',
                   gridTemplateRows: '35% 35% 30%',
                   gap: '12px',
-                  background: `
-                    radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.07) 0%, transparent 50%),
-                    radial-gradient(ellipse at 85% 40%, rgba(249,115,22,0.06) 0%, transparent 50%),
-                    radial-gradient(ellipse at 15% 70%, rgba(234,179,8,0.05) 0%, transparent 45%),
-                    radial-gradient(ellipse at 55% 95%, rgba(34,197,94,0.06) 0%, transparent 45%)
-                  `,
+                  background: `radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.07) 0%, transparent 50%), radial-gradient(ellipse at 85% 40%, rgba(249,115,22,0.06) 0%, transparent 50%), radial-gradient(ellipse at 15% 70%, rgba(234,179,8,0.05) 0%, transparent 45%), radial-gradient(ellipse at 55% 95%, rgba(34,197,94,0.06) 0%, transparent 45%)`,
                 }}>
 
                   {/* ── TILE NORD (indaco) ── */}
